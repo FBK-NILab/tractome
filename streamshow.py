@@ -24,7 +24,6 @@ from pyglet.lib import load_library
 from dipy.io.dpy import Dpy
 from dipy.io.pickles import load_pickle
 from dipy.viz.colormap import orient2rgb
-from dipy.tracking.metrics import downsample
 from dipy.tracking.vox2track import track_counts
 
 # other

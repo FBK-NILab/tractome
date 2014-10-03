@@ -23,7 +23,6 @@ pyglet.options['debug_x11'] = debug
 pyglet.options['debug_trace'] = debug
 
 import numpy as np
-import vtk
 import nibabel as nib
 from streamshow import StreamlineLabeler
 from guillotine import Guillotine
