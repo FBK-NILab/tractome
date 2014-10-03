@@ -49,4 +49,4 @@ Two example datasets are available, with structural, tractography and pre-comput
 1. [HCP_subject124422_100Kseeds.tgz](http://nilab.cimec.unitn.it/nilab/hcp/HCP_subject124422_100Kseeds.tgz) : 15k streamlines.
 2. [HCP_subject124422_3Mseeds.tgz](http://nilab.cimec.unitn.it/nilab/hcp/HCP_subject124422_3Mseeds.tgz) : 460k streamlines (be careful, at least 4Gb needed).
 
-Those data refer to subject 124422 of the [Human Connectome Project](http://www.humanconnectome.org/). The tractography is reconstructed following [these steps](https://github.com/FBK-NILab) with 100k seeds and 3 millions seeds respectively.
+Those data refer to subject 124422 of the [Human Connectome Project](http://www.humanconnectome.org/). The tractography is reconstructed following [these steps](https://github.com/FBK-NILab/HCP-Tractography) with 100k seeds and 3 millions seeds respectively.
