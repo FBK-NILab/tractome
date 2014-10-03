@@ -39,3 +39,14 @@ Tractome shows clusters of the whole tractography in the 3D scene by displaying 
 4. You can re-cluster the streamlines by clicking the button **Apply** in the bottom-left corner after choosing the desired number of cluster with the slider nearby.
 5. Repeat the previous steps as many time as you want. If you want to step-back one step (undo) press **B**. To move one step forward (redo) press **F**.
 6. You can save the steps done so far with ```File -> Save Segmentation```.
+
+
+Example Datasets
+----------------
+
+Two example datasets are available, with structural, tractography and pre-computed files:
+
+1. [HCP_subject124422_100Kseeds.tgz](http://nilab.cimec.unitn.it/nilab/hcp/HCP_subject124422_100Kseeds.tgz) : 15k streamlines.
+2. [HCP_subject124422_3Mseeds.tgz](http://nilab.cimec.unitn.it/nilab/hcp/HCP_subject124422_3Mseeds.tgz) : 460k streamlines (be careful, at least 4Gb needed).
+
+Those data refer to subject 124422 of the [Human Connectome Project](http://www.humanconnectome.org/). The tractography is reconstructed following [these steps](https://github.com/FBK-NILab) with 100k seeds and 3 millions seeds respectively.
