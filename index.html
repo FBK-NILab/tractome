@@ -60,18 +60,28 @@
 run mainwindow.py
 </code></pre>
 
-<p>First of all load a structural image (<code>File -&gt; Load Structural</code>). Then load a related tractography (<code>File -&gt; Load Tractography</code>), either in TrackVis format or Dipy format. Tractome loads the file and then executes some pre-computations that may require some time - from seconds to a couple of minutes, depending on the size of the tractography. These pre-computations are saved in the same directory of the tractography, so the second time you load that tractography this step will be faster.</p>
+<p>First of all load a structural image (<code>File -&gt; Load Structural</code>). Then load a related tractography (<code>File -&gt; Load Tractography</code>), either in TrackVis format or Dipy format. Tractome loads the file and then executes some pre-computations that may require some time - from seconds to a couple of minutes, depending on the size of the tractography. These pre-computations are saved in the same directory of the tractography, so the second time you load that tractography this step will be faster. After loading, Tractome shows the structural and tractography data in a 3D scene where standard operations like rotating, dragging and zooming are available.</p>
 
 <p>Tractome shows clusters of the whole tractography in the 3D scene by displaying the medoid streamline, called <em>representative</em>, of each cluster. You can interact with the clusters in several ways through their representatives:</p>
 
 <ol>
-<li>Point one representative streamline with the mouse pointer and then press <strong>P</strong> to select/pick it. When selected it becomes white. You can select as many representatives/clusters as you like.</li>
+<li>Point one representative streamline with the mouse pointer and then press <strong>P</strong> to select/pick the corresponding cluster. When selected, the representative becomes white. You can select as many representatives/clusters as you like.</li>
 <li>Expand the selected clusters in order to show their streamlines by pressing <strong>E</strong>. Press <strong>E</strong> again to toggle expansion.</li>
 <li>When you are happy with your selection then press <strong>Backspace</strong> to remove all the clusters and streamlines not selected.</li>
 <li>You can re-cluster the streamlines by clicking the button <strong>Apply</strong> in the bottom-left corner after choosing the desired number of cluster with the slider nearby.</li>
 <li>Repeat the previous steps as many time as you want. If you want to step-back one step (undo) press <strong>B</strong>. To move one step forward (redo) press <strong>F</strong>.</li>
 <li>You can save the steps done so far with <code>File -&gt; Save Segmentation</code>.</li>
-</ol>
+</ol><h2>
+<a name="example-datasets" class="anchor" href="#example-datasets"><span class="octicon octicon-link"></span></a>Example Datasets</h2>
+
+<p>Two example datasets are available, with structural, tractography and pre-computed files:</p>
+
+<ol>
+<li>
+<a href="http://nilab.cimec.unitn.it/nilab/hcp/HCP_subject124422_100Kseeds.tgz">HCP_subject124422_100Kseeds.tgz</a> : 15k streamlines.</li>
+<li>
+<a href="http://nilab.cimec.unitn.it/nilab/hcp/HCP_subject124422_3Mseeds.tgz">HCP_subject124422_3Mseeds.tgz</a> : 460k streamlines (be careful, at least 4Gb needed).</li>
+</ol><p>Those data refer to subject 124422 of the <a href="http://www.humanconnectome.org/">Human Connectome Project</a>. The tractography is reconstructed following <a href="https://github.com/FBK-NILab/HCP-Tractography">these steps</a> with 100k seeds and 3 millions seeds respectively.</p>
       </section>
     </div>
 
