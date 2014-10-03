@@ -18,7 +18,7 @@ Dependencies
 
 The software is developed and tested on Ubuntu 12.04 LTS using the Neurodebian repositories. In Debian/Ubuntu systems the packages of the dependencies - with the exception of fos - can be installed with
 ```
-apt-get install python-pyglet python-pyside python-dipy python-sklearn
+apt-get install python-pyglet python-pyside python-nibabel python-dipy python-sklearn
 ```
 
 
