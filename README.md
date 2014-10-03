@@ -29,11 +29,11 @@ ipython --gui=qt
 run mainwindow.py
 ```
 
-First of all load a structural image (```File -> Load Structural```). Then load a related tractography (```File -> Load Tractography```), either in TrackVis format or Dipy format. Tractome loads the file and then executes some pre-computations that may require some time - from seconds to a couple of minutes, depending on the size of the tractography. These pre-computations are saved in the same directory of the tractography, so the second time you load that tractography this step will be faster.
+First of all load a structural image (```File -> Load Structural```). Then load a related tractography (```File -> Load Tractography```), either in TrackVis format or Dipy format. Tractome loads the file and then executes some pre-computations that may require some time - from seconds to a couple of minutes, depending on the size of the tractography. These pre-computations are saved in the same directory of the tractography, so the second time you load that tractography this step will be faster. After loading, Tractome shows the structural and tractography data in a 3D scene where standard operations like rotating, dragging and zooming are available.
 
 Tractome shows clusters of the whole tractography in the 3D scene by displaying the medoid streamline, called *representative*, of each cluster. You can interact with the clusters in several ways through their representatives:
 
-1. Point one representative streamline with the mouse pointer and then press **P** to select/pick it. When selected it becomes white. You can select as many representatives/clusters as you like.
+1. Point one representative streamline with the mouse pointer and then press **P** to select/pick the corresponding cluster. When selected, the representative becomes white. You can select as many representatives/clusters as you like.
 2. Expand the selected clusters in order to show their streamlines by pressing **E**. Press **E** again to toggle expansion.
 3. When you are happy with your selection then press **Backspace** to remove all the clusters and streamlines not selected.
 4. You can re-cluster the streamlines by clicking the button **Apply** in the bottom-left corner after choosing the desired number of cluster with the slider nearby.
