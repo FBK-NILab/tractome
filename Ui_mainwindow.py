@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file '/home/dporro/Tractome/tractome/mainwindow.ui'
 #
-# Created: Tue Oct  7 15:47:29 2014
+# Created: Tue Oct  7 16:09:24 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -58,11 +58,11 @@ class Ui_MainWindow(object):
         self.tblTract.setDragEnabled(False)
         self.tblTract.setShowGrid(True)
         self.tblTract.setGridStyle(QtCore.Qt.NoPen)
-        self.tblTract.setRowCount(5)
+        self.tblTract.setRowCount(6)
         self.tblTract.setColumnCount(2)
         self.tblTract.setObjectName("tblTract")
         self.tblTract.setColumnCount(2)
-        self.tblTract.setRowCount(5)
+        self.tblTract.setRowCount(6)
         item = QtGui.QTableWidgetItem()
         self.tblTract.setHorizontalHeaderItem(0, item)
         item = QtGui.QTableWidgetItem()
@@ -126,9 +126,20 @@ class Ui_MainWindow(object):
         item.setFlags(QtCore.Qt.ItemIsEnabled)
         item.setBackground(brush)
         self.tblTract.setItem(4, 1, item)
+        brush = QtGui.QBrush(QtGui.QColor(216, 189, 255))
+        brush.setStyle(QtCore.Qt.SolidPattern)
+        item = QtGui.QTableWidgetItem()
+        item.setBackground(brush)
+        self.tblTract.setItem(5, 0, item)
+        brush = QtGui.QBrush(QtGui.QColor(216, 189, 255))
+        brush.setStyle(QtCore.Qt.SolidPattern)
+        item = QtGui.QTableWidgetItem()
+        item.setBackground(brush)
+        self.tblTract.setItem(5, 1, item)
         self.tblTract.horizontalHeader().setVisible(False)
         self.tblTract.horizontalHeader().setCascadingSectionResizes(False)
-        self.tblTract.horizontalHeader().setDefaultSectionSize(135)
+        self.tblTract.horizontalHeader().setDefaultSectionSize(155)
+        self.tblTract.horizontalHeader().setMinimumSectionSize(56)
         self.tblTract.horizontalHeader().setStretchLastSection(True)
         self.tblTract.verticalHeader().setVisible(False)
         self.tblTract.verticalHeader().setCascadingSectionResizes(False)
@@ -433,9 +444,10 @@ class Ui_MainWindow(object):
         self.tblTract.setSortingEnabled(False)
         self.tblTract.item(0, 0).setText(QtGui.QApplication.translate("MainWindow", "Name", None, QtGui.QApplication.UnicodeUTF8))
         self.tblTract.item(1, 0).setText(QtGui.QApplication.translate("MainWindow", "Track Count", None, QtGui.QApplication.UnicodeUTF8))
-        self.tblTract.item(2, 0).setText(QtGui.QApplication.translate("MainWindow", "Voxel Size", None, QtGui.QApplication.UnicodeUTF8))
-        self.tblTract.item(3, 0).setText(QtGui.QApplication.translate("MainWindow", "Volume Size", None, QtGui.QApplication.UnicodeUTF8))
-        self.tblTract.item(4, 0).setText(QtGui.QApplication.translate("MainWindow", "Orientation", None, QtGui.QApplication.UnicodeUTF8))
+        self.tblTract.item(2, 0).setText(QtGui.QApplication.translate("MainWindow", "Representative Count", None, QtGui.QApplication.UnicodeUTF8))
+        self.tblTract.item(3, 0).setText(QtGui.QApplication.translate("MainWindow", "Voxel Size", None, QtGui.QApplication.UnicodeUTF8))
+        self.tblTract.item(4, 0).setText(QtGui.QApplication.translate("MainWindow", "Volume Size", None, QtGui.QApplication.UnicodeUTF8))
+        self.tblTract.item(5, 0).setText(QtGui.QApplication.translate("MainWindow", "Orientation", None, QtGui.QApplication.UnicodeUTF8))
         self.tblTract.setSortingEnabled(__sortingEnabled)
         self.tabProps_4.setTabText(self.tabProps_4.indexOf(self.tabPropsTract), QtGui.QApplication.translate("MainWindow", "Tractography", None, QtGui.QApplication.UnicodeUTF8))
         self.tblROI.setSortingEnabled(False)

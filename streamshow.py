@@ -324,6 +324,7 @@ class StreamlineLabeler(Actor, Manipulator):
             self.hide_representatives = False
             self.expand = False
             self.numstream_handler.fire(len(streamlines_ids))
+            self.numrep_handler.fire(len(representative_ids))
 
               
          

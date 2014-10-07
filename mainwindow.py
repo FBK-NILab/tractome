@@ -104,6 +104,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.hSlReCluster.setMaximum(min(150, n_stream))
         self.tblTract.item(1, 1).setText(str(n_stream))
         
+    def changenumrepresentatives_handler(self, n_rep):
+        """
+        """
+        self.tblTract.item(2, 1).setText(str(n_rep))
+        
 
 
     def on_dspbxcoord_valueChanged(self, value):
@@ -287,25 +292,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tractnameitem.setText(0, tracks_basename)
         
         # connecting event that is fired when number of streamlines is changed after some action on the streamlinelabeler actor
-        
         self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
-    
+        self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
+        
         #add information to tab in Table
         self.tblTract.item(0, 1).setText(tracks_basename)
         trackcount = len(self.tractome.T)
         self.tblTract.item(1, 1).setText(str(trackcount))
+        self.tblTract.item(2, 1).setText(str(len(self.tractome.streamlab.representative_ids)))
     
         if hasattr(self.tractome, 'hdr'):
             hdr = self.tractome.hdr
-            self.tblTract.item(2, 1).setText(str(hdr['voxel_size']))
-            self.tblTract.item(3, 1).setText(str(hdr['dim']))
-            self.tblTract.item(4, 1).setText(str(hdr['voxel_order']))
+            self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
+            self.tblTract.item(4, 1).setText(str(hdr['dim']))
+            self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
                          
                 
         else:
-            self.tblTract.item(2, 1).setText('No info')
             self.tblTract.item(3, 1).setText('No info')
-            self.tblTract.item(4, 1).setText('LAS')
+            self.tblTract.item(4, 1).setText('No info')
+            self.tblTract.item(5, 1).setText('LAS')
 
         self.grbCluster.setEnabled(True)
                

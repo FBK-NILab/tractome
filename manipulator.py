@@ -47,6 +47,7 @@ class Manipulator(object):
         self.history = []
         self.streamline_ids = 0
         self.numstream_handler = EventHook()
+        self.numrep_handler = EventHook()
         self.clusters_reset(initial_clusters)
         self.simple_history_start()
         self.clustering_function = clustering_function
@@ -65,6 +66,7 @@ class Manipulator(object):
         self.show_representatives = True
         self.history.append('clusters_reset('+str(clusters)+')')
         self.numstream_handler.fire(len(self.streamline_ids))
+        self.numrep_handler.fire(len(self.representative_ids))
     
     def select(self, representative_id):
         """Select one representative.
