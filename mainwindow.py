@@ -17,7 +17,6 @@ from glwidget import GLWidget
 from tractome import Tractome
 import os
 import sys
-import pp
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -308,9 +307,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tblTract.item(3, 1).setText('No info')
             self.tblTract.item(4, 1).setText('LAS')
 
-        self.groupBox_12.setEnabled(True)
-        self.refocus_camera()
-                
+        self.grbCluster.setEnabled(True)
+               
    
     def create_update_Item(self,  object):
         """
@@ -332,8 +330,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.actionSave_Segmentation.setEnabled(True) 
                 self.actionSave_as_trackvis_file.setEnabled(True)
                 self.menuROI.setEnabled(True)
-                self.menuFunctions.setEnabled(True)
-                
+                                
                             
         if object == 'slicer':
             try:
@@ -376,7 +373,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.chkbShowTract.setEnabled(True)
             self.tblTract.setEnabled(True)
             self.menuROI.setEnabled(True)
-            self.menuFunctions.setEnabled(True)
+            self.grbCluster.setEnabled(True)
             
         self.structnameitem =  QtGui.QTreeWidgetItem(self.treeObject)   
         self.tractnameitem =  QtGui.QTreeWidgetItem(self.treeObject) 
@@ -494,7 +491,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.updateROItable(nameroi, xmax/2, ymax/2, zmax/2, 2, self.roi_color.name())
         self.tabProps_4.setCurrentIndex(1) 
 
-        self.refocus_camera()  
+        self.glWidget.updateGL()
 
 
     def prepare_interface_ROI(self, roi_type,  coords=None,  nameroi = None):

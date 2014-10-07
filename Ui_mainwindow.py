@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'mainwindow.ui'
+# Form implementation generated from reading ui file '/home/dporro/Tractome/tractome/mainwindow.ui'
 #
-# Created: Tue Sep 23 11:50:47 2014
+# Created: Tue Oct  7 15:47:29 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -286,23 +286,23 @@ class Ui_MainWindow(object):
         self.horizontalLayout_31.addWidget(self.rdbtrackvis)
         self.verticalLayout_3.addWidget(self.grb_tractomeroi)
         self.verticalLayout_5.addWidget(self.grbROImethod)
-        self.groupBox_12 = QtGui.QGroupBox(self.centralWidget)
-        self.groupBox_12.setEnabled(False)
+        self.grbCluster = QtGui.QGroupBox(self.centralWidget)
+        self.grbCluster.setEnabled(False)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.groupBox_12.sizePolicy().hasHeightForWidth())
-        self.groupBox_12.setSizePolicy(sizePolicy)
-        self.groupBox_12.setObjectName("groupBox_12")
-        self.horizontalLayout_32 = QtGui.QHBoxLayout(self.groupBox_12)
+        sizePolicy.setHeightForWidth(self.grbCluster.sizePolicy().hasHeightForWidth())
+        self.grbCluster.setSizePolicy(sizePolicy)
+        self.grbCluster.setObjectName("grbCluster")
+        self.horizontalLayout_32 = QtGui.QHBoxLayout(self.grbCluster)
         self.horizontalLayout_32.setObjectName("horizontalLayout_32")
         self.horizontalLayout_33 = QtGui.QHBoxLayout()
         self.horizontalLayout_33.setObjectName("horizontalLayout_33")
-        self.spbRecluster = QtGui.QSpinBox(self.groupBox_12)
+        self.spbRecluster = QtGui.QSpinBox(self.grbCluster)
         self.spbRecluster.setReadOnly(False)
         self.spbRecluster.setObjectName("spbRecluster")
         self.horizontalLayout_33.addWidget(self.spbRecluster)
-        self.hSlReCluster = QtGui.QSlider(self.groupBox_12)
+        self.hSlReCluster = QtGui.QSlider(self.grbCluster)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -320,7 +320,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_34.setObjectName("horizontalLayout_34")
         spacerItem = QtGui.QSpacerItem(18, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_34.addItem(spacerItem)
-        self.pbRecluster = QtGui.QPushButton(self.groupBox_12)
+        self.pbRecluster = QtGui.QPushButton(self.grbCluster)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -332,7 +332,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_34.addItem(spacerItem1)
         self.horizontalLayout_33.addLayout(self.horizontalLayout_34)
         self.horizontalLayout_32.addLayout(self.horizontalLayout_33)
-        self.verticalLayout_5.addWidget(self.groupBox_12)
+        self.verticalLayout_5.addWidget(self.grbCluster)
         self.horizontalLayout.addLayout(self.verticalLayout_5)
         self.verticalLayout_16 = QtGui.QVBoxLayout()
         self.verticalLayout_16.setObjectName("verticalLayout_16")
@@ -374,9 +374,6 @@ class Ui_MainWindow(object):
         self.menuROI = QtGui.QMenu(self.menuBar)
         self.menuROI.setEnabled(False)
         self.menuROI.setObjectName("menuROI")
-        self.menuFunctions = QtGui.QMenu(self.menuBar)
-        self.menuFunctions.setEnabled(False)
-        self.menuFunctions.setObjectName("menuFunctions")
         MainWindow.setMenuBar(self.menuBar)
         self.actionLoad_Structural_Image = QtGui.QAction(MainWindow)
         self.actionLoad_Structural_Image.setCheckable(False)
@@ -419,11 +416,8 @@ class Ui_MainWindow(object):
         self.menuROI.addAction(self.actionCreate_Sphere)
         self.menuROI.addSeparator()
         self.menuROI.addAction(self.actionExpand_ROI)
-        self.menuFunctions.addAction(self.actionRe_Cluster)
-        self.menuFunctions.addAction(self.actionExpand_Clusters)
         self.menuBar.addAction(self.menuFile.menuAction())
         self.menuBar.addAction(self.menuROI.menuAction())
-        self.menuBar.addAction(self.menuFunctions.menuAction())
 
         self.retranslateUi(MainWindow)
         self.tabProps_4.setCurrentIndex(0)
@@ -465,11 +459,10 @@ class Ui_MainWindow(object):
         self.grbROImethod.setTitle(QtGui.QApplication.translate("MainWindow", "ROI Method", None, QtGui.QApplication.UnicodeUTF8))
         self.rdbInsSphere.setText(QtGui.QApplication.translate("MainWindow", "Inside Sphere", None, QtGui.QApplication.UnicodeUTF8))
         self.rdbtrackvis.setText(QtGui.QApplication.translate("MainWindow", "Trackvis Like", None, QtGui.QApplication.UnicodeUTF8))
-        self.groupBox_12.setTitle(QtGui.QApplication.translate("MainWindow", "Re-Cluster", None, QtGui.QApplication.UnicodeUTF8))
+        self.grbCluster.setTitle(QtGui.QApplication.translate("MainWindow", "Re-Cluster", None, QtGui.QApplication.UnicodeUTF8))
         self.pbRecluster.setText(QtGui.QApplication.translate("MainWindow", "Apply", None, QtGui.QApplication.UnicodeUTF8))
         self.menuFile.setTitle(QtGui.QApplication.translate("MainWindow", "File", None, QtGui.QApplication.UnicodeUTF8))
         self.menuROI.setTitle(QtGui.QApplication.translate("MainWindow", "ROI", None, QtGui.QApplication.UnicodeUTF8))
-        self.menuFunctions.setTitle(QtGui.QApplication.translate("MainWindow", "Functions", None, QtGui.QApplication.UnicodeUTF8))
         self.actionLoad_Structural_Image.setText(QtGui.QApplication.translate("MainWindow", "Load Structural Image", None, QtGui.QApplication.UnicodeUTF8))
         self.actionLoad_Tractography.setText(QtGui.QApplication.translate("MainWindow", "Load Tractography", None, QtGui.QApplication.UnicodeUTF8))
         self.actionLoad_Saved_Segmentation.setText(QtGui.QApplication.translate("MainWindow", "Load Segmentation", None, QtGui.QApplication.UnicodeUTF8))
@@ -482,4 +475,14 @@ class Ui_MainWindow(object):
         self.actionRe_Cluster.setText(QtGui.QApplication.translate("MainWindow", "Re-Cluster", None, QtGui.QApplication.UnicodeUTF8))
         self.actionExpand_Clusters.setText(QtGui.QApplication.translate("MainWindow", "Expand Clusters", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSave_as_trackvis_file.setText(QtGui.QApplication.translate("MainWindow", "Save as trackvis file", None, QtGui.QApplication.UnicodeUTF8))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    MainWindow = QtGui.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(app.exec_())
 

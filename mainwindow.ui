@@ -646,7 +646,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBox_12">
+         <widget class="QGroupBox" name="grbCluster">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -829,19 +829,8 @@
     <addaction name="separator"/>
     <addaction name="actionExpand_ROI"/>
    </widget>
-   <widget class="QMenu" name="menuFunctions">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="title">
-     <string>Functions</string>
-    </property>
-    <addaction name="actionRe_Cluster"/>
-    <addaction name="actionExpand_Clusters"/>
-   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuROI"/>
-   <addaction name="menuFunctions"/>
   </widget>
   <action name="actionLoad_Structural_Image">
    <property name="checkable">
