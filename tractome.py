@@ -146,9 +146,6 @@ class Tractome(object):
                                             clustering_parameter_max=len(self.clusters),
                                             full_dissimilarity_matrix=self.full_dissimilarity_matrix)
                 
-        if hasattr(self, 'state'):
-            self.streamlab.set_state(self.state)
-                               
         self.scene.add_actor(self.streamlab)
 
 
@@ -158,7 +155,7 @@ class Tractome(object):
         """
         print "Loading saved session file"
         segm_info = pickle.load(open(segpath)) 
-        self.state = segm_info['segmsession']  
+        state = segm_info['segmsession']  
             
         self.structpath=segm_info['structfilename']
         self.tracpath=segm_info['tractfilename']   
@@ -170,7 +167,8 @@ class Tractome(object):
 
         # load tractography
         self.loading_full_tractograpy(self.tracpath)
-
+        self.streamlab.set_state(state)
+            
         self.scene.update()
 
 
@@ -266,8 +264,8 @@ class Tractome(object):
         
         print "Save segmentation result from current session"
         filename = filename[0]+'.seg'
-        self.state = self.streamlab.get_state()
-        seg_info={'structfilename':self.structpath, 'tractfilename':self.tracpath, 'segmsession':self.state}
+        state = self.streamlab.get_state()
+        seg_info={'structfilename':self.structpath, 'tractfilename':self.tracpath, 'segmsession':state}
         pickle.dump(seg_info, open(filename,'w'), protocol=pickle.HIGHEST_PROTOCOL)
 
 

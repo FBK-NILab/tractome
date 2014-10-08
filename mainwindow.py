@@ -250,13 +250,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #Creating filedialog to search for the structural file
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("((*.gz *.nii *.img)"))
-        self.fileStruct= filedialog.getOpenFileName(self,"Open Structural file", os.getcwd(), str("(*.gz *.nii *.img)"))
-        struct_basename = os.path.basename(self.fileStruct[0])
+        fileStruct, _= filedialog.getOpenFileName(self,"Open Structural file", os.getcwd(), str("(*.gz *.nii *.img)"))
+        
+        if fileStruct != "":
+            struct_basename = os.path.basename(fileStruct)
 
-        self.create_update_Item('slicer')
-        self.tractome.loading_structural(self.fileStruct[0])
-        self.structnameitem.setText(0, struct_basename) 
-        self.refocus_camera()  
+            self.create_update_Item('slicer')
+            self.tractome.loading_structural(fileStruct)
+            self.structnameitem.setText(0, struct_basename) 
+            self.refocus_camera()  
     
 
     @Slot()
@@ -267,12 +269,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #Creating filedialog to search for the structural file
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("((*.gz *.nii *.img)"))
-        self.fileMask= filedialog.getOpenFileName(self,"Open Mask file", os.getcwd(), str("(*.gz *.nii *.img)"))
-        mask_basename = os.path.basename(self.fileMask[0])
-        self.prepare_interface_ROI('mask',  nameroi = mask_basename)
-        self.tractome.loading_mask(self.fileMask[0], self.roi_color)
-        self.updateROItable(mask_basename, color = self.roi_color.name())
-        self.refocus_camera()  
+        fileMask, _= filedialog.getOpenFileName(self,"Open Mask file", os.getcwd(), str("(*.gz *.nii *.img)"))
+        
+        if fileMask !="":
+            mask_basename = os.path.basename(fileMask)
+            self.prepare_interface_ROI('mask',  nameroi = mask_basename)
+            self.tractome.loading_mask(fileMask, self.roi_color)
+            self.updateROItable(mask_basename, color = self.roi_color.name())
+            self.glWidget.updateGL()
    
           
     @Slot()
@@ -283,37 +287,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("(*.dpy *.trk *.vtk)"))
-        self.fileTract = filedialog.getOpenFileName(self,"Open Tractography file", os.getcwd(), str("(*.dpy *.trk *.vtk)"))
-        tracks_basename = os.path.basename(self.fileTract[0])
+        fileTract,  _= filedialog.getOpenFileName(self,"Open Tractography file", os.getcwd(), str("(*.dpy *.trk *.vtk)"))
         
-        self.create_update_Item('tractography') 
-        self.tractome.loading_full_tractograpy(tracpath=self.fileTract[0]) 
-        self.set_clustering_values()
-        self.tractnameitem.setText(0, tracks_basename)
+        if fileTract !="":
+            tracks_basename = os.path.basename(fileTract)
+        
+            self.create_update_Item('tractography') 
+            self.tractome.loading_full_tractograpy(tracpath=fileTract) 
+            self.set_clustering_values()
+            self.tractnameitem.setText(0, tracks_basename)
         
         # connecting event that is fired when number of streamlines is changed after some action on the streamlinelabeler actor
-        self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
-        self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
+            self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
+            self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
         
-        #add information to tab in Table
-        self.tblTract.item(0, 1).setText(tracks_basename)
-        trackcount = len(self.tractome.T)
-        self.tblTract.item(1, 1).setText(str(trackcount))
-        self.tblTract.item(2, 1).setText(str(len(self.tractome.streamlab.representative_ids)))
+            #add information to tab in Table
+            self.tblTract.item(0, 1).setText(tracks_basename)
+            trackcount = len(self.tractome.T)
+            self.tblTract.item(1, 1).setText(str(trackcount))
+            self.tblTract.item(2, 1).setText(str(len(self.tractome.streamlab.representative_ids)))
     
-        if hasattr(self.tractome, 'hdr'):
-            hdr = self.tractome.hdr
-            self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
-            self.tblTract.item(4, 1).setText(str(hdr['dim']))
-            self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
+            if hasattr(self.tractome, 'hdr'):
+                hdr = self.tractome.hdr
+                self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
+                self.tblTract.item(4, 1).setText(str(hdr['dim']))
+                self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
                          
                 
-        else:
-            self.tblTract.item(3, 1).setText('No info')
-            self.tblTract.item(4, 1).setText('No info')
-            self.tblTract.item(5, 1).setText('LAS')
+            else:
+                self.tblTract.item(3, 1).setText('No info')
+                self.tblTract.item(4, 1).setText('No info')
+                self.tblTract.item(5, 1).setText('LAS')
 
-        self.grbCluster.setEnabled(True)
+            self.grbCluster.setEnabled(True)
                
    
     def create_update_Item(self,  object):
@@ -347,9 +353,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             
             except AttributeError:
              #If this is the first opening we create the tree item
-                self.actionLoad_Tractography.setEnabled(True)
                 self.chkbShowStruct.setEnabled(True)
-            
+                
+            self.actionLoad_Tractography.setEnabled(True)
             self.structnameitem =  QtGui.QTreeWidgetItem(self.treeObject)    
 
 
@@ -362,54 +368,64 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("(*.seg)"))
-        fileSeg = filedialog.getOpenFileName(self,"Open Segmentation file", os.getcwd(), str("(*.seg)"))
+        fileSeg, _ = filedialog.getOpenFileName(self,"Open Segmentation file", os.getcwd(), str("(*.seg)"))
                
-        #checking if there is already a tractography open to substitute it
-        try:
-            self.structnameitem
-            self.tractnameitem
-            self.treeObject.clear()
-            self.tractome.clear_all()
-            self.clear_all_session()
-
+        if fileSeg !="":
+            #checking if there is already a tractography open to substitute it
+            try:
+                self.structnameitem
+                self.tractnameitem
+                self.treeObject.clear()
+                self.tractome.clear_all()
+                self.clear_all_session()
+    
+                    
+            #if there is no tractography open 
+            except AttributeError: 
+                self.chkbShowStruct.setEnabled(True)
+                self.chkbShowTract.setEnabled(True)
+                self.tblTract.setEnabled(True)
+                self.menuROI.setEnabled(True)
+                self.grbCluster.setEnabled(True)
+                self.actionLoad_Tractography.setEnabled(True)
+                self.actionSave_Segmentation.setEnabled(True) 
+                self.actionSave_as_trackvis_file.setEnabled(True)
                 
-        #if there is no tractography open 
-        except AttributeError: 
-            self.chkbShowStruct.setEnabled(True)
-            self.chkbShowTract.setEnabled(True)
-            self.tblTract.setEnabled(True)
-            self.menuROI.setEnabled(True)
-            self.grbCluster.setEnabled(True)
+            self.structnameitem =  QtGui.QTreeWidgetItem(self.treeObject)   
+            self.tractnameitem =  QtGui.QTreeWidgetItem(self.treeObject) 
+            self.tractome.load_segmentation(fileSeg)
+             
+             #add structural and tractography file names to the treeview
+            struct_basename = os.path.basename(self.tractome.structpath)
+            self.structnameitem.setText(0, struct_basename) 
+             
+            tracks_basename = os.path.basename(self.tractome.tracpath)  
+            self.set_clustering_values()
+            self.tractnameitem.setText(0, tracks_basename)
+        
+        # connecting event that is fired when number of streamlines is changed after some action on the streamlinelabeler actor
+            self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
+            self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
             
-        self.structnameitem =  QtGui.QTreeWidgetItem(self.treeObject)   
-        self.tractnameitem =  QtGui.QTreeWidgetItem(self.treeObject) 
-        self.tractome.load_segmentation(fileSeg[0])
-         
-         #add structural and tractography file names to the treeview
-        struct_basename = os.path.basename(self.tractome.structpath)
-        self.structnameitem.setText(0, struct_basename) 
-         
-        tracks_basename = os.path.basename(self.tractome.tracpath)  
-        self.tractnameitem.setText(0, tracks_basename)
-        
-        #add information to tab in Table
-        self.tblTract.item(0, 1).setText(tracks_basename)
-        trackcount = len(self.tractome.T)
-        self.tblTract.item(1, 1).setText(str(trackcount))
-        
-        try:
-            hdr = self.tractome.hdr
-            self.tblTract.item(2, 1).setText(str(hdr['voxel_size']))
-            self.tblTract.item(3, 1).setText(str(hdr['dim']))
-            self.tblTract.item(4, 1).setText(str(hdr['voxel_order']))
-                     
+            #add information to tab in Table
+            self.tblTract.item(0, 1).setText(tracks_basename)
+            trackcount = len(self.tractome.streamlab.streamline_ids)
+            self.tblTract.item(1, 1).setText(str(trackcount))
+            self.tblTract.item(2, 1).setText(str(len(self.tractome.streamlab.representative_ids)))
             
-        except AttributeError:
-            self.tblTract.item(2, 1).setText('No info')
-            self.tblTract.item(3, 1).setText('No info')
-            self.tblTract.item(4, 1).setText('LAS')
-        
-        self.refocus_camera()  
+            try:
+                hdr = self.tractome.hdr
+                self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
+                self.tblTract.item(4, 1).setText(str(hdr['dim']))
+                self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
+                         
+                
+            except AttributeError:
+                self.tblTract.item(3, 1).setText('No info')
+                self.tblTract.item(4, 1).setText('No info')
+                self.tblTract.item(5, 1).setText('LAS')
+            
+            self.refocus_camera()  
 
 
     def clear_all_session(self):

@@ -442,9 +442,9 @@ class StreamlineLabeler(Actor, Manipulator):
             print 'Backspace: Remove unselected representatives.'
             self.remove_unselected()
 
-        elif symbol == Qt.Key_Delete:
-            print 'Delete: Remove selected representatives.'
-            self.remove_selected()
+        #elif symbol == Qt.Key_Delete:
+           # print 'Delete: Remove selected representatives.'
+            #self.remove_selected()
 
         elif symbol == Qt.Key_B:
             print "Go Back one step in the history."
