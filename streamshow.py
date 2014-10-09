@@ -326,7 +326,15 @@ class StreamlineLabeler(Actor, Manipulator):
             self.numstream_handler.fire(len(streamlines_ids))
             self.numrep_handler.fire(len(representative_ids))
 
-              
+    def set_empty_scene(self):
+        """
+        Hides all element in the screen if the ROI returns an empty set of streamlines
+        """
+        if not hasattr(self, 'clusters_before_roi') or  len(self.clusters_before_roi)==0:
+            self.clusters_before_roi = self.clusters
+        
+        self.hide_representatives = True
+        self.expand = False
          
     def reset_state(self):
         """
@@ -340,7 +348,7 @@ class StreamlineLabeler(Actor, Manipulator):
             self.clusters_before_roi = {}
 
         except AttributeError:
-            pass
+            self.hide_representatives = False
             
         
     def draw(self):

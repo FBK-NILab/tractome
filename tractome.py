@@ -40,7 +40,6 @@ from dissimilarity_common import compute_disimilarity
 from sklearn.neighbors import KDTree
 import os
 
-
 class Tractome(object):
     """
     """
@@ -391,15 +390,14 @@ class Tractome(object):
                         streamlines_ROIs = current_roi_streamlines
                         
                 last_chkd +=1
-         
+
         if last_chkd == 0:
             self.streamlab.reset_state()
         else:
             if len(streamlines_ROIs) > 0:
                 self.streamlab.set_streamlines_ROIs(streamlines_ROIs)
             else:
-                self.streamlab.hide_representatives = True
-                self.streamlab.expand = False
+                self.streamlab.set_empty_scene()
 
     
     def information_from_ROI(self, name_roi):
