@@ -17,7 +17,6 @@ from glwidget import GLWidget
 from tractome import Tractome
 import os
 import sys
-import pdb
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):

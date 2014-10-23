@@ -38,7 +38,6 @@ import Tkinter, tkFileDialog
 
 # Pyside for windowing
 from PySide.QtCore import Qt
-import pdb
 # Interaction Logic:
 from manipulator import Manipulator
 
