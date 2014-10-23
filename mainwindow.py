@@ -17,6 +17,7 @@ from glwidget import GLWidget
 from tractome import Tractome
 import os
 import sys
+import pdb
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -50,6 +51,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                     
         self.gridLayout_4.addWidget(self.glWidget) 
         
+        
         # adding the editing items to ROI table
 
         # double spinbox for x,y and z coordinates
@@ -82,6 +84,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.connect(self.chkbvis, QtCore.SIGNAL("stateChanged(int)"), self.on_chkbvis_stateChanged)
         self.tblROI.setCellWidget(1, 1,  self.chkbvis)
         
+       
         # self.show_hide_rows(True)
         
         # creating the main Scene
@@ -161,7 +164,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.updateROItable(name, xcoord, ycoord, zcoord, radius, color)
         self.connect(self.tblROI, QtCore.SIGNAL("itemChanged(QtGui.QTableWidgetItem)"), self.on_tblROI_itemChanged)
 
-
     def on_btncolor_clicked(self):
         """
         """
@@ -230,8 +232,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Update spbRecluster
         """
         self.spbRecluster.setValue(value)
-        
-
+     
+   
     @Slot()
     def on_pbRecluster_clicked(self):
         """
@@ -286,8 +288,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         file.
         """
         filedialog=QtGui.QFileDialog()
-        filedialog.setNameFilter(str("(*.dpy *.trk *.vtk)"))
-        fileTract,  _= filedialog.getOpenFileName(self,"Open Tractography file", os.getcwd(), str("(*.dpy *.trk *.vtk)"))
+        filedialog.setNameFilter(str("(*.dpy *.trk)"))
+        fileTract,  _= filedialog.getOpenFileName(self,"Open Tractography file", os.getcwd(), str("(*.dpy *.trk)"))
         
         if fileTract !="":
             tracks_basename = os.path.basename(fileTract)
@@ -357,8 +359,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 
             self.actionLoad_Tractography.setEnabled(True)
             self.structnameitem =  QtGui.QTreeWidgetItem(self.treeObject)    
-
-
 
     @Slot()
     def on_actionLoad_Saved_Segmentation_triggered(self):
@@ -436,6 +436,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.list_ands = []
         self.list_ors = []
         self.tblROISlist.clear()
+        self.tblROI.setEnabled(False)
+        self.tblROISlist.setEnabled(False)
+        self.tabProps_4.setCurrentIndex(0)
         
         
     @Slot()
@@ -568,6 +571,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # create rdbuttons for operators and add checkbox for ROI
         cantchk = cantrois
+        sizetblROIs = self.tblROISlist.geometry()
         if cantchk==0:
             self.tblROISlist.insertRow(0)
             self.tblROISlist.setCellWidget(0, 0, newchkroi)
@@ -588,8 +592,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             horizontalLayout_roiop.addStretch(1)
             grb_roi_operators.setLayout(horizontalLayout_roiop)
             
-            self.connect(rdband, QtCore.SIGNAL("toggled(bool)"), self.on_chkroi_stateChanged)
-            self.connect(rdbor, QtCore.SIGNAL("toggled(bool)"), self.on_chkroi_stateChanged)
+            self.connect(rdband, QtCore.SIGNAL("clicked(bool)"), self.on_rdb_clicked)
+            self.connect(rdbor, QtCore.SIGNAL("clicked(bool)"), self.on_rdb_clicked)
 #            
             self.tblROISlist.setCellWidget((2*cantchk)-1, 0, grb_roi_operators)
             self.list_ands.append(rdband)
@@ -597,8 +601,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tblROISlist.insertRow(2*cantchk)
             self.tblROISlist.setCellWidget(2*cantchk, 0, newchkroi)
             self.tblROISlist.resizeRowsToContents()
+            
+            #resizing objects
+            sizeandrdb = rdband.geometry()
+            sizeorrdb = rdbor.geometry()
+            rdband.setGeometry(sizeandrdb.left(), sizeandrdb.top(), 5, sizeandrdb.height())
+            rdbor.setGeometry(sizeorrdb.left(), sizeorrdb.top(), 5, sizeorrdb.height())
         
-
+        #resizing checkbox
+        sizecheckbox = newchkroi.geometry()
+        newchkroi.setGeometry(sizecheckbox.left(), sizecheckbox.top(), sizetblROIs.width(), sizecheckbox.height())
+        
         
     def updateROItable(self, name,coordx=None, coordy=None, coordz=None, radius=None, color=None):
         """
@@ -634,7 +647,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         checked and their operators.
         """
 
-        streamlines_ROIs = []
         last_chkd = 0
         for pos in range(0, len(self.list_chkROIS)):
             if self.list_chkROIS[pos].isChecked():
@@ -642,14 +654,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if pos!=(len(self.list_chkROIS)-1) and ((self.list_ands[pos].isChecked()==False) and (self.list_ors[pos].isChecked()==False)):
                      self.list_ands[pos].setChecked(True)
                 
-                if not pos==0:
-                    if self.list_ands[last_chkd].isChecked():
-                        self.tractome.activation_ROIs(pos,  True, operator = 'and')
-                    if self.list_ors[last_chkd].isChecked():
-                        self.tractome.activation_ROIs(pos,  True, operator = 'or')
-              
+           
             else:
-                self.tractome.activation_ROIs(pos, False)
+                self.tractome.activation_ROIs(pos, False, operator = 'and')
                 if pos!=(len(self.list_chkROIS)-1):
                      if self.list_ands[pos].isChecked():
                          self.list_ands[pos].setAutoExclusive(False)
@@ -664,7 +671,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tractome.compute_streamlines_ROIS()
         self.glWidget.updateGL()
 
+    def on_rdb_clicked(self,  clicked):
+        """
+        Computing streamlines to show according to ROIs that are
+        checked and their operators.
+        """
+        for pos in range(0, len(self.list_ands)):
+                if self.list_ands[pos].isChecked():
+                    self.tractome.activation_ROIs(pos,  True, operator = 'and')
+                if self.list_ors[pos].isChecked():
+                    self.tractome.activation_ROIs(pos,  True, operator = 'or')
 
+        self.tractome.compute_streamlines_ROIS()
+        self.glWidget.updateGL()
+        
 
     @Slot(QtGui.QTableWidgetItem)   
     def on_tblROI_itemChanged(self, item):
@@ -816,4 +836,5 @@ if __name__ == "__main__":
     mainWindow= MainWindow()
     mainWindow.show()
     
-
+    
+    

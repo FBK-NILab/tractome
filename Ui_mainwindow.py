@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/dporro/Tractome/tractome/mainwindow.ui'
+# Form implementation generated from reading ui file '/home/tractome/Tractome_git_repo/tractome/mainwindow.ui'
 #
-# Created: Tue Oct  7 16:09:24 2014
+# Created: Fri Oct 24 01:14:21 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -244,7 +244,9 @@ class Ui_MainWindow(object):
         self.tblROISlist.setColumnCount(1)
         self.tblROISlist.setRowCount(0)
         self.tblROISlist.horizontalHeader().setVisible(False)
+        self.tblROISlist.horizontalHeader().setDefaultSectionSize(624)
         self.tblROISlist.horizontalHeader().setHighlightSections(False)
+        self.tblROISlist.horizontalHeader().setMinimumSectionSize(624)
         self.tblROISlist.verticalHeader().setVisible(False)
         self.tblROISlist.verticalHeader().setHighlightSections(False)
         self.horizontalLayout_4.addWidget(self.tblROISlist)
@@ -425,8 +427,6 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionClose)
         self.menuROI.addAction(self.actionLoad_MASk)
         self.menuROI.addAction(self.actionCreate_Sphere)
-        self.menuROI.addSeparator()
-        self.menuROI.addAction(self.actionExpand_ROI)
         self.menuBar.addAction(self.menuFile.menuAction())
         self.menuBar.addAction(self.menuROI.menuAction())
 

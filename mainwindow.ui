@@ -27,7 +27,7 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <column>
+            <column>
            <property name="text">
             <string>Objects</string>
            </property>
@@ -562,8 +562,14 @@
               <attribute name="horizontalHeaderVisible">
                <bool>false</bool>
               </attribute>
+              <attribute name="horizontalHeaderDefaultSectionSize">
+               <number>624</number>
+              </attribute>
               <attribute name="horizontalHeaderHighlightSections">
                <bool>false</bool>
+              </attribute>
+              <attribute name="horizontalHeaderMinimumSectionSize">
+               <number>624</number>
               </attribute>
               <attribute name="verticalHeaderVisible">
                <bool>false</bool>
@@ -855,8 +861,6 @@
     </property>
     <addaction name="actionLoad_MASk"/>
     <addaction name="actionCreate_Sphere"/>
-    <addaction name="separator"/>
-    <addaction name="actionExpand_ROI"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuROI"/>
