@@ -38,7 +38,6 @@ import Tkinter, tkFileDialog
 
 # Pyside for windowing
 from PySide.QtCore import Qt
-
 # Interaction Logic:
 from manipulator import Manipulator
 
@@ -280,6 +279,7 @@ class StreamlineLabeler(Actor, Manipulator):
         """
         Set streamlines belonging to ROIs
         """
+
         if not hasattr(self, 'clusters_before_roi') or  len(self.clusters_before_roi)==0:
             self.clusters_before_roi = self.clusters
             
@@ -296,36 +296,44 @@ class StreamlineLabeler(Actor, Manipulator):
                     clusters_new[rid] = new_cluster_ids
                     clusters_new[list(new_cluster_ids)[0]] = clusters_new.pop(rid)
                     
-            
             self.clusters_reset(clusters_new)
             self.recluster_action()
             self.hide_representatives = True
             self.select_all()
             self.expand = True
 
+#
+#            
+#        else:
+#            #Going back to show Clsuters before ROI was applied
+#            # 1) sync self.representative_ids_ordered with original clusters before ROI:
+#            self.representative_ids_ordered = sorted(self.clusters.keys())
+#            # 2) change first and count buffers of representatives:
+#            self.representatives_first = np.ascontiguousarray(self.streamlines_first[self.representative_ids_ordered], dtype='i4')
+#            self.representatives_count = np.ascontiguousarray(self.streamlines_count[self.representative_ids_ordered], dtype='i4')
+#            # 3) recompute self.representatives:
+#            # (this is needed just for get_pointed_representative())
+#            self.representatives = buffer2coordinates(self.representatives_buffer,
+#                                                  self.representatives_first,
+#                                                  self.representatives_count)
+#            # 4) recompute self.streamlines_visualized_first/count:
+#            streamlines_ids = list(reduce(chain, [self.clusters[rid] for rid in self.clusters]))
+#            self.streamlines_visualized_first = np.ascontiguousarray(self.streamlines_first[streamlines_ids], dtype='i4')
+#            self.streamlines_visualized_count = np.ascontiguousarray(self.streamlines_count[streamlines_ids], dtype='i4')
+#            self.hide_representatives = False
+#            self.expand = False
+#            self.numstream_handler.fire(len(streamlines_ids))
+#            self.numrep_handler.fire(len(representative_ids))
 
-            
-        else:
-            #Going back to show Clsuters before ROI was applied
-            # 1) sync self.representative_ids_ordered with original clusters before ROI:
-            self.representative_ids_ordered = sorted(self.clusters.keys())
-            # 2) change first and count buffers of representatives:
-            self.representatives_first = np.ascontiguousarray(self.streamlines_first[self.representative_ids_ordered], dtype='i4')
-            self.representatives_count = np.ascontiguousarray(self.streamlines_count[self.representative_ids_ordered], dtype='i4')
-            # 3) recompute self.representatives:
-            # (this is needed just for get_pointed_representative())
-            self.representatives = buffer2coordinates(self.representatives_buffer,
-                                                  self.representatives_first,
-                                                  self.representatives_count)
-            # 4) recompute self.streamlines_visualized_first/count:
-            streamlines_ids = list(reduce(chain, [self.clusters[rid] for rid in self.clusters]))
-            self.streamlines_visualized_first = np.ascontiguousarray(self.streamlines_first[streamlines_ids], dtype='i4')
-            self.streamlines_visualized_count = np.ascontiguousarray(self.streamlines_count[streamlines_ids], dtype='i4')
-            self.hide_representatives = False
-            self.expand = False
-            self.numstream_handler.fire(len(streamlines_ids))
-
-              
+    def set_empty_scene(self):
+        """
+        Hides all element in the screen if the ROI returns an empty set of streamlines
+        """
+        if not hasattr(self, 'clusters_before_roi') or  len(self.clusters_before_roi)==0:
+            self.clusters_before_roi = self.clusters
+        
+        self.hide_representatives = True
+        self.expand = False
          
     def reset_state(self):
         """
@@ -339,9 +347,10 @@ class StreamlineLabeler(Actor, Manipulator):
             self.clusters_before_roi = {}
 
         except AttributeError:
-            pass
+            self.hide_representatives = False
             
-        
+            
+            
     def draw(self):
         """Draw virtual and real streamlines.
 
@@ -441,9 +450,9 @@ class StreamlineLabeler(Actor, Manipulator):
             print 'Backspace: Remove unselected representatives.'
             self.remove_unselected()
 
-        elif symbol == Qt.Key_Delete:
-            print 'Delete: Remove selected representatives.'
-            self.remove_selected()
+        #elif symbol == Qt.Key_Delete:
+           # print 'Delete: Remove selected representatives.'
+            #self.remove_selected()
 
         elif symbol == Qt.Key_B:
             print "Go Back one step in the history."

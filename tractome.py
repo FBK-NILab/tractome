@@ -36,11 +36,10 @@ from fos.world import *
 from rois import *
 from itertools import chain
 from dipy.tracking.distances import bundles_distances_mam
+from dipy.tracking.metrics import length
 from dissimilarity_common import compute_disimilarity
 from sklearn.neighbors import KDTree
 import os
-
-
 class Tractome(object):
     """
     """
@@ -96,11 +95,17 @@ class Tractome(object):
             streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
             print "Loading", self.tracpath
             self.T = np.array([s[0] for s in streams], dtype=np.object)
-                        
+         
+
+        print "Removing short streamlines"
+        self.T = np.array([t for t in self.T if length(t)>= 15],  dtype=np.object)
         
         tracks_directoryname = os.path.dirname(self.tracpath) + '/.temp/'
         general_info_filename = tracks_directoryname + tracks_basename + '.spa'
-                
+        
+        
+        
+        
         # Check if there is the .spa file that contains all the
         # computed information from the tractography anyway and try to
         # load it
@@ -117,7 +122,7 @@ class Tractome(object):
             print "Computing dissimilarity matrix"
             self.num_prototypes = 40
             self.full_dissimilarity_matrix = compute_disimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
-                
+            
             # compute initial MBKM with given n_clusters
             print "Computing MBKM"
 
@@ -130,6 +135,7 @@ class Tractome(object):
             streamlines_ids = np.arange(size_T, dtype=np.int)
             self.clusters = mbkm_wrapper(self.full_dissimilarity_matrix, n_clusters, streamlines_ids)
             
+        
             print "Saving computed information from tractography"
             
             if not os.path.exists(tracks_directoryname):
@@ -146,9 +152,6 @@ class Tractome(object):
                                             clustering_parameter_max=len(self.clusters),
                                             full_dissimilarity_matrix=self.full_dissimilarity_matrix)
                 
-        if hasattr(self, 'state'):
-            self.streamlab.set_state(self.state)
-                               
         self.scene.add_actor(self.streamlab)
 
 
@@ -158,7 +161,7 @@ class Tractome(object):
         """
         print "Loading saved session file"
         segm_info = pickle.load(open(segpath)) 
-        self.state = segm_info['segmsession']  
+        state = segm_info['segmsession']  
             
         self.structpath=segm_info['structfilename']
         self.tracpath=segm_info['tractfilename']   
@@ -170,7 +173,8 @@ class Tractome(object):
 
         # load tractography
         self.loading_full_tractograpy(self.tracpath)
-
+        self.streamlab.set_state(state)
+            
         self.scene.update()
 
 
@@ -256,8 +260,7 @@ class Tractome(object):
         self.clusters = general_info['initclusters']
         self.full_dissimilarity_matrix = general_info['dismatrix']
         self.num_prototypes = general_info['nprot']
-        
-
+ 
     def save_segmentation(self, filename):
         """
         Saves the information of the segmentation result from the
@@ -266,8 +269,8 @@ class Tractome(object):
         
         print "Save segmentation result from current session"
         filename = filename[0]+'.seg'
-        self.state = self.streamlab.get_state()
-        seg_info={'structfilename':self.structpath, 'tractfilename':self.tracpath, 'segmsession':self.state}
+        state = self.streamlab.get_state()
+        seg_info={'structfilename':self.structpath, 'tractfilename':self.tracpath, 'segmsession':state}
         pickle.dump(seg_info, open(filename,'w'), protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -287,13 +290,14 @@ class Tractome(object):
         nib.trackvis.write(filename, streamlines, hdr, points_space = 'voxel')
 
 
-#    def compute_kdtree(self):
-#        """
-#        Compute kdtree from tactography for ROIs and extensions.
-#        """
-#        self.kdt=KDTree(self.coords)
-
-
+    def compute_kdtree(self):
+        """
+        Compute kdtree from tactography, for ROIs and extensions.
+        """
+        self.kdt=KDTree(self.full_dissimilarity_matrix)
+        
+    
+ 
     def compute_dataforROI(self):
         """
         Compute info from tractography to provide it to ROI.
@@ -367,7 +371,7 @@ class Tractome(object):
         activated, the operator to be applied is also specified.
         """
         self.d_active_ROIS[self.list_ROIS[pos_activeroi]] = activate
-        if activate:
+        if operator is not None:
             self.list_oper_ROIS[pos_activeroi] = operator
 
 
@@ -377,31 +381,29 @@ class Tractome(object):
         ROIs.
         """
         streamlines_ROIs = []
-        last_chkd = 0
+        last_chkd = -1
+
         for pos in range(0, len(self.list_ROIS)):
             name_roi  = self.list_ROIS[pos]
             if self.d_active_ROIS[name_roi]:
-                if pos==0:
+                if last_chkd == -1:
                     streamlines_ROIs = set(self.scene.actors[name_roi].streamlines)
                 else:
                     current_roi_streamlines = set(self.scene.actors[name_roi].streamlines)
-                    if self.list_oper_ROIS[pos] == 'and':
+                    if self.list_oper_ROIS[last_chkd] == 'and':
                         streamlines_ROIs = streamlines_ROIs & current_roi_streamlines
-                    elif self.list_oper_ROIS[pos] == 'or':
+                    elif self.list_oper_ROIS[last_chkd] == 'or':
                         streamlines_ROIs = streamlines_ROIs | current_roi_streamlines
-                    else:
-                        streamlines_ROIs = current_roi_streamlines
-                        
-                last_chkd +=1
-         
-        if last_chkd == 0:
+     
+                last_chkd =pos
+        
+        if last_chkd == -1:
             self.streamlab.reset_state()
         else:
             if len(streamlines_ROIs) > 0:
                 self.streamlab.set_streamlines_ROIs(streamlines_ROIs)
             else:
-                self.streamlab.hide_representatives = True
-                self.streamlab.expand = False
+                self.streamlab.set_empty_scene()
 
     
     def information_from_ROI(self, name_roi):
@@ -421,6 +423,9 @@ class Tractome(object):
         """
         Actors of scene will be removed in order to load new ones.
         """
+        self.d_active_ROIS = {}
+        self.list_ROIS = []
+        self.list_oper_ROIS = []
         self.scene.actors.clear()
         self.scene.update()
 
