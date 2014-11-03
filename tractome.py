@@ -27,7 +27,6 @@ import nibabel as nib
 from streamshow import StreamlineLabeler
 from guillotine import Guillotine
 from dipy.io.dpy import Dpy
-from dipy.tracking._utils import affine_for_trackvis
 import pickle
 from streamshow import compute_buffers, mbkm_wrapper
 from fos.coords import img_to_ras_coords

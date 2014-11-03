@@ -18,7 +18,7 @@ from fos.coords import img_to_ras_coords, from_matvec
 
 # pyglet module
 from pyglet.gl import *
-from pyglet.lib import load_library
+from ctypes import cast, c_int, POINTER
 
 # dipy modules
 from dipy.io.dpy import Dpy
@@ -29,9 +29,6 @@ from dipy.tracking.vox2track import track_counts
 # other
 import copy 
 import cPickle as pickle
-
-# trick for the bug of pyglet multiarrays
-glib = load_library('GL')
 
 # Tk dialogs
 import Tkinter, tkFileDialog
@@ -375,10 +372,10 @@ class StreamlineLabeler(Actor, Manipulator):
             glMultMatrixf(self.glaffine)
             if isinstance(self.representatives_first, tuple): print '>> first Tuple'
             if isinstance(self.representatives_count, tuple): print '>> count Tuple'
-            glib.glMultiDrawArrays(GL_LINE_STRIP, 
-                                   self.representatives_first.ctypes.data, 
-                                   self.representatives_count.ctypes.data, 
-                                   len(self.representatives_first))
+            glMultiDrawArrays(GL_LINE_STRIP, 
+                                    cast(self.representatives_first.ctypes.data,POINTER(c_int)), 
+                                    cast(self.representatives_count.ctypes.data,POINTER(c_int)),  
+                                    len(self.representatives_first))
             glPopMatrix()
 
         # plot tractography if necessary:
@@ -388,9 +385,9 @@ class StreamlineLabeler(Actor, Manipulator):
             glLineWidth(self.streamlines_line_width)
             glPushMatrix()
             glMultMatrixf(self.glaffine)
-            glib.glMultiDrawArrays(GL_LINE_STRIP, 
-                                    self.streamlines_visualized_first.ctypes.data, 
-                                    self.streamlines_visualized_count.ctypes.data, 
+            glMultiDrawArrays(GL_LINE_STRIP, 
+                                    cast(self.streamlines_visualized_first.ctypes.data,POINTER(c_int)), 
+                                    cast(self.streamlines_visualized_count.ctypes.data,POINTER(c_int)), 
                                     len(self.streamlines_visualized_first))
             glPopMatrix()
         
