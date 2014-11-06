@@ -6,7 +6,10 @@ Module implementing MainWindow.
 Copyright (c) 2012-2014, Emanuele Olivetti and Eleftherios Garyfallidis
 Distributed under the BSD 3-clause license. See COPYING.txt.
 """
-
+import os
+import platform
+if platform.system() == 'Darwin':
+    os.environ['DYLD_FALLBACK_LIBRARY_PATH']="/lib:/usr/lib:/usr/bin/lib:/System/Library/Frameworks/OpenGL.framework/Libraries:/usr/X11/lib:/"
 from PySide.QtCore import Slot
 from PySide.QtGui import QMainWindow
 from Ui_mainwindow import *
@@ -15,7 +18,6 @@ from fos.actor import *
 from fos.world import *
 from glwidget import GLWidget
 from tractome import Tractome
-import os
 import sys
 
 
