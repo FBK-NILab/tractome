@@ -65,6 +65,13 @@ class Tractome(object):
         self.affine = self.img.get_affine()
         self.dims = data.shape[:3]
         
+        # verifying if structural is color_fa created by TrackVis :: Diffusion Toolkit
+        if data.dtype == [('R', '|u1'), ('G', '|u1'), ('B', '|u1')]:
+            data1 = data.view((np.uint8, len(data.dtype.names)))
+            data = data1
+            del data1
+            
+        
         # Create the Guillotine object
         data = (np.interp(data, [data.min(), data.max()], [0, 255]))
         self.guil = Guillotine('Volume Slicer', data, np.copy(self.affine))
