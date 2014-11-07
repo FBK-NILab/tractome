@@ -36,7 +36,7 @@ from rois import *
 from itertools import chain
 from dipy.tracking.distances import bundles_distances_mam
 from dipy.tracking.metrics import length
-from dissimilarity_common import compute_disimilarity
+from dissimilarity_common import compute_dissimilarity
 from sklearn.neighbors import KDTree
 import os
 class Tractome(object):
@@ -127,7 +127,7 @@ class Tractome(object):
             
             print "Computing dissimilarity matrix"
             self.num_prototypes = 40
-            self.full_dissimilarity_matrix = compute_disimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
+            self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
             
             # compute initial MBKM with given n_clusters
             print "Computing MBKM"
