@@ -98,10 +98,10 @@ def compute_dissimilarity(data, distance, prototype_policy, num_prototypes, verb
 
     if verbose: print("Computing dissimilarity matrix.")
     if joblib_available and n_jobs != 1:
-        print("Parallel computation of the dissimilarity matrix: %s cpus." % n_jobs)
         if n_jobs is None or n_jobs == -1:
             n_jobs = cpu_count()
 
+        print("Parallel computation of the dissimilarity matrix: %s cpus." % n_jobs)
         if n_jobs > 1:
             tmp = np.linspace(0, data.shape[0], n_jobs).astype(np.int)
         else: # corner case: joblib detected 1 cpu only.
