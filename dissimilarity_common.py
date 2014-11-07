@@ -10,9 +10,6 @@ Distributed under the BSD 3-clause license. See COPYING.txt.
 
 from __future__ import division
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.spatial.distance import pdist, squareform, cdist
-from scipy.stats import pearsonr as correlation
 from sys import stdout
 
 
