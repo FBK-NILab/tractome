@@ -11,7 +11,10 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Tractome</string>
+  </property>
+  <property name="unifiedTitleAndToolBarOnMac">
+   <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -27,7 +30,7 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-            <column>
+          <column>
            <property name="text">
             <string>Objects</string>
            </property>
@@ -838,6 +841,9 @@
      <width>1460</width>
      <height>25</height>
     </rect>
+   </property>
+   <property name="nativeMenuBar">
+    <bool>false</bool>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
