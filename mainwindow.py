@@ -52,7 +52,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                     
         self.gridLayout_4.addWidget(self.glWidget) 
         
-        
+       
         # adding the editing items to ROI table
 
         # double spinbox for x,y and z coordinates
@@ -91,8 +91,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # creating the main Scene
         self.tractome= Tractome()
         self.add_scene(self.tractome.scene)
-        
-                
+    
+               
     def changenumstreamlines_handler(self, n_stream):
         """
         """
