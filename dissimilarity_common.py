@@ -10,10 +10,12 @@ Distributed under the BSD 3-clause license. See COPYING.txt.
 
 from __future__ import division
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.spatial.distance import pdist, squareform, cdist
-from scipy.stats import pearsonr as correlation
 from sys import stdout
+try:
+    from joblib import cpu_count, Parallel, delayed
+    joblib_available = True
+except ImportError:
+    joblib_available = False
 
 
 def furthest_first_traversal(S, k, distance, permutation=True):
@@ -64,11 +66,11 @@ def subset_furthest_first(S, k, distance, permutation=True, c=2.0):
     return idx[furthest_first_traversal(S[idx], k, distance, permutation=False)]
 
 
-def compute_disimilarity(data, distance, prototype_policy, num_prototypes, verbose=False, size_limit=500000):
+def compute_dissimilarity(data, distance, prototype_policy, num_prototypes, verbose=False, size_limit=500000, n_jobs=None):
     """Compute dissimilarity matrix given data, distance,
     prototype_policy and number of prototypes.
     """
-    print "Computing disimilarity data for the original data:",
+    print "Computing dissimilarity data for the original data:",
     data_original = data
     num_proto = num_prototypes
     if data.shape[0] > size_limit:
@@ -95,7 +97,20 @@ def compute_disimilarity(data, distance, prototype_policy, num_prototypes, verbo
         raise Exception                
 
     if verbose: print("Computing dissimilarity matrix.")
-    data_disimilarity = distance(data, prototype)               
+    if joblib_available and n_jobs != 1:
+        if n_jobs is None or n_jobs == -1:
+            n_jobs = cpu_count()
+
+        print("Parallel computation of the dissimilarity matrix: %s cpus." % n_jobs)
+        if n_jobs > 1:
+            tmp = np.linspace(0, data.shape[0], n_jobs).astype(np.int)
+        else: # corner case: joblib detected 1 cpu only.
+            tmp = (0, data.shape[0])
+
+        chunks = zip(tmp[:-1], tmp[1:])
+        data_dissimilarity = np.vstack(Parallel(n_jobs=n_jobs)(delayed(distance)(data[start:stop], prototype) for start, stop in chunks))
+    else:
+        data_dissimilarity = distance(data, prototype)
                 
     print
-    return data_disimilarity
+    return data_dissimilarity
