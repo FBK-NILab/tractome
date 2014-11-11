@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/tractome/Tractome_git_repo/tractome/mainwindow.ui'
+# Form implementation generated from reading ui file '/home/dporro/Tractome_my_git_repo/tractome/mainwindow.ui'
 #
-# Created: Fri Oct 24 01:14:21 2014
+# Created: Tue Nov 11 14:22:30 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -381,6 +381,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralWidget)
         self.menuBar = QtGui.QMenuBar(MainWindow)
         self.menuBar.setGeometry(QtCore.QRect(0, 0, 1460, 25))
+        self.menuBar.setNativeMenuBar(False)
         self.menuBar.setObjectName("menuBar")
         self.menuFile = QtGui.QMenu(self.menuBar)
         self.menuFile.setObjectName("menuFile")
@@ -435,7 +436,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QtGui.QApplication.translate("MainWindow", "MainWindow", None, QtGui.QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QtGui.QApplication.translate("MainWindow", "Tractome", None, QtGui.QApplication.UnicodeUTF8))
         self.treeObject.headerItem().setText(0, QtGui.QApplication.translate("MainWindow", "Objects", None, QtGui.QApplication.UnicodeUTF8))
         self.tblTract.setSortingEnabled(False)
         self.tblTract.horizontalHeaderItem(0).setText(QtGui.QApplication.translate("MainWindow", "Properties", None, QtGui.QApplication.UnicodeUTF8))
@@ -487,6 +488,5 @@ class Ui_MainWindow(object):
         self.actionRe_Cluster.setText(QtGui.QApplication.translate("MainWindow", "Re-Cluster", None, QtGui.QApplication.UnicodeUTF8))
         self.actionExpand_Clusters.setText(QtGui.QApplication.translate("MainWindow", "Expand Clusters", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSave_as_trackvis_file.setText(QtGui.QApplication.translate("MainWindow", "Save as trackvis file", None, QtGui.QApplication.UnicodeUTF8))
-
 
 
