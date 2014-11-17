@@ -270,6 +270,7 @@ class Tractome(object):
                 n_clusters = 150
             else:
                 n_clusters = size_T
+
             streamlines_ids = np.arange(size_T, dtype=np.int)
             self.clusters = mbkm_wrapper(self.full_dissimilarity_matrix, n_clusters, streamlines_ids)
                     
