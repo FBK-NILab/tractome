@@ -119,36 +119,10 @@ class Tractome(object):
             print "Looking for general information file"
             self.load_info(general_info_filename)
                     
-        except IOError:
+        except (IOError, KeyError):
             print "General information not found, recomputing buffers"
-
-            print "Computing buffers."
-            self.buffers = compute_buffers(self.T, alpha=1.0, save=False)
-            
-            print "Computing dissimilarity matrix"
-            self.num_prototypes = 40
-            self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
-            
-            # compute initial MBKM with given n_clusters
-            print "Computing MBKM"
-
-            size_T = len(self.T)
-            if  size_T > 150:
-                n_clusters = 150
-            else:
-                n_clusters = size_T
-                
-            streamlines_ids = np.arange(size_T, dtype=np.int)
-            self.clusters = mbkm_wrapper(self.full_dissimilarity_matrix, n_clusters, streamlines_ids)
-            
-        
-            print "Saving computed information from tractography"
-            
-            if not os.path.exists(tracks_directoryname):
-                os.makedirs(tracks_directoryname)
-            self.save_info(general_info_filename)
-            
-       
+            self.update_info(general_info_filename)
+                    
         # create the interaction system for tracks, 
         self.streamlab  = StreamlineLabeler('Bundle Picker',
                                             self.buffers, self.clusters,
@@ -244,7 +218,7 @@ class Tractome(object):
         return coords_max
 
 
-    def save_info(self,filepath):
+    def save_info(self, filepath):
         """
         Saves all the information from the tractography required for
         the whole segmentation procedure.
@@ -252,21 +226,56 @@ class Tractome(object):
         info = {'initclusters':self.clusters, 'buff':self.buffers, 'dismatrix':self.full_dissimilarity_matrix,'nprot':self.num_prototypes}
         print "Saving information of the tractography for the segmentation"
         print filepath
+        filedir = os.path.dirname(filepath)
+        if not os.path.exists(filedir):
+            os.makedirs(filedir)
         pickle.dump(info, open(filepath,'w'), protocol=pickle.HIGHEST_PROTOCOL)
 
 
-    def load_info(self,filepath):
+    def load_info(self, filepath):
         """
         Loads all the information from the tractography required for
         the whole segmentation procedure.
         """
         print "Loading general information file"
         general_info = pickle.load(open(filepath))
-        self.buffers = general_info['buff']
-        self.clusters = general_info['initclusters']
         self.full_dissimilarity_matrix = general_info['dismatrix']
         self.num_prototypes = general_info['nprot']
+        self.buffers = general_info['buff']
+        self.clusters = general_info['initclusters']
  
+    def update_info(self, filepath):
+        """
+        Compute the missing information not available in the cache.
+        """
+        try:
+            self.buffers
+        except AttributeError:
+            print "Computing buffers."
+            self.buffers = compute_buffers(self.T, alpha=1.0, save=False)
+            
+        try:
+            self.num_prototypes
+        except AttributeError:
+            print "Computing dissimilarity matrix"
+            self.num_prototypes = 40
+            self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
+ 
+        try:
+            self.clusters
+        except AttributeError:
+            print "Computing MBKM"
+            size_T = len(self.T)
+            if  size_T > 150:
+                n_clusters = 150
+            else:
+                n_clusters = size_T
+
+            streamlines_ids = np.arange(size_T, dtype=np.int)
+            self.clusters = mbkm_wrapper(self.full_dissimilarity_matrix, n_clusters, streamlines_ids)
+                    
+        self.save_info(filepath)
+
     def save_segmentation(self, filename):
         """
         Saves the information of the segmentation result from the
