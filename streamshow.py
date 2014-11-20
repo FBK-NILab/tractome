@@ -290,7 +290,7 @@ class StreamlineLabeler(Actor, Manipulator):
             #clusters but only with streamlines from ROI.
             clusters_new = {}
             for rid in self.clusters_before_roi:
-                new_cluster_ids = self.clusters_before_roi[rid] & streamlines_rois_ids
+                new_cluster_ids = self.clusters_before_roi[rid].intersection(streamlines_rois_ids)
                 if len(new_cluster_ids) > 0:
                     clusters_new[rid] = new_cluster_ids
                     clusters_new[list(new_cluster_ids)[0]] = clusters_new.pop(rid)

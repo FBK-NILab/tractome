@@ -534,7 +534,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         xmax = maxcoord[0]
         ymax = maxcoord[1]
         zmax = maxcoord[2]
-        self.grb_tractomeroi.setEnabled(True)
+        self.grbROImethod.setEnabled(True)
         self.rdbInsSphere.toggle()
         cantrois = 0
         

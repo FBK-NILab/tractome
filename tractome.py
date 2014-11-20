@@ -465,9 +465,9 @@ class Tractome(object):
                 else:
                     current_roi_streamlines = set(self.scene.actors[name_roi].streamlines)
                     if self.list_oper_ROIS[last_chkd] == 'and':
-                        streamlines_ROIs = streamlines_ROIs & current_roi_streamlines
+                        streamlines_ROIs.intersection_update(current_roi_streamlines)
                     elif self.list_oper_ROIS[last_chkd] == 'or':
-                        streamlines_ROIs = streamlines_ROIs | current_roi_streamlines
+                        streamlines_ROIs.update(current_roi_streamlines)
      
                 last_chkd =pos
         
