@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/dporro/Tractome_my_git_repo/tractome/mainwindow.ui'
 #
 # Created: Fri Nov 14 12:36:27 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
