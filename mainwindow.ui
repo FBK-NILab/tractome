@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1460</width>
-    <height>751</height>
+    <height>739</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,609 +17,609 @@
    <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QHBoxLayout" name="horizontalLayout_6">
+   <layout class="QHBoxLayout" name="horizontalLayout_13">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout">
+     <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_5">
-        <item>
-         <widget class="QTreeWidget" name="treeObject">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <column>
-           <property name="text">
-            <string>Objects</string>
-           </property>
-          </column>
-         </widget>
-        </item>
-        <item>
-         <widget class="QTabWidget" name="tabProps_4">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="currentIndex">
-           <number>0</number>
-          </property>
-          <widget class="QWidget" name="tabPropsTract">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="focusPolicy">
-            <enum>Qt::TabFocus</enum>
-           </property>
-           <attribute name="title">
-            <string>Tractography</string>
-           </attribute>
-           <layout class="QHBoxLayout" name="horizontalLayout_2">
-            <item>
-             <widget class="QTableWidget" name="tblTract">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="autoFillBackground">
-               <bool>true</bool>
-              </property>
-              <property name="dragEnabled">
-               <bool>false</bool>
-              </property>
-              <property name="showGrid">
-               <bool>true</bool>
-              </property>
-              <property name="gridStyle">
-               <enum>Qt::NoPen</enum>
-              </property>
-              <property name="sortingEnabled">
-               <bool>false</bool>
-              </property>
-              <property name="rowCount">
-               <number>6</number>
-              </property>
-              <property name="columnCount">
-               <number>2</number>
-              </property>
-              <attribute name="horizontalHeaderVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="horizontalHeaderCascadingSectionResizes">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="horizontalHeaderDefaultSectionSize">
-               <number>155</number>
-              </attribute>
-              <attribute name="horizontalHeaderMinimumSectionSize">
-               <number>56</number>
-              </attribute>
-              <attribute name="horizontalHeaderStretchLastSection">
-               <bool>true</bool>
-              </attribute>
-              <attribute name="verticalHeaderVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="verticalHeaderCascadingSectionResizes">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="verticalHeaderMinimumSectionSize">
-               <number>15</number>
-              </attribute>
-              <attribute name="verticalHeaderStretchLastSection">
-               <bool>true</bool>
-              </attribute>
-              <row/>
-              <row/>
-              <row/>
-              <row/>
-              <row/>
-              <row/>
-              <column>
-               <property name="text">
-                <string>Properties</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Values</string>
-               </property>
-              </column>
-              <item row="0" column="0">
-               <property name="text">
-                <string>Name</string>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>221</red>
-                  <green>207</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="0" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>221</red>
-                  <green>207</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="1" column="0">
-               <property name="text">
-                <string>Track Count</string>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>216</red>
-                  <green>189</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="1" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>216</red>
-                  <green>189</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="2" column="0">
-               <property name="text">
-                <string>Representative Count</string>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>221</red>
-                  <green>207</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="2" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>221</red>
-                  <green>207</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="3" column="0">
-               <property name="text">
-                <string>Voxel Size</string>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>216</red>
-                  <green>189</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="3" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>216</red>
-                  <green>189</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="4" column="0">
-               <property name="text">
-                <string>Volume Size</string>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>221</red>
-                  <green>207</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-              </item>
-              <item row="4" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>221</red>
-                  <green>207</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="5" column="0">
-               <property name="text">
-                <string>Orientation</string>
-               </property>
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>216</red>
-                  <green>189</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-              </item>
-              <item row="5" column="1">
-               <property name="background">
-                <brush brushstyle="SolidPattern">
-                 <color alpha="255">
-                  <red>216</red>
-                  <green>189</green>
-                  <blue>255</blue>
-                 </color>
-                </brush>
-               </property>
-              </item>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-          <widget class="QWidget" name="tabPropsROI">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <attribute name="title">
-            <string>ROI Properties</string>
-           </attribute>
-           <layout class="QHBoxLayout" name="horizontalLayout_3">
-            <item>
-             <widget class="QTableWidget" name="tblROI">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="autoFillBackground">
-               <bool>true</bool>
-              </property>
-              <property name="dragEnabled">
-               <bool>false</bool>
-              </property>
-              <property name="dragDropOverwriteMode">
-               <bool>false</bool>
-              </property>
-              <property name="showGrid">
-               <bool>true</bool>
-              </property>
-              <property name="gridStyle">
-               <enum>Qt::NoPen</enum>
-              </property>
-              <property name="sortingEnabled">
-               <bool>false</bool>
-              </property>
-              <property name="rowCount">
-               <number>7</number>
-              </property>
-              <property name="columnCount">
-               <number>2</number>
-              </property>
-              <attribute name="horizontalHeaderVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="horizontalHeaderCascadingSectionResizes">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="horizontalHeaderDefaultSectionSize">
-               <number>135</number>
-              </attribute>
-              <attribute name="horizontalHeaderStretchLastSection">
-               <bool>true</bool>
-              </attribute>
-              <attribute name="verticalHeaderVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="verticalHeaderCascadingSectionResizes">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="verticalHeaderStretchLastSection">
-               <bool>true</bool>
-              </attribute>
-              <row>
-               <property name="text">
-                <string>1</string>
-               </property>
-              </row>
-              <row/>
-              <row/>
-              <row/>
-              <row/>
-              <row/>
-              <row/>
-              <column>
-               <property name="text">
-                <string>Properties</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Values</string>
-               </property>
-              </column>
-              <item row="0" column="0">
-               <property name="text">
-                <string>Name</string>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="0" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="flags">
-                <set>ItemIsEditable|ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="1" column="0">
-               <property name="text">
-                <string>Visible</string>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="1" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="2" column="0">
-               <property name="text">
-                <string>Color</string>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="2" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="3" column="0">
-               <property name="text">
-                <string>X coordinate</string>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="3" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="4" column="0">
-               <property name="text">
-                <string>Y coordinate</string>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="4" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="5" column="0">
-               <property name="text">
-                <string>Z coordinate</string>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="5" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="6" column="0">
-               <property name="text">
-                <string>Radius</string>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-              <item row="6" column="1">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="flags">
-                <set>ItemIsEnabled</set>
-               </property>
-              </item>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-          <widget class="QWidget" name="tab">
-           <attribute name="title">
-            <string>Applied ROIS</string>
-           </attribute>
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
-            <item>
-             <widget class="QTableWidget" name="tblROISlist">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="autoFillBackground">
-               <bool>false</bool>
-              </property>
-              <property name="showGrid">
-               <bool>false</bool>
-              </property>
-              <property name="columnCount">
-               <number>1</number>
-              </property>
-              <attribute name="horizontalHeaderVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="horizontalHeaderDefaultSectionSize">
-               <number>624</number>
-              </attribute>
-              <attribute name="horizontalHeaderHighlightSections">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="horizontalHeaderMinimumSectionSize">
-               <number>624</number>
-              </attribute>
-              <attribute name="verticalHeaderVisible">
-               <bool>false</bool>
-              </attribute>
-              <attribute name="verticalHeaderHighlightSections">
-               <bool>false</bool>
-              </attribute>
-              <column/>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_28">
+       <widget class="QTreeWidget" name="treeObject">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <column>
+         <property name="text">
+          <string>Objects</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTabWidget" name="tabProps_4">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="currentIndex">
+         <number>0</number>
+        </property>
+        <widget class="QWidget" name="tabPropsTract">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::TabFocus</enum>
+         </property>
+         <attribute name="title">
+          <string>Tractography</string>
+         </attribute>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
-           <widget class="QCheckBox" name="chkbShowTract">
+           <widget class="QTableWidget" name="tblTract">
             <property name="enabled">
              <bool>false</bool>
             </property>
-            <property name="text">
-             <string>Show Tractography</string>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
-            <property name="checked">
+            <property name="autoFillBackground">
              <bool>true</bool>
             </property>
-            <property name="tristate">
+            <property name="dragEnabled">
              <bool>false</bool>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="chkbShowStruct">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>Show Structural Image</string>
-            </property>
-            <property name="checked">
+            <property name="showGrid">
              <bool>true</bool>
             </property>
+            <property name="gridStyle">
+             <enum>Qt::NoPen</enum>
+            </property>
+            <property name="sortingEnabled">
+             <bool>false</bool>
+            </property>
+            <property name="rowCount">
+             <number>6</number>
+            </property>
+            <property name="columnCount">
+             <number>2</number>
+            </property>
+            <attribute name="horizontalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderCascadingSectionResizes">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderDefaultSectionSize">
+             <number>155</number>
+            </attribute>
+            <attribute name="horizontalHeaderMinimumSectionSize">
+             <number>56</number>
+            </attribute>
+            <attribute name="horizontalHeaderStretchLastSection">
+             <bool>true</bool>
+            </attribute>
+            <attribute name="verticalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="verticalHeaderCascadingSectionResizes">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="verticalHeaderMinimumSectionSize">
+             <number>15</number>
+            </attribute>
+            <attribute name="verticalHeaderStretchLastSection">
+             <bool>true</bool>
+            </attribute>
+            <row/>
+            <row/>
+            <row/>
+            <row/>
+            <row/>
+            <row/>
+            <column>
+             <property name="text">
+              <string>Properties</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Values</string>
+             </property>
+            </column>
+            <item row="0" column="0">
+             <property name="text">
+              <string>Name</string>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>221</red>
+                <green>207</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="0" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>221</red>
+                <green>207</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="1" column="0">
+             <property name="text">
+              <string>Track Count</string>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>216</red>
+                <green>189</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="1" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>216</red>
+                <green>189</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="2" column="0">
+             <property name="text">
+              <string>Representative Count</string>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>221</red>
+                <green>207</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="2" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>221</red>
+                <green>207</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="3" column="0">
+             <property name="text">
+              <string>Voxel Size</string>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>216</red>
+                <green>189</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="3" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>216</red>
+                <green>189</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="4" column="0">
+             <property name="text">
+              <string>Volume Size</string>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>221</red>
+                <green>207</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+            </item>
+            <item row="4" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>221</red>
+                <green>207</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="5" column="0">
+             <property name="text">
+              <string>Orientation</string>
+             </property>
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>216</red>
+                <green>189</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+            </item>
+            <item row="5" column="1">
+             <property name="background">
+              <brush brushstyle="SolidPattern">
+               <color alpha="255">
+                <red>216</red>
+                <green>189</green>
+                <blue>255</blue>
+               </color>
+              </brush>
+             </property>
+            </item>
            </widget>
           </item>
          </layout>
+        </widget>
+        <widget class="QWidget" name="tabPropsROI">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <attribute name="title">
+          <string>ROI Properties</string>
+         </attribute>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QTableWidget" name="tblROI">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="autoFillBackground">
+             <bool>true</bool>
+            </property>
+            <property name="dragEnabled">
+             <bool>false</bool>
+            </property>
+            <property name="dragDropOverwriteMode">
+             <bool>false</bool>
+            </property>
+            <property name="showGrid">
+             <bool>true</bool>
+            </property>
+            <property name="gridStyle">
+             <enum>Qt::NoPen</enum>
+            </property>
+            <property name="sortingEnabled">
+             <bool>false</bool>
+            </property>
+            <property name="rowCount">
+             <number>7</number>
+            </property>
+            <property name="columnCount">
+             <number>2</number>
+            </property>
+            <attribute name="horizontalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderCascadingSectionResizes">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderDefaultSectionSize">
+             <number>135</number>
+            </attribute>
+            <attribute name="horizontalHeaderStretchLastSection">
+             <bool>true</bool>
+            </attribute>
+            <attribute name="verticalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="verticalHeaderCascadingSectionResizes">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="verticalHeaderStretchLastSection">
+             <bool>true</bool>
+            </attribute>
+            <row>
+             <property name="text">
+              <string>1</string>
+             </property>
+            </row>
+            <row/>
+            <row/>
+            <row/>
+            <row/>
+            <row/>
+            <row/>
+            <column>
+             <property name="text">
+              <string>Properties</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Values</string>
+             </property>
+            </column>
+            <item row="0" column="0">
+             <property name="text">
+              <string>Name</string>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="0" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="flags">
+              <set>ItemIsEditable|ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="1" column="0">
+             <property name="text">
+              <string>Visible</string>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="1" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="2" column="0">
+             <property name="text">
+              <string>Color</string>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="2" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="3" column="0">
+             <property name="text">
+              <string>X coordinate</string>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="3" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="4" column="0">
+             <property name="text">
+              <string>Y coordinate</string>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="4" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="5" column="0">
+             <property name="text">
+              <string>Z coordinate</string>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="5" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="6" column="0">
+             <property name="text">
+              <string>Radius</string>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+            <item row="6" column="1">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="flags">
+              <set>ItemIsEnabled</set>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="tab">
+         <attribute name="title">
+          <string>Applied ROIS</string>
+         </attribute>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QTableWidget" name="tblROISlist">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
+            <property name="showGrid">
+             <bool>false</bool>
+            </property>
+            <property name="columnCount">
+             <number>1</number>
+            </property>
+            <attribute name="horizontalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderDefaultSectionSize">
+             <number>624</number>
+            </attribute>
+            <attribute name="horizontalHeaderHighlightSections">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderMinimumSectionSize">
+             <number>624</number>
+            </attribute>
+            <attribute name="verticalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="verticalHeaderHighlightSections">
+             <bool>false</bool>
+            </attribute>
+            <column/>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_28">
+        <item>
+         <widget class="QCheckBox" name="chkbShowTract">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Show Tractography</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="tristate">
+           <bool>false</bool>
+          </property>
+         </widget>
         </item>
+        <item>
+         <widget class="QCheckBox" name="chkbShowStruct">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Show Structural Image</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QGroupBox" name="grbROImethod">
           <property name="enabled">
@@ -642,43 +642,25 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_3">
            <item>
-            <layout class="QVBoxLayout" name="verticalLayout_15"/>
-           </item>
-           <item>
-            <widget class="QGroupBox" name="grb_tractomeroi">
-             <property name="title">
-              <string/>
-             </property>
-             <widget class="QWidget" name="layoutWidget_8">
-              <property name="geometry">
-               <rect>
-                <x>20</x>
-                <y>0</y>
-                <width>301</width>
-                <height>24</height>
-               </rect>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_31">
-               <item>
-                <widget class="QRadioButton" name="rdbInsSphere">
-                 <property name="text">
-                  <string>Inside Sphere</string>
-                 </property>
-                 <property name="checked">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QRadioButton" name="rdbtrackvis">
-                 <property name="text">
-                  <string>Trackvis Like</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </widget>
+            <layout class="QHBoxLayout" name="horizontalLayout_31">
+             <item>
+              <widget class="QRadioButton" name="rdbInsSphere">
+               <property name="text">
+                <string>Inside Sphere</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QRadioButton" name="rdbtrackvis">
+               <property name="text">
+                <string>Trackvis Like</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
           </layout>
          </widget>
@@ -783,37 +765,80 @@
           </layout>
          </widget>
         </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout_16">
         <item>
-         <widget class="QSpinBox" name="spbExtClust">
+         <widget class="QGroupBox" name="grbExtendcluster">
           <property name="enabled">
            <bool>false</bool>
           </property>
-          <property name="readOnly">
-           <bool>false</bool>
+          <property name="title">
+           <string>Extend Clusters</string>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QSlider" name="vSlExtClust">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maximum">
-           <number>1000</number>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_12">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_5">
+             <item>
+              <widget class="QSpinBox" name="spbExtClust">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="readOnly">
+                <bool>false</bool>
+               </property>
+               <property name="minimum">
+                <number>0</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSlider" name="hSlExtclust">
+               <property name="minimum">
+                <number>0</number>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout">
+               <item>
+                <spacer name="horizontalSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>13</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+               <item>
+                <widget class="QPushButton" name="pbExtCluster">
+                 <property name="text">
+                  <string>Set Clusters</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="horizontalSpacer_2">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>13</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+          </layout>
          </widget>
         </item>
        </layout>
@@ -832,6 +857,10 @@
      </widget>
     </item>
    </layout>
+   <zorder>gridWidget_4</zorder>
+   <zorder>grbExtendcluster</zorder>
+   <zorder>grbExtendcluster_2</zorder>
+   <zorder>grbExtendcluster_2</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">

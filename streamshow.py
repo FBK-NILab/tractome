@@ -42,6 +42,7 @@ from itertools import chain
 
 import time
 from sklearn.cluster import MiniBatchKMeans
+from sklearn.neighbors import KDTree
 
 question_message = """
 >>>>Track Labeler
@@ -221,6 +222,7 @@ class StreamlineLabeler(Actor, Manipulator):
         
 
         self.clusters = clusters
+        self.save_init_set = True
         # MBKM:
         Manipulator.__init__(self, initial_clusters=clusters, clustering_function=mbkm_wrapper)
 
@@ -322,6 +324,36 @@ class StreamlineLabeler(Actor, Manipulator):
 #            self.numstream_handler.fire(len(streamlines_ids))
 #            self.numrep_handler.fire(len(representative_ids))
 
+    def set_streamlines_knn(self,  streamlines_knn):
+        """
+        Set streamlines for KNN-extension
+        """ 
+        # 1) Saving the clusters available before the extension is done. In case the user goes back to k=0, we go directly to this stage.
+        if self.save_init_set == True :
+            self.clusters_before_knn = copy.deepcopy(self.clusters)
+            # This KDTree is only computed on the medoids of clusters, for the assignment process. It is only computed once, unless the initial set of clusters changes and it is recomputed.
+            self.kdtree_medoids= KDTree(self.full_dissimilarity_matrix[self.clusters.keys()])
+            self.save_init_set = False
+            
+        clusters_new = copy.deepcopy(self.clusters_before_knn)
+        clusters_representatives = self.clusters.keys()
+        
+        # 2) If the number of available clusters is 1, all neighbors will of course automatically be assigned to this cluster
+        if len(clusters_representatives) == 1:
+            clusters_new[clusters_representatives[0]].update(streamlines_knn)
+        
+        # 3) Query to previously computed KDTree, in order to find the nearest medoid (representative) of each streamline to be added.
+        else:
+            
+            a2 = self.kdtree_medoids.query(self.full_dissimilarity_matrix[streamlines_knn],k=1, return_distance = False)
+            for i in range(0, len(streamlines_knn)):
+                clusters_new[clusters_representatives[a2[i, 0]]].add(streamlines_knn[i])
+
+        self.clusters_reset(clusters_new)
+        self.recluster_action()
+        self.select_all()
+        self.expand = True
+
     def set_empty_scene(self):
         """
         Hides all element in the screen if the ROI returns an empty set of streamlines
@@ -332,21 +364,31 @@ class StreamlineLabeler(Actor, Manipulator):
         self.hide_representatives = True
         self.expand = False
          
-    def reset_state(self):
+    def reset_state(self,  function):
         """
-        Show clustering state before any ROI was applied 
+        Show clustering state before any ROI or KNN-extension was applied 
         """
-        try:
-            self.clusters_before_roi
-            self.hide_representatives = False
+        if function =='roi':
             self.clusters_reset(self.clusters_before_roi)
-            self.recluster_action()
             self.clusters_before_roi = {}
 
-        except AttributeError:
-            self.hide_representatives = False
-            
-            
+        elif function == 'knn':
+            try:
+                self.clusters_before_knn
+                if self.save_init_set == True :
+                    self.clusters_before_knn = copy.deepcopy(self.clusters)
+                    # This KDTree is only computed on the medoids of clusters, for the assignment process. It is only computed once, unless the initial set of clusters changes and it is recomputed.
+                    self.kdtree_medoids= KDTree(self.full_dissimilarity_matrix[self.clusters.keys()])
+                    self.save_init_set = False
+                self.clusters_reset(self.clusters_before_knn)
+            except AttributeError:
+                pass
+           
+        self.save_init_set = True
+        self.recluster_action()
+        self.hide_representatives = False
+
+    
             
     def draw(self):
         """Draw virtual and real streamlines.
@@ -446,6 +488,7 @@ class StreamlineLabeler(Actor, Manipulator):
         elif symbol == Qt.Key_Backspace:
             print 'Backspace: Remove unselected representatives.'
             self.remove_unselected()
+            self.save_init_set = True
 
         #elif symbol == Qt.Key_Delete:
            # print 'Delete: Remove selected representatives.'

@@ -17,7 +17,7 @@ from fos.vsml import vsml
 from fos.actor import *
 from fos.world import *
 from glwidget import GLWidget
-from tractome import Tractome
+from tractome import Tractome,  TractomeError
 import sys
 
 
@@ -243,6 +243,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tractome.recluster(self.spbRecluster.value())
         self.glWidget.updateGL()
     
+    @Slot(int)
+    def on_spbExtClust_valueChanged(self, p0):
+        """
+        Update hSlExtclust and call method that computes kdtree-query.
+        """
+        self.hSlExtclust.setValue(p0)
+        try:
+            
+            self.tractome.compute_kqueries(p0)
+            self.glWidget.updateGL()
+        
+        except TractomeError,e:
+            msgBox = QtGui.QMessageBox.critical(self, "Tractome Message", ''.join(e.args))
+          
+            
+    
+    @Slot(int)
+    def on_hSlExtclust_valueChanged(self, value):
+        """
+        Update spbExtClust.
+        """
+        self.spbExtClust.setValue(value)
+        
+    @Slot()
+    def on_pbExtCluster_clicked(self):
+        """
+        Sets the new composition of clusters with the added neighbor streamlines
+        """
+        self.tractome.set_streamlines_clusters()
+
 
     @Slot()
     def on_actionLoad_Structural_Image_triggered(self):
@@ -315,6 +345,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
                 self.tblTract.item(4, 1).setText(str(hdr['dim']))
                 self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
+                self.grbCluster.setEnabled(True)
+                self.grbExtendcluster.setEnabled(True)
                          
                 
             else:
@@ -322,7 +354,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tblTract.item(4, 1).setText('No info')
                 self.tblTract.item(5, 1).setText('LAS')
 
-            self.grbCluster.setEnabled(True)
+            
+            
                
    
     def create_update_Item(self,  object):
@@ -388,6 +421,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tblTract.setEnabled(True)
                 self.menuROI.setEnabled(True)
                 self.grbCluster.setEnabled(True)
+                self.grbExtendcluster.setEnabled(True)
                 self.actionLoad_Tractography.setEnabled(True)
                 self.actionSave_Segmentation.setEnabled(True) 
                 self.actionSave_as_trackvis_file.setEnabled(True)
@@ -837,5 +871,4 @@ if __name__ == "__main__":
     mainWindow= MainWindow()
     mainWindow.show()
     
-    
-    
+ 
