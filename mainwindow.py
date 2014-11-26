@@ -284,6 +284,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Sets the new composition of clusters with the added neighbor streamlines
         """
         self.tractome.set_streamlines_clusters()
+        self.glWidget.updateGL()
         self.hSlExtclust.setValue(0)
 
 

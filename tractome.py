@@ -371,6 +371,9 @@ class Tractome(object):
         The actual composition of clusters will be set as reference to compute the new neighbors.
         """
         self.streamlab.save_init_set = True
+        self.streamlab.hide_representatives = False
+        self.streamlab.expand = False
+        self.streamlab.unselect_all()
  
     def compute_dataforROI(self):
         """
