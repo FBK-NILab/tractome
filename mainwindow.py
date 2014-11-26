@@ -113,6 +113,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         self.tblTract.item(2, 1).setText(str(n_rep))
         
+        
+    def changenumknnextend_handler(self, changenn):
+        """
+        """
+        if changenn is True:
+            self.hSlExtclust.setValue(0)
+        
 
 
     def on_dspbxcoord_valueChanged(self, value):
@@ -241,22 +248,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Call re-cluster function from tractome and update values of possible number of clusters for related objects.
         """
         self.tractome.recluster(self.spbRecluster.value())
+        self.hSlExtclust.setValue(0)
         self.glWidget.updateGL()
-    
+        
+        
     @Slot(int)
     def on_spbExtClust_valueChanged(self, p0):
         """
         Update hSlExtclust and call method that computes kdtree-query.
         """
         self.hSlExtclust.setValue(p0)
-        try:
+        if p0 != 0:
+            try:
+                
+                self.tractome.compute_kqueries(p0)
+                self.glWidget.updateGL()
             
-            self.tractome.compute_kqueries(p0)
-            self.glWidget.updateGL()
-        
-        except TractomeError,e:
-            msgBox = QtGui.QMessageBox.critical(self, "Tractome Message", ''.join(e.args))
-          
+            except TractomeError,e:
+                msgBox = QtGui.QMessageBox.critical(self, "Tractome Message", ''.join(e.args))
+                
+              
             
     
     @Slot(int)
@@ -266,12 +277,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         self.spbExtClust.setValue(value)
         
+        
     @Slot()
     def on_pbExtCluster_clicked(self):
         """
         Sets the new composition of clusters with the added neighbor streamlines
         """
         self.tractome.set_streamlines_clusters()
+        self.hSlExtclust.setValue(0)
 
 
     @Slot()
@@ -333,6 +346,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # connecting event that is fired when number of streamlines is changed after some action on the streamlinelabeler actor
             self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
             self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
+            self.tractome.streamlab.remselect_handler +=self.changenumknnextend_handler
         
             #add information to tab in Table
             self.tblTract.item(0, 1).setText(tracks_basename)
@@ -441,6 +455,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # connecting event that is fired when number of streamlines is changed after some action on the streamlinelabeler actor
             self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
             self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
+            self.tractome.streamlab.remselect_handler +=self.changenumknnextend_handler
             
             #add information to tab in Table
             self.tblTract.item(0, 1).setText(tracks_basename)

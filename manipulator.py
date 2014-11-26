@@ -48,6 +48,7 @@ class Manipulator(object):
         self.streamline_ids = 0
         self.numstream_handler = EventHook()
         self.numrep_handler = EventHook()
+        self.remselect_handler = EventHook()
         self.clusters_reset(initial_clusters)
         self.simple_history_start()
         self.clustering_function = clustering_function
@@ -149,7 +150,9 @@ class Manipulator(object):
             clusters[representative] = self.clusters[representative]
         self.clusters_reset(clusters)
         self.history.append('remove_selected()')
+        self.remselect_handler.fire(True)
         self.remove_selected_action()
+        
 
 
     def remove_selected_action(self):
@@ -165,6 +168,7 @@ class Manipulator(object):
         self.clusters_reset(clusters)
         self.history.append('remove_unselected()')
         self.simple_history_store()
+        self.remselect_handler.fire(True)
         self.remove_unselected_action()
 
 
