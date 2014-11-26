@@ -258,14 +258,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Update hSlExtclust and call method that computes kdtree-query.
         """
         self.hSlExtclust.setValue(p0)
-        if p0 != 0:
-            try:
-                
-                self.tractome.compute_kqueries(p0)
-                self.glWidget.updateGL()
+        try:
             
-            except TractomeError,e:
-                msgBox = QtGui.QMessageBox.critical(self, "Tractome Message", ''.join(e.args))
+            self.tractome.compute_kqueries(p0)
+            self.glWidget.updateGL()
+        
+        except TractomeError,e:
+            msgBox = QtGui.QMessageBox.critical(self, "Tractome Message", ''.join(e.args))
                 
               
             

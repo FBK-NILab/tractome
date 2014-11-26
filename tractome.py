@@ -345,13 +345,14 @@ class Tractome(object):
         """
         Makes the query to find the knn of the current streamlines on the scene
         """
-        if len(self.streamlab.streamline_ids) == len(self.T):
-            
-            raise TractomeError("Cannot enlarge clusters. The whole tractography is being used as input.")
        
+        if k==0:
+            self.streamlab.reset_state('knn')
         else:
-            if k==0:
-                self.streamlab.reset_state('knn')
+            if len(self.streamlab.streamline_ids) == len(self.T):
+        
+                raise TractomeError("Cannot enlarge clusters. The whole tractography is being used as input.")
+   
             else:
                 nn = k+1
                 if self.streamlab.save_init_set==True:
