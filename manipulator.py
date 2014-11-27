@@ -14,6 +14,7 @@ import copy
 import code
 
 
+
 def clustering_random(data, clusters_number, streamline_ids, seed=0):
     """Create fake clustering just playing randomly with streamline
     ids. For testing purpose.
@@ -49,6 +50,7 @@ class Manipulator(object):
         self.numstream_handler = EventHook()
         self.numrep_handler = EventHook()
         self.remselect_handler = EventHook()
+        self.expand_handler = EventHook()
         self.clusters_reset(initial_clusters)
         self.simple_history_start()
         self.clustering_function = clustering_function
@@ -64,6 +66,7 @@ class Manipulator(object):
         self.representative_ids = set(self.clusters.keys())
         self.selected = set()
         self.expanded = set()
+        self.expand_handler.fire(self.expand)
         self.show_representatives = True
         self.history.append('clusters_reset('+str(clusters)+')')
         self.numstream_handler.fire(len(self.streamline_ids))
@@ -224,6 +227,7 @@ class Manipulator(object):
         """Toggle expand/collapse status of selected representatives.
         """
         self.expand = not self.expand
+        self.expand_handler.fire(self.expand)
         self.history.append('expand_collapse_selected()')
         self.expand_collapse_selected_action()
 

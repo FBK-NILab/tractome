@@ -223,6 +223,7 @@ class StreamlineLabeler(Actor, Manipulator):
 
         self.clusters = clusters
         self.save_init_set = True
+        self.expand = False 
         # MBKM:
         Manipulator.__init__(self, initial_clusters=clusters, clustering_function=mbkm_wrapper)
 
@@ -254,7 +255,6 @@ class StreamlineLabeler(Actor, Manipulator):
         print('MBytes %f' % (self.streamlines_buffer.nbytes/2.**20,))
 
         self.hide_representatives = False
-        self.expand = False        
         self.representatives_line_width = representatives_line_width
         self.streamlines_line_width = streamlines_line_width
         self.vertices = self.streamlines_buffer # this is apparently requested by Actor
@@ -300,7 +300,7 @@ class StreamlineLabeler(Actor, Manipulator):
             self.hide_representatives = True
             self.select_all()
             self.expand = True
-
+            
 #
 #            
 #        else:
@@ -380,14 +380,13 @@ class StreamlineLabeler(Actor, Manipulator):
                     # This KDTree is only computed on the medoids of clusters, for the assignment process. It is only computed once, unless the initial set of clusters changes and it is recomputed.
                     self.kdtree_medoids= KDTree(self.full_dissimilarity_matrix[self.clusters.keys()])
                     self.save_init_set = False
+                self.expand = False
                 self.clusters_reset(self.clusters_before_knn)
             except AttributeError:
                 pass
            
         self.save_init_set = True
         self.recluster_action()
-        self.hide_representatives = False
-
     
             
     def draw(self):

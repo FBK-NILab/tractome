@@ -175,7 +175,6 @@ class Tractome(object):
         """
         # MBKM:
         self.streamlab.recluster(n_clusters, data=self.full_dissimilarity_matrix)
-        self.streamlab.hide_representatives = False
         self.set_streamlines_clusters()
 
 
@@ -372,10 +371,8 @@ class Tractome(object):
         The actual composition of clusters will be set as reference to compute the new neighbors.
         """
         self.streamlab.save_init_set = True
-        self.streamlab.hide_representatives = False
-        self.streamlab.expand = False
-        self.streamlab.unselect_all()
- 
+        self.streamlab.expand_collapse_selected()
+
     def compute_dataforROI(self):
         """
         Compute info from tractography to provide it to ROI.
