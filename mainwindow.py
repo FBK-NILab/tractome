@@ -123,13 +123,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.hSlExtclust.setValue(0)
             
     
-    def activateknnextend_handler(self,  expand):
-        """
-        """
-        self.grbExtendcluster.setEnabled(expand)
-        
-
-
     def on_dspbxcoord_valueChanged(self, value):
         """
         """
@@ -355,7 +348,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
             self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
             self.tractome.streamlab.remselect_handler +=self.changenumknnextend_handler
-            self.tractome.streamlab.expand_handler += self.activateknnextend_handler
         
             #add information to tab in Table
             self.tblTract.item(0, 1).setText(tracks_basename)
@@ -369,6 +361,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tblTract.item(4, 1).setText(str(hdr['dim']))
                 self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
                 self.grbCluster.setEnabled(True)
+                self.grbExtendcluster.setEnabled(True)
                          
                 
             else:
@@ -443,6 +436,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tblTract.setEnabled(True)
                 self.menuROI.setEnabled(True)
                 self.grbCluster.setEnabled(True)
+                self.grbExtendcluster.setEnabled(True)
                 self.actionLoad_Tractography.setEnabled(True)
                 self.actionSave_Segmentation.setEnabled(True) 
                 self.actionSave_as_trackvis_file.setEnabled(True)
@@ -463,7 +457,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
             self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
             self.tractome.streamlab.remselect_handler +=self.changenumknnextend_handler
-            self.tractome.streamlab.expand_handler += self.activateknnextend_handler
             
             #add information to tab in Table
             self.tblTract.item(0, 1).setText(tracks_basename)

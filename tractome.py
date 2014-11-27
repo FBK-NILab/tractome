@@ -176,6 +176,7 @@ class Tractome(object):
         # MBKM:
         self.streamlab.recluster(n_clusters, data=self.full_dissimilarity_matrix)
         self.set_streamlines_clusters()
+        
 
 
     def loading_mask(self,  filename,  color):
@@ -371,7 +372,9 @@ class Tractome(object):
         The actual composition of clusters will be set as reference to compute the new neighbors.
         """
         self.streamlab.save_init_set = True
-        self.streamlab.expand_collapse_selected()
+        self.streamlab.hide_representatives = False
+        self.streamlab.expand = False
+        self.streamlab.unselect_all()
 
     def compute_dataforROI(self):
         """
