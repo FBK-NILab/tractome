@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/dporro/TRACTOME/tractome/mainwindow.ui'
+
 #
 # Created: Thu Nov 27 16:17:49 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
@@ -493,12 +493,5 @@ class Ui_MainWindow(object):
         self.actionSave_as_trackvis_file.setText(QtGui.QApplication.translate("MainWindow", "Save as trackvis file", None, QtGui.QApplication.UnicodeUTF8))
 
 
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    MainWindow = QtGui.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
-    sys.exit(app.exec_())
+
 
