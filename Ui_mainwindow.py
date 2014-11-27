@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# Form implementation generated from reading ui file '/home/dporro/TRACTOME/tractome/mainwindow.ui'
 #
-# Created: Fri Nov 14 12:36:27 2014
+# Created: Thu Nov 27 16:17:49 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -472,9 +473,9 @@ class Ui_MainWindow(object):
         self.grbROImethod.setTitle(QtGui.QApplication.translate("MainWindow", "ROI Method", None, QtGui.QApplication.UnicodeUTF8))
         self.rdbInsSphere.setText(QtGui.QApplication.translate("MainWindow", "Inside Sphere", None, QtGui.QApplication.UnicodeUTF8))
         self.rdbtrackvis.setText(QtGui.QApplication.translate("MainWindow", "Trackvis Like", None, QtGui.QApplication.UnicodeUTF8))
-        self.grbCluster.setTitle(QtGui.QApplication.translate("MainWindow", "Re-Cluster", None, QtGui.QApplication.UnicodeUTF8))
-        self.pbRecluster.setText(QtGui.QApplication.translate("MainWindow", "Apply", None, QtGui.QApplication.UnicodeUTF8))
-        self.grbExtendcluster.setTitle(QtGui.QApplication.translate("MainWindow", "Extend Clusters", None, QtGui.QApplication.UnicodeUTF8))
+        self.grbCluster.setTitle(QtGui.QApplication.translate("MainWindow", "Number of clusters", None, QtGui.QApplication.UnicodeUTF8))
+        self.pbRecluster.setText(QtGui.QApplication.translate("MainWindow", "Compute", None, QtGui.QApplication.UnicodeUTF8))
+        self.grbExtendcluster.setTitle(QtGui.QApplication.translate("MainWindow", "Add neighbours", None, QtGui.QApplication.UnicodeUTF8))
         self.pbExtCluster.setText(QtGui.QApplication.translate("MainWindow", "Set Clusters", None, QtGui.QApplication.UnicodeUTF8))
         self.menuFile.setTitle(QtGui.QApplication.translate("MainWindow", "File", None, QtGui.QApplication.UnicodeUTF8))
         self.menuROI.setTitle(QtGui.QApplication.translate("MainWindow", "ROI", None, QtGui.QApplication.UnicodeUTF8))
@@ -490,4 +491,14 @@ class Ui_MainWindow(object):
         self.actionRe_Cluster.setText(QtGui.QApplication.translate("MainWindow", "Re-Cluster", None, QtGui.QApplication.UnicodeUTF8))
         self.actionExpand_Clusters.setText(QtGui.QApplication.translate("MainWindow", "Expand Clusters", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSave_as_trackvis_file.setText(QtGui.QApplication.translate("MainWindow", "Save as trackvis file", None, QtGui.QApplication.UnicodeUTF8))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    MainWindow = QtGui.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(app.exec_())
 

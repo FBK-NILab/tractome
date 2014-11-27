@@ -371,6 +371,7 @@ class StreamlineLabeler(Actor, Manipulator):
         if function =='roi':
             self.clusters_reset(self.clusters_before_roi)
             self.clusters_before_roi = {}
+            self.recluster_action()
 
         elif function == 'knn':
             try:
@@ -380,13 +381,17 @@ class StreamlineLabeler(Actor, Manipulator):
                     # This KDTree is only computed on the medoids of clusters, for the assignment process. It is only computed once, unless the initial set of clusters changes and it is recomputed.
                     self.kdtree_medoids= KDTree(self.full_dissimilarity_matrix[self.clusters.keys()])
                     self.save_init_set = False
-                self.expand = False
                 self.clusters_reset(self.clusters_before_knn)
+                self.recluster_action()
+                self.select_all()
+                self.expand = True
+                
+
             except AttributeError:
                 pass
            
         self.save_init_set = True
-        self.recluster_action()
+        
     
             
     def draw(self):

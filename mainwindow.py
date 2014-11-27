@@ -52,6 +52,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                     
         self.gridLayout_4.addWidget(self.glWidget) 
         
+        #for now, pbExtCluster will be invisible
+        self.pbExtCluster.setVisible(False)
        
         # adding the editing items to ROI table
 
