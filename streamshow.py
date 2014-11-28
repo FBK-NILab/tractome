@@ -256,6 +256,7 @@ class StreamlineLabeler(Actor, Manipulator):
 
         self.hide_representatives = False
         self.expand = False
+        self.knnreset = False
         self.representatives_line_width = representatives_line_width
         self.streamlines_line_width = streamlines_line_width
         self.vertices = self.streamlines_buffer # this is apparently requested by Actor
@@ -352,6 +353,7 @@ class StreamlineLabeler(Actor, Manipulator):
 
         self.clusters_reset(clusters_new)
         self.recluster_action()
+        self.knnreset = True
         self.select_all()
         self.expand = True
 
@@ -599,6 +601,7 @@ class StreamlineLabeler(Actor, Manipulator):
         # Note: the following steps needs to be done in the given order.
         # 0) Restore original color to selected representatives.
         self.unselect_all()
+        self.knnreset = False
         # 1) sync self.representative_ids_ordered with new clusters:
         self.representative_ids_ordered = sorted(self.clusters.keys())
         # 2) change first and count buffers of representatives:
@@ -620,6 +623,7 @@ class StreamlineLabeler(Actor, Manipulator):
         """
         self.select_all()
         self.remove_unselected_action()
+        self.knnreset = False
 
 
 

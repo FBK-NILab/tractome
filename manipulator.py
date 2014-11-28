@@ -69,7 +69,7 @@ class Manipulator(object):
         self.history.append('clusters_reset('+str(clusters)+')')
         self.numstream_handler.fire(len(self.streamline_ids))
         self.numrep_handler.fire(len(self.representative_ids))
-    
+            
     def select(self, representative_id):
         """Select one representative.
         """
@@ -151,8 +151,10 @@ class Manipulator(object):
             clusters[representative] = self.clusters[representative]
         self.clusters_reset(clusters)
         self.history.append('remove_selected()')
-        self.remselect_handler.fire(True)
         self.remove_selected_action()
+        self.remselect_handler.fire(True)
+
+
         
 
 
@@ -169,8 +171,11 @@ class Manipulator(object):
         self.clusters_reset(clusters)
         self.history.append('remove_unselected()')
         self.simple_history_store()
-        self.remselect_handler.fire(True)
         self.remove_unselected_action()
+        self.remselect_handler.fire(True)
+
+
+
 
 
     def remove_unselected_action(self):
@@ -189,6 +194,7 @@ class Manipulator(object):
         self.clusters_reset(clusters_new)
         self.simple_history_store()
         self.recluster_action()
+
 
 
     def recluster_action(self):

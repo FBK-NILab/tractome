@@ -347,7 +347,9 @@ class Tractome(object):
         """
        
         if k==0:
-            self.streamlab.reset_state('knn')
+            if self.streamlab.knnreset == True:
+                self.streamlab.reset_state('knn')
+            
         else:
             if len(self.streamlab.streamline_ids) == len(self.T):
         
@@ -373,8 +375,7 @@ class Tractome(object):
         """
         self.streamlab.save_init_set = True
         self.streamlab.hide_representatives = False
-        self.streamlab.expand = False
-        self.streamlab.unselect_all()
+
 
     def compute_dataforROI(self):
         """
