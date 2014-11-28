@@ -243,23 +243,35 @@ class Tractome(object):
         self.num_prototypes = general_info['nprot']
         self.buffers = general_info['buff']
         self.clusters = general_info['initclusters']
+
  
     def update_info(self, filepath):
         """
-        Compute the missing information not available in the cache.
+        Compute missing or inconsistent information in the cache.
         """
+        save = False
+
         try:
             self.buffers
         except AttributeError:
             print "Computing buffers."
             self.buffers = compute_buffers(self.T, alpha=1.0, save=False)
-            
+            save = True
+
+        try:
+            assert(len(buffers['count']) == len(self.T))
+        except AttributeError:
+            print "Re-computing buffers."
+            self.buffers = compute_buffers(self.T, alpha=1.0, save=False)
+            save = True
+
         try:
             self.num_prototypes
         except AttributeError:
             print "Computing dissimilarity matrix"
             self.num_prototypes = 40
             self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
+            save = True
  
         try:
             self.clusters
@@ -273,8 +285,10 @@ class Tractome(object):
 
             streamlines_ids = np.arange(size_T, dtype=np.int)
             self.clusters = mbkm_wrapper(self.full_dissimilarity_matrix, n_clusters, streamlines_ids)
-                    
-        self.save_info(filepath)
+            save = True
+
+        if save: self.save_info(filepath)
+
 
     def save_segmentation(self, filename):
         """
