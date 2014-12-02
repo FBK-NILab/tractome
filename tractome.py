@@ -259,10 +259,11 @@ class Tractome(object):
             save = True
 
         try:
-            assert(len(buffers['count']) == len(self.T))
+            assert(self.full_dissimilarity_matrix.shape[0] == len(self.T))
         except AttributeError:
-            print "Re-computing buffers."
-            self.buffers = compute_buffers(self.T, alpha=1.0, save=False)
+            print "Re-computing dissimilarity matrix."
+            self.num_prototypes = 40
+            self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
             save = True
 
         try:
@@ -477,13 +478,3 @@ class Tractome(object):
             self.scene.actors[name].hide()
             
         self.scene.update()
-        
-        
-        
-        
-        
-      
-                               
-
-
-
