@@ -260,7 +260,7 @@ class Tractome(object):
 
         try:
             assert(self.full_dissimilarity_matrix.shape[0] == len(self.T))
-        except AttributeError:
+        except AssertionError:
             print "Re-computing dissimilarity matrix."
             self.num_prototypes = 40
             self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
