@@ -257,7 +257,21 @@ class Tractome(object):
             print "Computing buffers."
             self.buffers = compute_buffers(self.T, alpha=1.0, save=False)
             save = True
-
+            
+        try:
+            self.num_prototypes
+        except AttributeError:
+            print "Defining number of prototypes"
+            self.num_prototypes = 40
+            save = True
+            
+        try:
+            self.full_dissimilarity_matrix
+        except AttributeError:
+            print "Computing dissimilarity matrix"
+            self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
+            save = True    
+        
         try:
             assert(self.full_dissimilarity_matrix.shape[0] == len(self.T))
         except AssertionError:
@@ -266,14 +280,6 @@ class Tractome(object):
             self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
             save = True
 
-        try:
-            self.num_prototypes
-        except AttributeError:
-            print "Computing dissimilarity matrix"
-            self.num_prototypes = 40
-            self.full_dissimilarity_matrix = compute_dissimilarity(self.T, distance=bundles_distances_mam, prototype_policy='sff', num_prototypes=self.num_prototypes)
-            save = True
- 
         try:
             self.clusters
         except AttributeError:
