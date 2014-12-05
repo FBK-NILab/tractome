@@ -679,6 +679,12 @@
           <property name="title">
            <string>Number of clusters</string>
           </property>
+          <property name="flat">
+           <bool>false</bool>
+          </property>
+          <property name="checkable">
+           <bool>false</bool>
+          </property>
           <layout class="QHBoxLayout" name="horizontalLayout_32">
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_33">
@@ -853,6 +859,9 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="statusTip">
+       <string/>
+      </property>
       <layout class="QGridLayout" name="gridLayout_4" columnstretch="0" columnminimumwidth="0"/>
      </widget>
     </item>
@@ -893,8 +902,75 @@
     <addaction name="actionLoad_MASk"/>
     <addaction name="actionCreate_Sphere"/>
    </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <widget class="QMenu" name="menu3D_Slicer">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="title">
+      <string>3D Slicer</string>
+     </property>
+     <widget class="QMenu" name="menuAxial_Slice">
+      <property name="title">
+       <string>Axial Slice</string>
+      </property>
+      <addaction name="actionShow_1"/>
+      <addaction name="actionMove_Left_Left"/>
+      <addaction name="actionMove_Right_Right"/>
+     </widget>
+     <widget class="QMenu" name="menuCoronal_Slice">
+      <property name="title">
+       <string>Coronal Slice</string>
+      </property>
+      <addaction name="actionShow_3"/>
+      <addaction name="actionMove_Up_Up"/>
+      <addaction name="actionMove_Down_Down"/>
+     </widget>
+     <widget class="QMenu" name="menuSaggital_Slice">
+      <property name="title">
+       <string>Saggital Slice</string>
+      </property>
+      <addaction name="separator"/>
+      <addaction name="actionShow_2"/>
+      <addaction name="actionMoveFront_Up"/>
+      <addaction name="actionMoveBack_Down"/>
+     </widget>
+     <addaction name="actionShow_All_Slices_0"/>
+     <addaction name="menuAxial_Slice"/>
+     <addaction name="menuSaggital_Slice"/>
+     <addaction name="menuCoronal_Slice"/>
+    </widget>
+    <widget class="QMenu" name="menuTractography">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="title">
+      <string>Tractography</string>
+     </property>
+     <widget class="QMenu" name="menuHistory">
+      <property name="title">
+       <string>History</string>
+      </property>
+      <addaction name="actionBack_B"/>
+      <addaction name="actionForward_F"/>
+     </widget>
+     <addaction name="actionHide_Representative_H"/>
+     <addaction name="actionSelect_All_Representatives_A"/>
+     <addaction name="actionExpan_Selection_E"/>
+     <addaction name="actionInvert"/>
+     <addaction name="actionRemove_Selected_Back_Space"/>
+     <addaction name="menuHistory"/>
+     <addaction name="actionPick_Representative_P"/>
+    </widget>
+    <addaction name="menuTractography"/>
+    <addaction name="menu3D_Slicer"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuROI"/>
+   <addaction name="menuView"/>
   </widget>
   <action name="actionLoad_Structural_Image">
    <property name="checkable">
@@ -969,6 +1045,110 @@
    </property>
    <property name="text">
     <string>Save as trackvis file</string>
+   </property>
+  </action>
+  <action name="actionScreen">
+   <property name="text">
+    <string>Screen</string>
+   </property>
+  </action>
+  <action name="actionPick_Representative_P">
+   <property name="text">
+    <string>Pick Representative                        P</string>
+   </property>
+   <property name="toolTip">
+    <string notr="true">Pick Representative                        P</string>
+   </property>
+   <property name="statusTip">
+    <string notr="true"/>
+   </property>
+   <property name="whatsThis">
+    <string/>
+   </property>
+  </action>
+  <action name="actionHide_Representative_H">
+   <property name="text">
+    <string>Hide Representatives                    H</string>
+   </property>
+  </action>
+  <action name="actionSelect_All_Representatives_A">
+   <property name="text">
+    <string>Select All Representatives           A</string>
+   </property>
+  </action>
+  <action name="actionInvert">
+   <property name="text">
+    <string>Invert Selection                               I</string>
+   </property>
+  </action>
+  <action name="actionExpan_Selection_E">
+   <property name="text">
+    <string>Expand Selection                            E</string>
+   </property>
+  </action>
+  <action name="actionRemove_Selected_Back_Space">
+   <property name="text">
+    <string>Remove Selected                Backspace</string>
+   </property>
+  </action>
+  <action name="actionBack_B">
+   <property name="text">
+    <string>Back                 B</string>
+   </property>
+  </action>
+  <action name="actionForward_F">
+   <property name="text">
+    <string>Forward          F</string>
+   </property>
+  </action>
+  <action name="actionShow_All_Slices_0">
+   <property name="text">
+    <string>Show All Slices          0</string>
+   </property>
+  </action>
+  <action name="actionShow_1">
+   <property name="text">
+    <string>Show                           1</string>
+   </property>
+  </action>
+  <action name="actionMove_Left_Left">
+   <property name="text">
+    <string>Move Left               Left</string>
+   </property>
+  </action>
+  <action name="actionMove_Right_Right">
+   <property name="text">
+    <string>Move Right            Right</string>
+   </property>
+  </action>
+  <action name="actionShow_2">
+   <property name="text">
+    <string>Show                           2</string>
+   </property>
+  </action>
+  <action name="actionMoveFront_Up">
+   <property name="text">
+    <string>Move Back            PgDn</string>
+   </property>
+  </action>
+  <action name="actionMoveBack_Down">
+   <property name="text">
+    <string>Move Front           PgUp</string>
+   </property>
+  </action>
+  <action name="actionShow_3">
+   <property name="text">
+    <string>Show                           3</string>
+   </property>
+  </action>
+  <action name="actionMove_Up_Up">
+   <property name="text">
+    <string>Move Up                   Up</string>
+   </property>
+  </action>
+  <action name="actionMove_Down_Down">
+   <property name="text">
+    <string>Move Down          Down</string>
    </property>
   </action>
  </widget>
