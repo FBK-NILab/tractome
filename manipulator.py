@@ -12,6 +12,7 @@ import numpy as np
 import random
 import copy
 import code
+from event_hook import EventHook
 
 
 def clustering_random(data, clusters_number, streamline_ids, seed=0):
@@ -322,33 +323,6 @@ class Manipulator(object):
         string += "History: " + str(self.history)
         return string
 
-
-class EventHook(object):
-    """
-    Class that allows simulating the events-delegate functionality.
-    Check later if there is a simplest way to do it in a more
-    Pythonian way.
-    """
-    def __init__(self):
-        self.__handlers = []
- 
-    def __iadd__(self, handler):
-        self.__handlers.append(handler)
-        return self
- 
-    def __isub__(self, handler):
-        self.__handlers.remove(handler)
-        return self
-         
-    def fire(self, *args, **keywargs):
-        for handler in self.__handlers:
-            handler(*args, **keywargs)
-         
-    def clearObjectHandlers(self, inObject):
-        for theHandler in self.__handlers:
-            if theHandler.im_self == inObject:
-                self -= theHandler
-    
 
 if __name__ == '__main__':
 
