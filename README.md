@@ -21,6 +21,12 @@ The software is developed and tested on Ubuntu 12.04 LTS using the Neurodebian r
 apt-get install python-pyglet python-pyside python-nibabel python-dipy python-sklearn
 ```
 
+With the IPyhon version shipped with Ubuntu 12.04 (IPython v0.12.1), there are issues for the proper performance/visualization of some Qt Dialogs, e.g. QColorDialog. This is already solved in a more recent version of IPython (v0.13.2), which can be directly installed from Ubuntu backports repositories with the following steps:
+
+1. Add Ubuntu backports repositories: "go to Software Sources, switch to the Updates tab and make sure Unsupported updates is checked".
+2. ```apt-get install ipython/precise-backports```
+
+For more details about Ubuntu backports: https://help.ubuntu.com/community/UbuntuBackports
 
 To Run Tractome
 ---------------
