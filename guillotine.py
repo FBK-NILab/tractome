@@ -15,6 +15,8 @@ from fos.coords import rotation_matrix, from_matvec
 from fos import Init, Run
 from PySide.QtCore import Qt
 import copy
+from event_hook import EventHook
+
 
 
 class Guillotine(Slicer):
@@ -61,6 +63,7 @@ class Guillotine(Slicer):
                         post_mat)
         """
         post_mat = np.eye(4)
+        self.show_all_handler = EventHook()
         super(Guillotine, self).__init__(name, data, affine, convention, post_mat)
 
     def right2left(self, step):
@@ -186,6 +189,7 @@ class Guillotine(Slicer):
             self.show_i = not self.show_i
             self.show_j = not self.show_j
             self.show_k = not self.show_k
+            self.show_all_handler.fire(self.show_i)
 
         if symbol == Qt.Key_1:
             self.show_i = not self.show_i

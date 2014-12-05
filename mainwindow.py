@@ -113,6 +113,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         self.tblTract.item(2, 1).setText(str(n_rep))
         
+    
+    def changestateshowstructural_handler(self, show):
+        """
+        """
+        self.chkbShowStruct.setChecked(show)
+        
 
 
     def on_dspbxcoord_valueChanged(self, value):
@@ -179,7 +185,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Shows or hides the tractography if the Checkbox is checked or
         not correspondingly
         """
-        self.tractome.show_hide_actor('Bundle Picker', state)
+        self.tractome.show_hide_actor(self.tract_name, state)
         self.glWidget.updateGL()
         
 
@@ -189,7 +195,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Shows or hides the structural image if the Checkbox is checked
         or not correspondingly
         """
-        self.tractome.show_hide_actor('Volume Slicer', state)
+        self.tractome.guil.show_all(state)
         self.glWidget.updateGL()
 
 
@@ -254,13 +260,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("((*.gz *.nii *.img)"))
         fileStruct, _= filedialog.getOpenFileName(self,"Open Structural file", os.getcwd(), str("(*.gz *.nii *.img)"))
+        self.struct_name = 'Volume Slicer'
         
         if fileStruct != "":
             struct_basename = os.path.basename(fileStruct)
 
             self.create_update_Item('slicer')
-            self.tractome.loading_structural(fileStruct)
+            self.tractome.loading_structural(fileStruct,  self.struct_name)
             self.structnameitem.setText(0, struct_basename) 
+            self.tractome.guil.show_all_handler += self.changestateshowstructural_handler
             self.refocus_camera()  
     
 
@@ -291,12 +299,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("(*.dpy *.trk)"))
         fileTract,  _= filedialog.getOpenFileName(self,"Open Tractography file", os.getcwd(), str("(*.dpy *.trk)"))
+        self.tract_name = 'Bundle Picker'
         
         if fileTract !="":
             tracks_basename = os.path.basename(fileTract)
         
             self.create_update_Item('tractography') 
-            self.tractome.loading_full_tractograpy(tracpath=fileTract) 
+            self.tractome.loading_full_tractograpy(fileTract,  self.tract_name) 
             self.set_clustering_values()
             self.tractnameitem.setText(0, tracks_basename)
         
@@ -407,6 +416,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # connecting event that is fired when number of streamlines is changed after some action on the streamlinelabeler actor
             self.tractome.streamlab.numstream_handler += self.changenumstreamlines_handler
             self.tractome.streamlab.numrep_handler += self.changenumrepresentatives_handler
+            self.tractome.guil.show_all_handler += self.changestateshowstructural_handler
             
             #add information to tab in Table
             self.tblTract.item(0, 1).setText(tracks_basename)
