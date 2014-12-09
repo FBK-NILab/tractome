@@ -913,35 +913,25 @@
      <property name="title">
       <string>3D Slicer</string>
      </property>
-     <widget class="QMenu" name="menuAxial_Slice">
-      <property name="title">
-       <string>Axial Slice</string>
-      </property>
-      <addaction name="actionShow_1"/>
-      <addaction name="actionMove_Left_Left"/>
-      <addaction name="actionMove_Right_Right"/>
-     </widget>
-     <widget class="QMenu" name="menuCoronal_Slice">
-      <property name="title">
-       <string>Coronal Slice</string>
-      </property>
-      <addaction name="actionShow_3"/>
-      <addaction name="actionMove_Up_Up"/>
-      <addaction name="actionMove_Down_Down"/>
-     </widget>
-     <widget class="QMenu" name="menuSaggital_Slice">
-      <property name="title">
-       <string>Saggital Slice</string>
-      </property>
-      <addaction name="separator"/>
-      <addaction name="actionShow_2"/>
-      <addaction name="actionMoveFront_Up"/>
-      <addaction name="actionMoveBack_Down"/>
-     </widget>
      <addaction name="actionShow_All_Slices_0"/>
-     <addaction name="menuAxial_Slice"/>
-     <addaction name="menuSaggital_Slice"/>
-     <addaction name="menuCoronal_Slice"/>
+     <addaction name="separator"/>
+     <addaction name="actionAxial_Slice"/>
+     <addaction name="separator"/>
+     <addaction name="actionShow_1"/>
+     <addaction name="actionMove_Left_Left"/>
+     <addaction name="actionMove_Right_Right"/>
+     <addaction name="separator"/>
+     <addaction name="actionSaggital_Slice"/>
+     <addaction name="separator"/>
+     <addaction name="actionShow_2"/>
+     <addaction name="actionMoveBack_Down"/>
+     <addaction name="actionMoveFront_Up"/>
+     <addaction name="separator"/>
+     <addaction name="actionCoronal_Slice"/>
+     <addaction name="separator"/>
+     <addaction name="actionShow_3"/>
+     <addaction name="actionMove_Up_Up"/>
+     <addaction name="actionMove_Down_Down"/>
     </widget>
     <widget class="QMenu" name="menuTractography">
      <property name="enabled">
@@ -957,13 +947,13 @@
       <addaction name="actionBack_B"/>
       <addaction name="actionForward_F"/>
      </widget>
-     <addaction name="actionHide_Representative_H"/>
-     <addaction name="actionSelect_All_Representatives_A"/>
-     <addaction name="actionExpan_Selection_E"/>
+     <addaction name="actionPick_Representative_P"/>
      <addaction name="actionInvert"/>
      <addaction name="actionRemove_Selected_Back_Space"/>
+     <addaction name="actionSelect_All_Representatives_A"/>
+     <addaction name="actionExpan_Selection_E"/>
+     <addaction name="actionHide_Representative_H"/>
      <addaction name="menuHistory"/>
-     <addaction name="actionPick_Representative_P"/>
     </widget>
     <addaction name="menuTractography"/>
     <addaction name="menu3D_Slicer"/>
@@ -1054,7 +1044,7 @@
   </action>
   <action name="actionPick_Representative_P">
    <property name="text">
-    <string>Pick Representative                        P</string>
+    <string>Pick Representative                      P</string>
    </property>
    <property name="toolTip">
     <string notr="true">Pick Representative                        P</string>
@@ -1088,7 +1078,7 @@
   </action>
   <action name="actionRemove_Selected_Back_Space">
    <property name="text">
-    <string>Remove Selected                Backspace</string>
+    <string>Remove UnSelected                Backspace</string>
    </property>
   </action>
   <action name="actionBack_B">
@@ -1103,52 +1093,67 @@
   </action>
   <action name="actionShow_All_Slices_0">
    <property name="text">
-    <string>Show All Slices          0</string>
+    <string>Toggle All Slices              0</string>
    </property>
   </action>
   <action name="actionShow_1">
    <property name="text">
-    <string>Show                           1</string>
+    <string>  Toggle                              1</string>
    </property>
   </action>
   <action name="actionMove_Left_Left">
    <property name="text">
-    <string>Move Left               Left</string>
+    <string>  Move Left                   Left</string>
    </property>
   </action>
   <action name="actionMove_Right_Right">
    <property name="text">
-    <string>Move Right            Right</string>
+    <string>  Move Right                Right</string>
    </property>
   </action>
   <action name="actionShow_2">
    <property name="text">
-    <string>Show                           2</string>
+    <string>  Toggle                               2</string>
    </property>
   </action>
   <action name="actionMoveFront_Up">
    <property name="text">
-    <string>Move Back            PgDn</string>
+    <string>  Move Posterior         PgDn</string>
    </property>
   </action>
   <action name="actionMoveBack_Down">
    <property name="text">
-    <string>Move Front           PgUp</string>
+    <string>  Move Anterior           PgUp</string>
    </property>
   </action>
   <action name="actionShow_3">
    <property name="text">
-    <string>Show                           3</string>
+    <string>  Toggle                               3</string>
    </property>
   </action>
   <action name="actionMove_Up_Up">
    <property name="text">
-    <string>Move Up                   Up</string>
+    <string>  Move Superior             Up</string>
    </property>
   </action>
   <action name="actionMove_Down_Down">
    <property name="text">
-    <string>Move Down          Down</string>
+    <string>  Move Interior            Down</string>
+   </property>
+  </action>
+  <action name="actionAxial_Slice">
+   <property name="text">
+    <string>Axial Slice</string>
+   </property>
+  </action>
+  <action name="actionSaggital_Slice">
+   <property name="text">
+    <string>Saggital Slice</string>
+   </property>
+  </action>
+  <action name="actionCoronal_Slice">
+   <property name="text">
+    <string>Coronal Slice</string>
    </property>
   </action>
  </widget>

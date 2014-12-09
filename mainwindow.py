@@ -579,6 +579,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Hide/Show selected representatives
         """
         self.tractome.streamlab.process_keys(QtCore.Qt.Key_H,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionSelect_All_Representatives_A_triggered(self):
@@ -586,6 +587,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Select/Unselect all representatives
         """
         self.tractome.streamlab.process_keys(QtCore.Qt.Key_A,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionInvert_triggered(self):
@@ -593,6 +595,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Invert selection of representatives
         """
         self.tractome.streamlab.process_keys(QtCore.Qt.Key_I,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionExpan_Selection_E_triggered(self):
@@ -600,6 +603,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Show/Hide streamlines belonging to selected representatives.
         """
         self.tractome.streamlab.process_keys(QtCore.Qt.Key_E,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionRemove_Selected_Back_Space_triggered(self):
@@ -607,6 +611,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Remove selected representatives.
         """
         self.tractome.streamlab.process_keys(QtCore.Qt.Key_Backspace,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionBack_B_triggered(self):
@@ -614,6 +619,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Go one step back in history.
         """
         self.tractome.streamlab.process_keys(QtCore.Qt.Key_B,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionForward_F_triggered(self):
@@ -621,6 +627,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Go one step forward in history.
         """
         self.tractome.streamlab.process_keys(QtCore.Qt.Key_F,  None)
+        self.glWidget.updateGL()
+        
+    @Slot()
+    def on_actionPick_Representative_P_triggered(self):
+        """
+       Show informatio about the "Pick representative" action.
+        """
+        message = "This action cannot be executed from the Menu. In order to pick a representative please go to the screen, point with the mouse the desired representative and press the key P."
+        msgBox = QtGui.QMessageBox.information(self, "Tractome Message", message)
     
     @Slot()
     def on_actionShow_All_Slices_0_triggered(self):
@@ -628,6 +643,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Hide/Show all slices of 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_0,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionShow_1_triggered(self):
@@ -635,6 +651,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Hide/Show Axial slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_1,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionMove_Left_Left_triggered(self):
@@ -642,6 +659,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Move left Axial slice in 3DSlicer 
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_Left,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionMove_Right_Right_triggered(self):
@@ -649,6 +667,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Move right Axial slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_Right,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionShow_2_triggered(self):
@@ -656,6 +675,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Hide/Show Saggital slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_2,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionMoveFront_Up_triggered(self):
@@ -663,6 +683,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Move forward Saggital slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_PageUp,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionMoveBack_Down_triggered(self):
@@ -670,6 +691,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Move back Saggital slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_PageDown,  None)
+        self.glWidget.updateGL()
 
     @Slot()
     def on_actionShow_3_triggered(self):
@@ -677,6 +699,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Hide/Show Coronal slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_3,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionMove_Up_Up_triggered(self):
@@ -684,6 +707,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Move up Coronal slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_Up,  None)
+        self.glWidget.updateGL()
     
     @Slot()
     def on_actionMove_Down_Down_triggered(self):
@@ -691,6 +715,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Move down Coronal slice in 3DSlicer
         """
         self.tractome.guil.process_keys(QtCore.Qt.Key_Down,  None)
+        self.glWidget.updateGL()
 
 
     def prepare_interface_ROI(self, roi_type,  coords=None,  nameroi = None):
@@ -1009,4 +1034,5 @@ if __name__ == "__main__":
 #    sys.exit(app.exec_())
     mainWindow= MainWindow()
     mainWindow.show()
+    
     
