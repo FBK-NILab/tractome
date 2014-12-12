@@ -39,6 +39,7 @@ from dipy.tracking.metrics import length
 from dissimilarity_common import compute_dissimilarity
 from sklearn.neighbors import KDTree
 import os
+
 class Tractome(object):
     """
     """
@@ -110,8 +111,6 @@ class Tractome(object):
         general_info_filename = tracks_directoryname + tracks_basename + '.spa'
         
         
-        
-        
         # Check if there is the .spa file that contains all the
         # computed information from the tractography anyway and try to
         # load it
@@ -176,7 +175,8 @@ class Tractome(object):
         """
         # MBKM:
         self.streamlab.recluster(n_clusters, data=self.full_dissimilarity_matrix)
-        self.streamlab.hide_representatives = False
+        self.set_streamlines_clusters()
+        
 
 
     def loading_mask(self,  filename,  color):
@@ -223,7 +223,7 @@ class Tractome(object):
         Saves all the information from the tractography required for
         the whole segmentation procedure.
         """
-        info = {'initclusters':self.clusters, 'buff':self.buffers, 'dismatrix':self.full_dissimilarity_matrix,'nprot':self.num_prototypes}
+        info = {'initclusters':self.clusters, 'buff':self.buffers, 'dismatrix':self.full_dissimilarity_matrix,'nprot':self.num_prototypes,  'kdtree':self.kdt}
         print "Saving information of the tractography for the segmentation"
         print filepath
         filedir = os.path.dirname(filepath)
@@ -243,6 +243,7 @@ class Tractome(object):
         self.num_prototypes = general_info['nprot']
         self.buffers = general_info['buff']
         self.clusters = general_info['initclusters']
+        self.kdt = general_info['kdtree']
 
  
     def update_info(self, filepath):
@@ -293,6 +294,13 @@ class Tractome(object):
             streamlines_ids = np.arange(size_T, dtype=np.int)
             self.clusters = mbkm_wrapper(self.full_dissimilarity_matrix, n_clusters, streamlines_ids)
             save = True
+            
+        try:
+            self.kdt
+        except AttributeError:
+            print "Computing KDTree"
+            self.compute_kdtree()
+            save=True
 
         if save: self.save_info(filepath)
 
@@ -333,7 +341,42 @@ class Tractome(object):
         self.kdt=KDTree(self.full_dissimilarity_matrix)
         
     
- 
+    def compute_kqueries(self,  k):
+        """
+        Makes the query to find the knn of the current streamlines on the scene
+        """
+       
+        if k==0:
+            if self.streamlab.knnreset == True:
+                self.streamlab.reset_state('knn')
+            
+        else:
+            if len(self.streamlab.streamline_ids) == len(self.T):
+        
+                raise TractomeError("Cannot enlarge clusters. The whole tractography is being used as input.")
+   
+            else:
+                nn = k+1
+                if self.streamlab.save_init_set==True:
+                    self.streamlines_before_knn = self.streamlab.streamline_ids.copy()
+                    
+                a2 = self.kdt.query(self.full_dissimilarity_matrix[list( self.streamlines_before_knn)],k=nn, return_distance = False)
+                b2 = set(a2.flat)
+                
+                # Finding difference between the initial set of streamlines and those from the kdt query. This will give us the new streamlines
+                b2.difference_update(self.streamlines_before_knn)
+                if len(b2)>0:
+                    self.streamlab.set_streamlines_knn(list(b2))
+                    
+    
+    def set_streamlines_clusters(self):
+        """
+        The actual composition of clusters will be set as reference to compute the new neighbors.
+        """
+        self.streamlab.save_init_set = True
+        self.streamlab.hide_representatives = False
+
+
     def compute_dataforROI(self):
         """
         Compute info from tractography to provide it to ROI.
@@ -427,9 +470,9 @@ class Tractome(object):
                 else:
                     current_roi_streamlines = set(self.scene.actors[name_roi].streamlines)
                     if self.list_oper_ROIS[last_chkd] == 'and':
-                        streamlines_ROIs = streamlines_ROIs & current_roi_streamlines
+                        streamlines_ROIs.intersection_update(current_roi_streamlines)
                     elif self.list_oper_ROIS[last_chkd] == 'or':
-                        streamlines_ROIs = streamlines_ROIs | current_roi_streamlines
+                        streamlines_ROIs.update(current_roi_streamlines)
      
                 last_chkd =pos
         
@@ -484,3 +527,10 @@ class Tractome(object):
             self.scene.actors[name].hide()
             
         self.scene.update()
+
+
+
+class TractomeError(Exception):
+   def __init__(self, arg):
+      self.args = arg
+ 

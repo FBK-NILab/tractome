@@ -14,6 +14,7 @@ import copy
 import code
 
 
+
 def clustering_random(data, clusters_number, streamline_ids, seed=0):
     """Create fake clustering just playing randomly with streamline
     ids. For testing purpose.
@@ -48,6 +49,7 @@ class Manipulator(object):
         self.streamline_ids = 0
         self.numstream_handler = EventHook()
         self.numrep_handler = EventHook()
+        self.remselect_handler = EventHook()
         self.clusters_reset(initial_clusters)
         self.simple_history_start()
         self.clustering_function = clustering_function
@@ -67,7 +69,7 @@ class Manipulator(object):
         self.history.append('clusters_reset('+str(clusters)+')')
         self.numstream_handler.fire(len(self.streamline_ids))
         self.numrep_handler.fire(len(self.representative_ids))
-    
+            
     def select(self, representative_id):
         """Select one representative.
         """
@@ -150,6 +152,10 @@ class Manipulator(object):
         self.clusters_reset(clusters)
         self.history.append('remove_selected()')
         self.remove_selected_action()
+        self.remselect_handler.fire(True)
+
+
+        
 
 
     def remove_selected_action(self):
@@ -166,6 +172,10 @@ class Manipulator(object):
         self.history.append('remove_unselected()')
         self.simple_history_store()
         self.remove_unselected_action()
+        self.remselect_handler.fire(True)
+
+
+
 
 
     def remove_unselected_action(self):
@@ -184,6 +194,7 @@ class Manipulator(object):
         self.clusters_reset(clusters_new)
         self.simple_history_store()
         self.recluster_action()
+
 
 
     def recluster_action(self):
