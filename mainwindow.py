@@ -305,6 +305,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.create_update_Item('slicer')
             self.tractome.loading_structural(fileStruct)
             self.structnameitem.setText(0, struct_basename) 
+            self.menu3D_Slicer.setEnabled(True)
             self.refocus_camera()  
     
 
@@ -360,17 +361,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
                 self.tblTract.item(4, 1).setText(str(hdr['dim']))
                 self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
-                self.grbCluster.setEnabled(True)
-                self.grbExtendcluster.setEnabled(True)
-                         
-                
+               
             else:
                 self.tblTract.item(3, 1).setText('No info')
                 self.tblTract.item(4, 1).setText('No info')
                 self.tblTract.item(5, 1).setText('LAS')
 
-            
-            
+
+            self.grbCluster.setEnabled(True)
+            self.grbExtendcluster.setEnabled(True)
+            self.menuTractography.setEnabled(True)
                
    
     def create_update_Item(self,  object):
@@ -567,6 +567,152 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.updateROItable(nameroi, xmax/2, ymax/2, zmax/2, 2, self.roi_color.name())
         self.tabProps_4.setCurrentIndex(1) 
 
+        self.glWidget.updateGL()
+        
+        
+    # View related actions
+    @Slot()
+    def on_actionHide_Representative_H_triggered(self):
+        """
+        Hide/Show selected representatives
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_H,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionSelect_All_Representatives_A_triggered(self):
+        """
+        Select/Unselect all representatives
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_A,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionInvert_triggered(self):
+        """
+        Invert selection of representatives
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_I,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionExpan_Selection_E_triggered(self):
+        """
+        Show/Hide streamlines belonging to selected representatives.
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_E,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionRemove_Selected_Back_Space_triggered(self):
+        """
+        Remove selected representatives.
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_Backspace,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionBack_B_triggered(self):
+        """
+        Go one step back in history.
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_B,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionForward_F_triggered(self):
+        """
+        Go one step forward in history.
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_F,  None)
+        self.glWidget.updateGL()
+        
+    @Slot()
+    def on_actionPick_Representative_P_triggered(self):
+        """
+       Show informatio about the "Pick representative" action.
+        """
+        message = "This action cannot be executed from the Menu. In order to pick a representative please go to the screen, point with the mouse the desired representative and press the key P."
+        msgBox = QtGui.QMessageBox.information(self, "Tractome Message", message)
+    
+    @Slot()
+    def on_actionShow_All_Slices_0_triggered(self):
+        """
+        Hide/Show all slices of 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_0,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionShow_1_triggered(self):
+        """
+        Hide/Show Axial slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_1,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionMove_Left_Left_triggered(self):
+        """
+        Move left Axial slice in 3DSlicer 
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_Left,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionMove_Right_Right_triggered(self):
+        """
+        Move right Axial slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_Right,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionShow_2_triggered(self):
+        """
+        Hide/Show Saggital slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_2,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionMoveFront_Up_triggered(self):
+        """
+        Move forward Saggital slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_PageUp,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionMoveBack_Down_triggered(self):
+        """
+        Move back Saggital slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_PageDown,  None)
+        self.glWidget.updateGL()
+
+    @Slot()
+    def on_actionShow_3_triggered(self):
+        """
+        Hide/Show Coronal slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_3,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionMove_Up_Up_triggered(self):
+        """
+        Move up Coronal slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_Up,  None)
+        self.glWidget.updateGL()
+    
+    @Slot()
+    def on_actionMove_Down_Down_triggered(self):
+        """
+        Move down Coronal slice in 3DSlicer
+        """
+        self.tractome.guil.process_keys(QtCore.Qt.Key_Down,  None)
         self.glWidget.updateGL()
 
 
@@ -887,4 +1033,4 @@ if __name__ == "__main__":
     mainWindow= MainWindow()
     mainWindow.show()
     
- 
+    
