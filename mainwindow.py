@@ -361,10 +361,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
                 self.tblTract.item(4, 1).setText(str(hdr['dim']))
                 self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
-                self.grbCluster.setEnabled(True)
-                self.grbExtendcluster.setEnabled(True)
-                         
-                
+               
             else:
                 self.tblTract.item(3, 1).setText('No info')
                 self.tblTract.item(4, 1).setText('No info')
@@ -372,6 +369,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 
             self.grbCluster.setEnabled(True)
+            self.grbExtendcluster.setEnabled(True)
             self.menuTractography.setEnabled(True)
                
    
