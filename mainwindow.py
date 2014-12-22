@@ -180,27 +180,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btncolor.setStyleSheet( u'background-color:%s' % color.name()) 
         self.tractome.update_ROI(self.tblROI.item(0, 1).text(),  color = color.getRgbF())
 
-
-    @Slot(int)
-    def on_chkbShowTract_stateChanged(self, state):
-        """
-        Shows or hides the tractography if the Checkbox is checked or
-        not correspondingly
-        """
-        self.tractome.show_hide_actor('Bundle Picker', state)
-        self.glWidget.updateGL()
-        
-
-    @Slot(int)
-    def on_chkbShowStruct_stateChanged(self, state):
-        """
-        Shows or hides the structural image if the Checkbox is checked
-        or not correspondingly
-        """
-        self.tractome.show_hide_actor('Volume Slicer', state)
-        self.glWidget.updateGL()
-
-
     # @Slot(bool)
     # def on_rdbInsSphere_toggled(self, checked):
     #     """
@@ -298,12 +277,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("((*.gz *.nii *.img)"))
         fileStruct, _= filedialog.getOpenFileName(self,"Open Structural file", os.getcwd(), str("(*.gz *.nii *.img)"))
+        self.struct_name = 'Volume Slicer'
         
         if fileStruct != "":
             struct_basename = os.path.basename(fileStruct)
 
             self.create_update_Item('slicer')
-            self.tractome.loading_structural(fileStruct)
+            self.tractome.loading_structural(fileStruct,  self.struct_name)
             self.structnameitem.setText(0, struct_basename) 
             self.menu3D_Slicer.setEnabled(True)
             self.refocus_camera()  
@@ -336,12 +316,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         filedialog=QtGui.QFileDialog()
         filedialog.setNameFilter(str("(*.dpy *.trk)"))
         fileTract,  _= filedialog.getOpenFileName(self,"Open Tractography file", os.getcwd(), str("(*.dpy *.trk)"))
+        self.tract_name = 'Bundle Picker'
         
         if fileTract !="":
             tracks_basename = os.path.basename(fileTract)
         
             self.create_update_Item('tractography') 
-            self.tractome.loading_full_tractograpy(tracpath=fileTract) 
+            self.tractome.loading_full_tractograpy(fileTract,  self.tract_name) 
             self.set_clustering_values()
             self.tractnameitem.setText(0, tracks_basename)
         
@@ -382,13 +363,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             #checking if there is already a tractography open to substitute it
             try:
                 self.tractnameitem
-                self.tractome.clear_actor('Bundle Picker')
+                self.tractome.clear_actor(self.tract_name)
                 self.clear_all_session()
                                 
             #if there is no tractography open 
             except AttributeError: 
                 self.tractnameitem =  QtGui.QTreeWidgetItem(self.treeObject) 
-                self.chkbShowTract.setEnabled(True)
                 self.tblTract.setEnabled(True)
                 self.actionSave_Segmentation.setEnabled(True) 
                 self.actionSave_as_trackvis_file.setEnabled(True)
@@ -404,7 +384,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             
             except AttributeError:
              #If this is the first opening we create the tree item
-                self.chkbShowStruct.setEnabled(True)
+                pass
                 
             self.actionLoad_Tractography.setEnabled(True)
             self.structnameitem =  QtGui.QTreeWidgetItem(self.treeObject)    
@@ -571,6 +551,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         
     # View related actions
+    @Slot()
+    def on_actionToggle_triggered(self):
+        """
+       Hide/Show whole tractography.
+        """
+        self.tractome.streamlab.process_keys(QtCore.Qt.Key_T,  None)
+        self.glWidget.updateGL()
+    
     @Slot()
     def on_actionHide_Representative_H_triggered(self):
         """

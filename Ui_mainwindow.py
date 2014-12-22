@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
-#
-# Created: Tue Dec  9 16:12:11 2014
+# Created: Mon Dec 22 10:19:16 2014
 #      by: pyside-uic 0.2.13 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -251,20 +249,6 @@ class Ui_MainWindow(object):
         self.horizontalLayout_4.addWidget(self.tblROISlist)
         self.tabProps_4.addTab(self.tab, "")
         self.verticalLayout_2.addWidget(self.tabProps_4)
-        self.horizontalLayout_28 = QtGui.QHBoxLayout()
-        self.horizontalLayout_28.setObjectName("horizontalLayout_28")
-        self.chkbShowTract = QtGui.QCheckBox(self.centralWidget)
-        self.chkbShowTract.setEnabled(False)
-        self.chkbShowTract.setChecked(True)
-        self.chkbShowTract.setTristate(False)
-        self.chkbShowTract.setObjectName("chkbShowTract")
-        self.horizontalLayout_28.addWidget(self.chkbShowTract)
-        self.chkbShowStruct = QtGui.QCheckBox(self.centralWidget)
-        self.chkbShowStruct.setEnabled(False)
-        self.chkbShowStruct.setChecked(True)
-        self.chkbShowStruct.setObjectName("chkbShowStruct")
-        self.horizontalLayout_28.addWidget(self.chkbShowStruct)
-        self.verticalLayout_2.addLayout(self.horizontalLayout_28)
         self.verticalLayout = QtGui.QVBoxLayout()
         self.verticalLayout.setObjectName("verticalLayout")
         self.grbROImethod = QtGui.QGroupBox(self.centralWidget)
@@ -347,6 +331,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_5 = QtGui.QHBoxLayout()
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
         self.spbExtClust = QtGui.QSpinBox(self.grbExtendcluster)
+        self.spbExtClust.setEnabled(False)
         self.spbExtClust.setReadOnly(False)
         self.spbExtClust.setMinimum(0)
         self.spbExtClust.setObjectName("spbExtClust")
@@ -479,6 +464,8 @@ class Ui_MainWindow(object):
         self.actionSaggital_Slice.setObjectName("actionSaggital_Slice")
         self.actionCoronal_Slice = QtGui.QAction(MainWindow)
         self.actionCoronal_Slice.setObjectName("actionCoronal_Slice")
+        self.actionToggle = QtGui.QAction(MainWindow)
+        self.actionToggle.setObjectName("actionToggle")
         self.menuFile.addAction(self.actionLoad_Structural_Image)
         self.menuFile.addAction(self.actionLoad_Tractography)
         self.menuFile.addAction(self.actionLoad_Saved_Segmentation)
@@ -510,6 +497,7 @@ class Ui_MainWindow(object):
         self.menu3D_Slicer.addAction(self.actionMove_Down_Down)
         self.menuHistory.addAction(self.actionBack_B)
         self.menuHistory.addAction(self.actionForward_F)
+        self.menuTractography.addAction(self.actionToggle)
         self.menuTractography.addAction(self.actionPick_Representative_P)
         self.menuTractography.addAction(self.actionInvert)
         self.menuTractography.addAction(self.actionRemove_Selected_Back_Space)
@@ -559,8 +547,6 @@ class Ui_MainWindow(object):
         self.tblROI.setSortingEnabled(__sortingEnabled)
         self.tabProps_4.setTabText(self.tabProps_4.indexOf(self.tabPropsROI), QtGui.QApplication.translate("MainWindow", "ROI Properties", None, QtGui.QApplication.UnicodeUTF8))
         self.tabProps_4.setTabText(self.tabProps_4.indexOf(self.tab), QtGui.QApplication.translate("MainWindow", "Applied ROIS", None, QtGui.QApplication.UnicodeUTF8))
-        self.chkbShowTract.setText(QtGui.QApplication.translate("MainWindow", "Show Tractography", None, QtGui.QApplication.UnicodeUTF8))
-        self.chkbShowStruct.setText(QtGui.QApplication.translate("MainWindow", "Show Structural Image", None, QtGui.QApplication.UnicodeUTF8))
         self.grbROImethod.setTitle(QtGui.QApplication.translate("MainWindow", "ROI Method", None, QtGui.QApplication.UnicodeUTF8))
         self.rdbInsSphere.setText(QtGui.QApplication.translate("MainWindow", "Inside Sphere", None, QtGui.QApplication.UnicodeUTF8))
         self.rdbtrackvis.setText(QtGui.QApplication.translate("MainWindow", "Trackvis Like", None, QtGui.QApplication.UnicodeUTF8))
@@ -587,10 +573,10 @@ class Ui_MainWindow(object):
         self.actionExpand_Clusters.setText(QtGui.QApplication.translate("MainWindow", "Expand Clusters", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSave_as_trackvis_file.setText(QtGui.QApplication.translate("MainWindow", "Save as trackvis file", None, QtGui.QApplication.UnicodeUTF8))
         self.actionScreen.setText(QtGui.QApplication.translate("MainWindow", "Screen", None, QtGui.QApplication.UnicodeUTF8))
-        self.actionPick_Representative_P.setText(QtGui.QApplication.translate("MainWindow", "Pick Representative                      P", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionPick_Representative_P.setText(QtGui.QApplication.translate("MainWindow", "Pick Representative                       P", None, QtGui.QApplication.UnicodeUTF8))
         self.actionHide_Representative_H.setText(QtGui.QApplication.translate("MainWindow", "Hide Representatives                    H", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSelect_All_Representatives_A.setText(QtGui.QApplication.translate("MainWindow", "Select All Representatives           A", None, QtGui.QApplication.UnicodeUTF8))
-        self.actionInvert.setText(QtGui.QApplication.translate("MainWindow", "Invert Selection                               I", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionInvert.setText(QtGui.QApplication.translate("MainWindow", "Invert Selection                                I", None, QtGui.QApplication.UnicodeUTF8))
         self.actionExpan_Selection_E.setText(QtGui.QApplication.translate("MainWindow", "Expand Selection                            E", None, QtGui.QApplication.UnicodeUTF8))
         self.actionRemove_Selected_Back_Space.setText(QtGui.QApplication.translate("MainWindow", "Remove UnSelected                Backspace", None, QtGui.QApplication.UnicodeUTF8))
         self.actionBack_B.setText(QtGui.QApplication.translate("MainWindow", "Back                 B", None, QtGui.QApplication.UnicodeUTF8))
@@ -608,7 +594,4 @@ class Ui_MainWindow(object):
         self.actionAxial_Slice.setText(QtGui.QApplication.translate("MainWindow", "Axial Slice", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSaggital_Slice.setText(QtGui.QApplication.translate("MainWindow", "Saggital Slice", None, QtGui.QApplication.UnicodeUTF8))
         self.actionCoronal_Slice.setText(QtGui.QApplication.translate("MainWindow", "Coronal Slice", None, QtGui.QApplication.UnicodeUTF8))
-
-
-
-
+        self.actionToggle.setText(QtGui.QApplication.translate("MainWindow", "Toggle                                                 T", None, QtGui.QApplication.UnicodeUTF8))

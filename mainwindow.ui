@@ -586,39 +586,6 @@
        </widget>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_28">
-        <item>
-         <widget class="QCheckBox" name="chkbShowTract">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="text">
-           <string>Show Tractography</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-          <property name="tristate">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="chkbShowStruct">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="text">
-           <string>Show Structural Image</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QGroupBox" name="grbROImethod">
@@ -947,6 +914,7 @@
       <addaction name="actionBack_B"/>
       <addaction name="actionForward_F"/>
      </widget>
+     <addaction name="actionToggle"/>
      <addaction name="actionPick_Representative_P"/>
      <addaction name="actionInvert"/>
      <addaction name="actionRemove_Selected_Back_Space"/>
@@ -1044,7 +1012,7 @@
   </action>
   <action name="actionPick_Representative_P">
    <property name="text">
-    <string>Pick Representative                      P</string>
+    <string>Pick Representative                       P</string>
    </property>
    <property name="toolTip">
     <string notr="true">Pick Representative                        P</string>
@@ -1068,7 +1036,7 @@
   </action>
   <action name="actionInvert">
    <property name="text">
-    <string>Invert Selection                               I</string>
+    <string>Invert Selection                                I</string>
    </property>
   </action>
   <action name="actionExpan_Selection_E">
@@ -1154,6 +1122,11 @@
   <action name="actionCoronal_Slice">
    <property name="text">
     <string>Coronal Slice</string>
+   </property>
+  </action>
+  <action name="actionToggle">
+   <property name="text">
+    <string>Toggle                                                 T</string>
    </property>
   </action>
  </widget>
