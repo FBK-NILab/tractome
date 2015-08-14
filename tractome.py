@@ -101,7 +101,8 @@ class Tractome(object):
         elif tracks_format == '.trk': 
             streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
             print "Loading", self.tracpath
-            self.T = np.array([s[0] for s in streams], dtype=np.object)
+            self.T = np.empty([len(streams)], dtype=np.object)
+            self.T[:] = [s[0] for s in streams]
          
 
         print "Removing short streamlines"
