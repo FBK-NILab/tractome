@@ -104,8 +104,10 @@ class Tractome(object):
             self.T = np.array([s[0] for s in streams], dtype=np.object)
          
 
-        print "Removing short streamlines"
-        self.T = np.array([t for t in self.T if length(t)>= 15],  dtype=np.object)
+        # The following code has been commented out to avoid
+        # misalignment between original streamlines IDs and final IDs.
+        # print "Removing short streamlines"
+        # self.T = np.array([t for t in self.T if length(t)>= 15],  dtype=np.object)
         
         tracks_directoryname = os.path.dirname(self.tracpath) + '/.temp/'
         general_info_filename = tracks_directoryname + tracks_basename + '.spa'
