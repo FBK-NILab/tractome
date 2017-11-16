@@ -1025,12 +1025,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
 
 if __name__ == "__main__":
-#    import sys
-#    app = QtGui.QApplication(sys.argv)
-#    mainWindow= MainWindow()
-#    mainWindow.show()
-#    sys.exit(app.exec_())
-    mainWindow= MainWindow()
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    mainWindow = MainWindow()
     mainWindow.show()
+    sys.exit(app.exec_())
+    # mainWindow= MainWindow()
+    # mainWindow.show()
     
     
