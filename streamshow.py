@@ -230,6 +230,7 @@ class StreamlineLabeler(Actor, Manipulator):
         self.slave_viewer_gm = httplib.HTTPConnection('localhost:8082')
         self.slave_viewer_lap = httplib.HTTPConnection('localhost:8083')
         pair_dir = './Demo_Correspondence/'
+        pair_dir = '/Users/paolo/Datasets/HCP/Demo_Correspondence/'
         pair_src_nn = pair_dir + 'map_124422-627549_nn.txt'
         pair_src_gm = pair_dir + 'map_124422-627549_gm.txt'
         pair_src_lap = pair_dir + 'map_124422-627549_lap.txt'
@@ -527,6 +528,14 @@ class StreamlineLabeler(Actor, Manipulator):
             print "Reset view"
             self.refocus_camera_view()
 
+        elif symbol == Qt.Key_S:
+            print "Sagittal left view"
+            self.sagittal_left_camera_view()
+
+        elif symbol == Qt.Key_X:
+            print "Axial Top view"
+            self.axial_top_camera_view()
+
 
     def get_pointed_representative(self, min_dist=1e-3):
         """Compute the id of the closest streamline to the mouse pointer.
@@ -607,6 +616,25 @@ class StreamlineLabeler(Actor, Manipulator):
         self.slave_viewer_lap.request('POST', '/process', event_msg)
         self.slave_viewer_lap.getresponse().read()
 
+    def sagittal_left_camera_view(self):
+        print "Sagittal Left camera view"
+        event_msg = "SagittalLeftCameraView"
+        self.slave_viewer_nn.request('POST', '/process', event_msg)
+        self.slave_viewer_nn.getresponse().read()
+        self.slave_viewer_gm.request('POST', '/process', event_msg)
+        self.slave_viewer_gm.getresponse().read()
+        self.slave_viewer_lap.request('POST', '/process', event_msg)
+        self.slave_viewer_lap.getresponse().read()
+
+    def axial_top_camera_view(self):
+        print "Axial top camera view"
+        event_msg = "AxialTopCameraView"
+        self.slave_viewer_nn.request('POST', '/process', event_msg)
+        self.slave_viewer_nn.getresponse().read()
+        self.slave_viewer_gm.request('POST', '/process', event_msg)
+        self.slave_viewer_gm.getresponse().read()
+        self.slave_viewer_lap.request('POST', '/process', event_msg)
+        self.slave_viewer_lap.getresponse().read()
 
     def expand_collapse_selected_action(self):
         """

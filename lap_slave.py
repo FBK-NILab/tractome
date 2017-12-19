@@ -11,7 +11,7 @@ global stream_actor, slave_actor, show_m
 port = sys.argv[1]
 some = 10000
 src = '/Users/paolo/Downloads/562345_D10RETEST_b2k_csddet_sift2_FS2016_ioff.left.trk'
-src = '/Users/paolo/Datasets/HCP/Demo_Correspondence/sub-627549_size-100k_tract.trk'
+src = './Demo_Correspondence/sub-627549_size-100k_tract.trk'
 t = nib.streamlines.load(src)
 tract = transform_streamlines(t.streamlines, np.linalg.inv(t.affine))
 subset = np.random.choice(len(tract), some, replace=False)
@@ -44,8 +44,8 @@ def my_process():
     if 'Expand' in req_event:
         expand = [int(s) for s in req_event.strip('Expand ').split()]
         #expand = [0, 1, 2, 3, 4, 5,]
-        subset = np.take(tract, expand)
-        slave_actor = actor.line(subset)
+        etract = np.take(tract, expand)
+        slave_actor = actor.line(etract)
         show_m.ren.add(slave_actor)
         stream_actor.SetVisibility(0)
         show_m.render()
@@ -60,9 +60,30 @@ def my_process():
         show_m.ren.add(stream_actor)
         stream_actor.SetVisibility(1)
         ac = show_m.ren.GetActiveCamera()
+        print ac.GetPosition()
+        print ac.GetFocalPoint()
+        print ac.GetViewUp()
         ac.SetPosition(71.42986869812012, 87.12019729614258, 443.4783652957321)
-        ac.SetFocalPoint(71.42986869812012, 87.12019729614258, 57.54511070251465)
-        ac.SetViewUp(0., 1.00, 0.)
+        ac.SetFocalPoint(71.42986869812012, 87.12019729614258, 57.5451107025146)
+        ac.SetViewUp(0., 1., 0.)
+        show_m.render()
+    elif 'SagittalLeftCameraView' in req_event:
+        ac = show_m.ren.GetActiveCamera()
+        print ac.GetPosition()
+        print ac.GetFocalPoint()
+        print ac.GetViewUp()
+        ac.SetPosition(-300., -35., 70.)
+        ac.SetFocalPoint(71.42986869812012, 87.12019729614258, 57.5451107025146)
+        ac.SetViewUp(0., 0., 1.)
+        show_m.render()
+    elif 'AxialTopCameraView' in req_event:
+        ac = show_m.ren.GetActiveCamera()
+        print ac.GetPosition()
+        print ac.GetFocalPoint()
+        print ac.GetViewUp()
+        ac.SetPosition(71.42986869812012, 87.12019729614258, 443.4783652957321)
+        ac.SetFocalPoint(71.42986869812012, 87.12019729614258, 57.5451107025146)
+        ac.SetViewUp(0., 1., 0.)
         show_m.render()
     else:
         print req_event

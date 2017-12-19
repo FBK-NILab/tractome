@@ -1025,6 +1025,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.glWidget.world.refocus_camera()
             self.glWidget.world.camera.update()
             self.glWidget.updateGL()
+        elif key == QtCore.Qt.Key_S:
+            p = np.array([-260., -2.5, 4.])
+            y = np.array([0., 0., 1.])
+            self.glWidget.world.camera.set_location(p, y)
+            self.glWidget.world.camera.update()
+            self.glWidget.updateGL()
+            print self.glWidget.world.camera
+        elif key == QtCore.Qt.Key_X:
+            self.glWidget.world.refocus_camera()
+            self.glWidget.updateGL()
+            print self.glWidget.world.camera
+        elif key == QtCore.Qt.Key_T:
+            print self.glWidget.world.camera
         else:
             super(MainWindow, self).keyPressEvent( event )
         self.glWidget.updateGL()
