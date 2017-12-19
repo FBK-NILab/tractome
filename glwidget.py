@@ -6,13 +6,12 @@ Distributed under the BSD 3-clause license. See COPYING.txt.
 
 from PySide import QtCore, QtGui, QtOpenGL
 from fos.world import *
-
+import httplib
 
 try:
     from pyglet.gl import *
 except ImportError:
     print("Need pyglet for OpenGL rendering")
-    
 
 empty_messages={ 'key_pressed':None,
                  'mouse_pressed':None,
@@ -47,6 +46,9 @@ class GLWidget(QtOpenGL.QGLWidget):
         # necessary to grab key events
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.parent = parent
+        self.slave_viewer_nn = httplib.HTTPConnection('localhost:8081')
+        self.slave_viewer_gm = httplib.HTTPConnection('localhost:8082')
+        self.slave_viewer_lap = httplib.HTTPConnection('localhost:8083')
 
 
     def minimumSizeHint(self):
@@ -140,6 +142,16 @@ class GLWidget(QtOpenGL.QGLWidget):
         if (event.modifiers() & QtCore.Qt.ControlModifier):
             x, y = event.x(), event.y()
             self.world.pick_all(x, self.height - y)
+        print 'POS', event.pos()
+        event_mesg = "LeftButtonPressEvent %d %d 0 0 0 0 0\n" % (event.x(), event.y())
+        event_mesg += "StartInteractionEvent %d %d 0 0 0 0 0\n" % (event.x(), event.y())
+        self.slave_viewer_nn.request('POST', '/process', event_mesg)
+        self.slave_viewer_nn.getresponse().read()
+        self.slave_viewer_gm.request('POST', '/process', event_mesg)
+        self.slave_viewer_gm.getresponse().read()
+        self.slave_viewer_lap.request('POST', '/process', event_mesg)
+        self.slave_viewer_lap.getresponse().read()
+                
 
 
     def mouseMoveEvent(self, event):
@@ -161,18 +173,26 @@ class GLWidget(QtOpenGL.QGLWidget):
             ctrl = False
         if event.buttons() & QtCore.Qt.LeftButton:
             if not ctrl:
+                event_mesg = "MouseMoveEvent %d %d 0 0 0 0 0\n" % (event.x(), event.y())
+                event_mesg += "RenderEvent %d %d 0 0 0 0 0\n" % (event.x(), event.y())
+                self.slave_viewer_nn.request('POST', '/process', event_mesg)
+                self.slave_viewer_nn.getresponse().read()
+                self.slave_viewer_gm.request('POST', '/process', event_mesg)
+                self.slave_viewer_gm.getresponse().read()
+                self.slave_viewer_lap.request('POST', '/process', event_mesg)
+                self.slave_viewer_lap.getresponse().read()
                 # should rotate
                 if dx != 0:
                     # rotate around yup
                     if dx > 0: angle = -self.ang_step #0.01
                     else: angle = self.ang_step #0.01
-                    if shift: angle *= 2
+                    if shift: angle *= 4
                     self.world.camera.rotate_around_focal(angle, "yup")
                 if dy != 0:
                     # rotate around right
                     if dy > 0: angle = -self.ang_step #0.01
                     else: angle = self.ang_step #0.01
-                    if shift: angle *= 2
+                    if shift: angle *= 4
                     self.world.camera.rotate_around_focal(angle, "right")
                 self.updateGL()
             else:

@@ -45,9 +45,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         """
         self.glWidget = GLWidget(parent = self.gridWidget_4, 
-                                    width = 1508, 
-                                    height = 713, 
-                                    bgcolor = (.5, .5, 0.9), 
+                                    width = 600, 
+                                    height = 600, 
+                                    bgcolor = (0., 0., 0.), 
                                     enable_light = False)
                                     
         self.gridLayout_4.addWidget(self.glWidget) 
@@ -306,7 +306,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tractome.loading_structural(fileStruct)
             self.structnameitem.setText(0, struct_basename) 
             self.menu3D_Slicer.setEnabled(True)
-            self.refocus_camera()  
+            self.refocus_camera() 
     
 
     @Slot()
@@ -960,12 +960,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         """
         self.glWidget.world.camera = camera
+        print 'SET CAMERA', self.glWidget.world.camera
 
 
     def refocus_camera(self):
         """
         """
         self.glWidget.world.refocus_camera()
+        print 'REFOCUS CAMERA', self.glWidget.world.camera
 
 
     def update_light_position(self, x, y, z):
@@ -1019,18 +1021,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.spinCameraToggle()
         elif key == QtCore.Qt.Key_Escape:
             self.close()
+        elif key == QtCore.Qt.Key_R:
+            self.glWidget.world.refocus_camera()
+            self.glWidget.world.camera.update()
+            self.glWidget.updateGL()
         else:
             super(MainWindow, self).keyPressEvent( event )
         self.glWidget.updateGL()
-        
-
-if __name__ == "__main__":
-#    import sys
-#    app = QtGui.QApplication(sys.argv)
-#    mainWindow= MainWindow()
-#    mainWindow.show()
-#    sys.exit(app.exec_())
+   
+     
+def rerun():
     mainWindow= MainWindow()
     mainWindow.show()
-    
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    mainWindow= MainWindow()
+    mainWindow.show()
+    sys.exit(app.exec_())
+#    mainWindow= MainWindow()
+#    mainWindow.show()
     

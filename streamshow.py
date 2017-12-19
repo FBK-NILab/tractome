@@ -9,7 +9,8 @@ Distributed under the BSD 3-clause license. See COPYING.txt.
 
 
 import numpy as np
-
+import httplib
+        
 # fos modules
 from fos import Actor
 from fos.modelmat import screen_to_model
@@ -223,6 +224,18 @@ class StreamlineLabeler(Actor, Manipulator):
 
         self.clusters = clusters
         self.save_init_set = True
+
+        # Slave Viewer
+        self.slave_viewer_nn = httplib.HTTPConnection('localhost:8081')
+        self.slave_viewer_gm = httplib.HTTPConnection('localhost:8082')
+        self.slave_viewer_lap = httplib.HTTPConnection('localhost:8083')
+        pair_dir = './Demo_Correspondence/'
+        pair_src_nn = pair_dir + 'map_124422-627549_nn.txt'
+        pair_src_gm = pair_dir + 'map_124422-627549_gm.txt'
+        pair_src_lap = pair_dir + 'map_124422-627549_lap.txt'
+        self.correspondence_nn = np.loadtxt(pair_src_nn, dtype=np.int, delimiter=',')[:,1]
+        self.correspondence_gm = np.loadtxt(pair_src_gm, dtype=np.int, delimiter=',')[:,1]
+        self.correspondence_lap = np.loadtxt(pair_src_lap, dtype=np.int, delimiter=',')[:,1]
          
         # MBKM:
         Manipulator.__init__(self, initial_clusters=clusters, clustering_function=mbkm_wrapper)
@@ -459,6 +472,8 @@ class StreamlineLabeler(Actor, Manipulator):
         if msg!=None:
             self.process_mouse_position(*msg)
 
+        #print messages
+
 
     def process_mouse_position(self, x, y):
         """
@@ -507,6 +522,10 @@ class StreamlineLabeler(Actor, Manipulator):
         elif symbol == Qt.Key_F:
             print "Go one step Forward in the history."
             self.simple_history_forward_one_step()
+
+        elif symbol == Qt.Key_R:
+            print "Reset view"
+            self.refocus_camera_view()
 
 
     def get_pointed_representative(self, min_dist=1e-3):
@@ -578,6 +597,16 @@ class StreamlineLabeler(Actor, Manipulator):
             else:
                 self.unselect_action(rid)
 
+    def refocus_camera_view(self):
+        print "Refocus camera view"
+        event_msg = "RefocusCameraView"
+        self.slave_viewer_nn.request('POST', '/process', event_msg)
+        self.slave_viewer_nn.getresponse().read()
+        self.slave_viewer_gm.request('POST', '/process', event_msg)
+        self.slave_viewer_gm.getresponse().read()
+        self.slave_viewer_lap.request('POST', '/process', event_msg)
+        self.slave_viewer_lap.getresponse().read()
+
 
     def expand_collapse_selected_action(self):
         """
@@ -590,9 +619,28 @@ class StreamlineLabeler(Actor, Manipulator):
                 selected_streamlines_ids = list(reduce(chain, [self.clusters[rid] for rid in self.selected]))
                 self.streamlines_visualized_first = np.ascontiguousarray(self.streamlines_first[selected_streamlines_ids], dtype='i4')
                 self.streamlines_visualized_count = np.ascontiguousarray(self.streamlines_count[selected_streamlines_ids], dtype='i4')
+                
+                event_msg_nn = "Expand " + " ".join(str(self.correspondence_nn[x]) for x in selected_streamlines_ids)
+                self.slave_viewer_nn.request('POST', '/process', event_msg_nn)
+                self.slave_viewer_nn.getresponse().read()
+
+                event_msg_gm = "Expand " + " ".join(str(self.correspondence_gm[x]) for x in selected_streamlines_ids)
+                self.slave_viewer_gm.request('POST', '/process', event_msg_gm)
+                self.slave_viewer_gm.getresponse().read()
+
+                event_msg_lap = "Expand " + " ".join(str(self.correspondence_lap[x]) for x in selected_streamlines_ids)
+                self.slave_viewer_lap.request('POST', '/process', event_msg_lap)
+                self.slave_viewer_lap.getresponse().read()
         else:
             print "Collapse."
-            
+            event_msg = "Collapse"
+            self.slave_viewer_nn.request('POST', '/process', event_msg)
+            self.slave_viewer_nn.getresponse().read()
+            self.slave_viewer_gm.request('POST', '/process', event_msg)
+            self.slave_viewer_gm.getresponse().read()
+            self.slave_viewer_lap.request('POST', '/process', event_msg)
+            self.slave_viewer_lap.getresponse().read()
+
     
     def remove_unselected_action(self):
         """
