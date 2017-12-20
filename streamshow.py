@@ -536,6 +536,10 @@ class StreamlineLabeler(Actor, Manipulator):
             print "Axial Top view"
             self.axial_top_camera_view()
 
+        elif symbol == Qt.Key_Q:
+            print "Fix view"
+            self.fix_view()
+
 
     def get_pointed_representative(self, min_dist=1e-3):
         """Compute the id of the closest streamline to the mouse pointer.
@@ -629,6 +633,16 @@ class StreamlineLabeler(Actor, Manipulator):
     def axial_top_camera_view(self):
         print "Axial top camera view"
         event_msg = "AxialTopCameraView"
+        self.slave_viewer_nn.request('POST', '/process', event_msg)
+        self.slave_viewer_nn.getresponse().read()
+        self.slave_viewer_gm.request('POST', '/process', event_msg)
+        self.slave_viewer_gm.getresponse().read()
+        self.slave_viewer_lap.request('POST', '/process', event_msg)
+        self.slave_viewer_lap.getresponse().read()
+
+    def fix_view(self):
+        print "Fix view"
+        event_msg = "FixView"
         self.slave_viewer_nn.request('POST', '/process', event_msg)
         self.slave_viewer_nn.getresponse().read()
         self.slave_viewer_gm.request('POST', '/process', event_msg)
