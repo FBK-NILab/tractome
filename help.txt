@@ -1,0 +1,19 @@
+Legenda 
+
+e - Expand/Collapse from representatives to streamlines view
+h - Show/Hide representatives
+p - Pick representatives (no streamlines pick)
+a - Select/Deselect all the representatives
+i - Invert seelection of representatives
+<backspace> - Remove unselected representatives
+b - undo (backward history)
+f - redo (forward history)
+
+0 - Show/Hide anatomy slices
+1 - Show/Hide sagittal anatomy slice
+2 - Show/Hide coronal anatomy slice
+3 - Show/Hide axial anatomy slice
+
+s - Refocus sagittal view
+x - Refocus axial view
+q - fix the visualization issues on slave viewers
