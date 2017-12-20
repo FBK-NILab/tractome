@@ -17,3 +17,21 @@ f - redo (forward history)
 s - Refocus sagittal view
 x - Refocus axial view
 q - fix the visualization issues on slave viewers
+
+
+Demo
+
+python lap_slave.py 8081 &
+python lap_slave.py 8082 &
+python lap_slave.py 8083 &
+python mainwindow.py
+
+
+Data requirements
+
+./Demo_Correspondence/sub-124422_space-dwi_T1w.nii.gz
+./Demo_Correspondence/sub-124422_size-100k_tract.trk
+./Demo_Correspondence/sub-627549_size-100k_tract.trk
+./Demo_Correspondence/map_124422-627549_nn.txt
+./Demo_Correspondence/map_124422-627549_gm.txt
+./Demo_Correspondence/map_124422-627549_lap.txt
