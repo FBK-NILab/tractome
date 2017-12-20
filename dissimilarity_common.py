@@ -57,7 +57,7 @@ def subset_furthest_first(S, k, distance, permutation=True, c=2.0):
     Using RBF Networks, IEEE Trans Knowl Data Eng, vol. 2005, no. 4,
     pp. 580-584, 17.
     """
-    size = max(1, np.ceil(c * k * np.log(k)))
+    size = int(max(1, np.ceil(c * k * np.log(k))))
     if permutation:
         idx = np.random.permutation(S.shape[0])[:size]       
     else:
