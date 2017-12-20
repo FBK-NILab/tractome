@@ -21,9 +21,13 @@ q - fix the visualization issues on slave viewers
 
 Demo
 
+# Nearest Neighbour slave viewer
 python lap_slave.py 8081 &
+# Graph Matching slave viewer
 python lap_slave.py 8082 &
+# Linear Assignment slave viewer
 python lap_slave.py 8083 &
+# Tractome master viewer
 python mainwindow.py
 
 
