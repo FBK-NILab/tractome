@@ -230,7 +230,6 @@ class StreamlineLabeler(Actor, Manipulator):
         self.slave_viewer_gm = httplib.HTTPConnection('localhost:8082')
         self.slave_viewer_lap = httplib.HTTPConnection('localhost:8083')
         pair_dir = './Demo_Correspondence/'
-        pair_dir = '/Users/paolo/Datasets/HCP/Demo_Correspondence/'
         pair_src_nn = pair_dir + 'map_124422-627549_nn.txt'
         pair_src_gm = pair_dir + 'map_124422-627549_gm.txt'
         pair_src_lap = pair_dir + 'map_124422-627549_lap.txt'
