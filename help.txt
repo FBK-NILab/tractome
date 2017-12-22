@@ -32,6 +32,7 @@ python mainwindow.py
 
 
 Data requirements
+(see /cimec-storage2/nilab/nilab-project/data/MRI/HCP/Demo_Correspondence)
 
 ./Demo_Correspondence/sub-124422_space-dwi_T1w.nii.gz
 ./Demo_Correspondence/sub-124422_size-100k_tract.trk
