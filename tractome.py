@@ -98,11 +98,16 @@ class Tractome(object):
             self.T = np.array(self.T, dtype=np.object)
 
             
-        elif tracks_format == '.trk': 
-            streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
+        elif tracks_format == '.trk':
             print "Loading", self.tracpath
-            self.T = np.array([s[0] for s in streams], dtype=np.object)
-         
+            # Old nibabel API:
+            # streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
+            # self.T = np.array([s[0] for s in streams], dtype=np.object)
+            # New nibabel API
+            tmp = nib.streamlines.load(self.tracpath)
+            streams = tmp.tractogram.apply_affine(np.linalg.inv(tmp.affine)).streamlines
+            self.header = tmp.header
+            self.T = np.array(streams, dtype=np.object)
 
         # The following code has been commented out to avoid
         # misalignment between original streamlines IDs and final IDs.
@@ -325,15 +330,19 @@ class Tractome(object):
         Save current streamlines in .trk file.
         """
         filename = filename[0]+'.trk'
-        hdr = nib.trackvis.empty_header()
-        hdr['voxel_size'] = self.img.get_header().get_zooms()[:3]
-        hdr['voxel_order'] = 'LAS'
-        hdr['dim'] = self.dims
-        hdr['vox_to_ras'] = self.affine
-
         streamlines_ids = list(self.streamlab.streamline_ids)
-        streamlines = [(s,  None,  None) for s in self.T[streamlines_ids]]
-        nib.trackvis.write(filename, streamlines, hdr, points_space = 'voxel')
+        # Old nibabel API:
+        # hdr = nib.trackvis.empty_header()
+        # hdr['voxel_size'] = self.img.get_header().get_zooms()[:3]
+        # hdr['voxel_order'] = 'LAS'
+        # hdr['dim'] = self.dims
+        # hdr['vox_to_ras'] = self.affine
+        # streamlines = [(s,  None,  None) for s in self.T[streamlines_ids]]
+        # nib.trackvis.write(filename, streamlines, hdr, points_space = 'voxel')
+
+        # New nibabel API:
+        tmp = nib.streamlines.Tractogram(self.T[streamlines_ids], affine_to_rasmm=self.affine)
+        nib.streamlines.save(tmp, filename=filename, header=self.header)
 
 
     def compute_kdtree(self):
