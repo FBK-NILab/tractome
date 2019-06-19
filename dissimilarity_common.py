@@ -66,7 +66,7 @@ def subset_furthest_first(S, k, distance, permutation=True, c=2.0):
     return idx[furthest_first_traversal(S[idx], k, distance, permutation=False)]
 
 
-def compute_dissimilarity(data, distance, prototype_policy, num_prototypes, verbose=False, size_limit=500000, n_jobs=None):
+def compute_dissimilarity(data, distance, prototype_policy, num_prototypes, verbose=False, size_limit=5000000, n_jobs=None):
     """Compute dissimilarity matrix given data, distance,
     prototype_policy and number of prototypes.
     """
