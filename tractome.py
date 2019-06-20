@@ -341,7 +341,14 @@ class Tractome(object):
         # nib.trackvis.write(filename, streamlines, hdr, points_space = 'voxel')
 
         # New nibabel API:
-        tmp = nib.streamlines.Tractogram(self.T[streamlines_ids], affine_to_rasmm=self.affine)
+        # tmp = nib.streamlines.Tractogram(self.T[streamlines_ids], affine_to_rasmm=self.affine)
+        first = self.streamlab.streamlines_first[streamlines_ids]
+        count = self.streamlab.streamlines_count[streamlines_ids]
+        bundle = []
+        for (f, c) in zip(first, count):
+            bundle.append(self.streamlab.streamlines_buffer[f:f+c])
+
+        tmp = nib.streamlines.Tractogram(bundle, affine_to_rasmm=self.affine)
         nib.streamlines.save(tmp, filename=filename, header=self.header)
 
 
