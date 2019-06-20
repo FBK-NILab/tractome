@@ -356,10 +356,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tblTract.item(1, 1).setText(str(trackcount))
             self.tblTract.item(2, 1).setText(str(len(self.tractome.streamlab.representative_ids)))
     
-            if hasattr(self.tractome, 'hdr'):
-                hdr = self.tractome.hdr
-                self.tblTract.item(3, 1).setText(str(hdr['voxel_size']))
-                self.tblTract.item(4, 1).setText(str(hdr['dim']))
+            if hasattr(self.tractome, 'header'):
+                hdr = self.tractome.header
+                self.tblTract.item(3, 1).setText(
+                    str(hdr['voxel_sizes'].tolist()))
+                self.tblTract.item(4, 1).setText(
+                    str(hdr['dimensions'].tolist()))
                 self.tblTract.item(5, 1).setText(str(hdr['voxel_order']))
                
             else:
