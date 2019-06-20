@@ -88,46 +88,49 @@ class Tractome(object):
         self.tracpath=tracpath
         basename = os.path.basename(self.tracpath)
         tracks_basename, tracks_format = os.path.splitext(basename)
-        
-        if tracks_format == '.dpy': 
             
-            dpr = Dpy(self.tracpath, 'r')
-            print "Loading", self.tracpath
-            self.T = dpr.read_tracks()
-            dpr.close()
-            self.T = np.array(self.T, dtype=np.object)
-
-            
-        elif tracks_format == '.trk':
-            print "Loading", self.tracpath
-            # Old nibabel API:
-            # streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
-            # self.T = np.array([s[0] for s in streams], dtype=np.object)
-            # New nibabel API
-            tmp = nib.streamlines.load(self.tracpath)
-            streams = tmp.tractogram.apply_affine(np.linalg.inv(tmp.affine)).streamlines
-            self.header = tmp.header
-            self.T = np.array(streams, dtype=np.object)
-
-        # The following code has been commented out to avoid
-        # misalignment between original streamlines IDs and final IDs.
-        # print "Removing short streamlines"
-        # self.T = np.array([t for t in self.T if length(t)>= 15],  dtype=np.object)
-        
         tracks_directoryname = os.path.dirname(self.tracpath) + '/.temp/'
         general_info_filename = tracks_directoryname + tracks_basename + '.spa'
-        
-        
+
         # Check if there is the .spa file that contains all the
         # computed information from the tractography anyway and try to
         # load it
         try:
             print "Looking for general information file"
             self.load_info(general_info_filename)
-                    
+
+            if tracks_format == '.trk':
+                print "Loading", self.tracpath
+                tmp = nib.streamlines.load(self.tracpath, lazy_load=True)
+                self.header = tmp.header
+                self.T = range(tmp.header['nb_streamlines'])
+
         except (IOError, KeyError):
+            if tracks_format == '.dpy':
+                dpr = Dpy(self.tracpath, 'r')
+                print "Loading", self.tracpath
+                self.T = dpr.read_tracks()
+                dpr.close()
+                self.T = np.array(self.T, dtype=np.object)
+
+            elif tracks_format == '.trk':
+                print "Loading", self.tracpath
+                # Old nibabel API:
+                # streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
+                # self.T = np.array([s[0] for s in streams], dtype=np.object)
+                # New nibabel API
+                tmp = nib.streamlines.load(self.tracpath)
+                streams = tmp.tractogram.apply_affine(np.linalg.inv(tmp.affine)).streamlines
+                self.header = tmp.header
+                self.T = np.array(streams, dtype=np.object)
+
             print "General information not found, recomputing buffers"
             self.update_info(general_info_filename)
+
+        # The following code has been commented out to avoid
+        # misalignment between original streamlines IDs and final IDs.
+        # print "Removing short streamlines"
+        # self.T = np.array([t for t in self.T if length(t)>= 15],  dtype=np.object)
                     
         # create the interaction system for tracks, 
         self.streamlab  = StreamlineLabeler('Bundle Picker',
