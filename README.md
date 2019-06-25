@@ -8,7 +8,7 @@ Tractome is an interactive tool for visualisation, exploration and segmentation 
 Download
 ------------
 
-* Binary: [tractome-macos.dmg](http://nilab.cimec.unitn.it/nilab/tractome/tractome.dmg) (Mac OS X 10.9.5 or later)
+* Binary: [tractome-macos.dmg](bit.ly/dmg4tractome2) (Mac OS X 10.9.5 or later)
 * Sources: [tractome.tar.gz](https://github.com/FBK-NILab/tractome/archive/master.tar.gz)
 
 Dependencies
