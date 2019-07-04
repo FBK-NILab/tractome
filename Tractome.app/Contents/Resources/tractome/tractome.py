@@ -100,29 +100,36 @@ class Tractome(object):
             self.load_info(general_info_filename)
 
             if tracks_format == '.trk':
-                print "Loading", self.tracpath
+                print "Lazy loading", self.tracpath
                 tmp = nib.streamlines.load(self.tracpath, lazy_load=True)
                 self.header = tmp.header
                 self.T = range(tmp.header['nb_streamlines'])
 
         except (IOError, KeyError):
-            if tracks_format == '.dpy':
-                dpr = Dpy(self.tracpath, 'r')
-                print "Loading", self.tracpath
-                self.T = dpr.read_tracks()
-                dpr.close()
-                self.T = np.array(self.T, dtype=np.object)
+            if not hasattr(self, 'buffers'):
+                if tracks_format == '.dpy':
+                    dpr = Dpy(self.tracpath, 'r')
+                    print "Loading", self.tracpath
+                    self.T = dpr.read_tracks()
+                    dpr.close()
+                    self.T = np.array(self.T, dtype=np.object)
+
+                elif tracks_format == '.trk':
+                    print "Loading", self.tracpath
+                    # Old nibabel API:
+                    # streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
+                    # self.T = np.array([s[0] for s in streams], dtype=np.object)
+                    # New nibabel API
+                    tmp = nib.streamlines.load(self.tracpath)
+                    streams = tmp.tractogram.apply_affine(np.linalg.inv(tmp.affine)).streamlines
+                    self.header = tmp.header
+                    self.T = np.array(streams, dtype=np.object)
 
             elif tracks_format == '.trk':
-                print "Loading", self.tracpath
-                # Old nibabel API:
-                # streams, self.hdr = nib.trackvis.read(self.tracpath, points_space='voxel')
-                # self.T = np.array([s[0] for s in streams], dtype=np.object)
-                # New nibabel API
-                tmp = nib.streamlines.load(self.tracpath)
-                streams = tmp.tractogram.apply_affine(np.linalg.inv(tmp.affine)).streamlines
+                print "Lazy loading", self.tracpath
+                tmp = nib.streamlines.load(self.tracpath, lazy_load=True)
                 self.header = tmp.header
-                self.T = np.array(streams, dtype=np.object)
+                self.T = range(tmp.header['nb_streamlines'])
 
             print "General information not found, recomputing buffers"
             self.update_info(general_info_filename)
