@@ -256,6 +256,7 @@ class StreamlineLabeler(Actor, Manipulator):
 
         self.hide_representatives = False
         self.expand = False
+        self.expanded = False
         self.knnreset = False
         self.representatives_line_width = representatives_line_width
         self.streamlines_line_width = streamlines_line_width
@@ -507,6 +508,18 @@ class StreamlineLabeler(Actor, Manipulator):
         elif symbol == Qt.Key_F:
             print "Go one step Forward in the history."
             self.simple_history_forward_one_step()
+            
+        elif symbol == Qt.Key_T:
+            print 'T: Hide/show the whole tractography.'
+            self.hide_representatives = not self.hide_representatives
+            if self.hide_representatives :
+                if self.expand :
+                    self.expanded = True
+                    self.expand = False
+
+            if not self.hide_representatives and self.expanded:
+                self.expand = True
+                self.expanded = False
 
 
     def get_pointed_representative(self, min_dist=1e-3):
