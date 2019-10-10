@@ -36,13 +36,13 @@ apt-get install python-pyglet python-pyside python-nibabel python-dipy python-sk
 <!-- For more details about Ubuntu backports: https://help.ubuntu.com/community/UbuntuBackports -->
 
 Installation with conda is also possible. A compatible version of package in this case is:
-dipy=0.14 channel conda-forge
-pyglet=1.2.4 channel conda-forge
-pyside=1.2.4 channel conda-forge
-matplotlib=1.5.1 channel anaconda
-qt=4.8.7 channel anaconda
-cython
-joblib
+- dipy=0.14 channel conda-forge
+- pyglet=1.2.4 channel conda-forge
+- pyside=1.2.4 channel conda-forge
+- matplotlib=1.5.1 channel anaconda
+- qt=4.8.7 channel anaconda
+- cython
+- joblib
 
 fos installed from source with the pip inside conda
 
