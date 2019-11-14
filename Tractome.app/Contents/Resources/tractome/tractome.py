@@ -157,18 +157,31 @@ class Tractome(object):
         """
         print "Loading saved session file"
         segm_info = pickle.load(open(segpath)) 
-        state = segm_info['segmsession']  
+        state = segm_info['segmsession']
+
+        segdir = os.path.dirname(segpath)
             
-        self.structpath=segm_info['structfilename']
-        self.tracpath=segm_info['tractfilename']   
+        self.structpath = segm_info['structfilename']
+        self.tracpath = segm_info['tractfilename']
 
         # load T1 volume registered in MNI space
         print "Loading structural information file"
 
-        self.loading_structural(self.structpath)
+        try:
+            self.loading_structural(self.structpath)
+        except IOError:
+            print('%s not found, trying in %s' % (self.structpath, segdir))
+            self.structpath = segdir + os.path.sep + os.path.basename(self.structpath)
+            self.loading_structural(self.structpath)
 
         # load tractography
-        self.loading_full_tractograpy(self.tracpath)
+        try:
+            self.loading_full_tractograpy(self.tracpath)
+        except IOError:
+            print('%s not found, trying in %s' % (self.tracpath, segdir))
+            self.tracpath = segdir + os.path.sep + os.path.basename(self.tracpath)
+            self.loading_full_tractograpy(self.tracpath)
+
         self.streamlab.set_state(state)
             
         self.scene.update()
