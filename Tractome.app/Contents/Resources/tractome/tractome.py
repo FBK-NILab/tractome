@@ -170,9 +170,14 @@ class Tractome(object):
         try:
             self.loading_structural(self.structpath)
         except IOError:
-            print('%s not found, trying in %s' % (self.structpath, segdir))
-            self.structpath = segdir + os.path.sep + os.path.basename(self.structpath)
-            self.loading_structural(self.structpath)
+            try:
+                print('%s not found, trying RELATIVELY to %s' % (self.structpath, segdir))
+                self.structpath = segdir + os.path.sep + self.structpath
+                self.loading_structural(self.structpath)
+            except IOError:
+                print('%s not found, trying in %s' % (self.structpath, segdir))
+                self.structpath = segdir + os.path.sep + os.path.basename(self.structpath)
+                self.loading_structural(self.structpath)
 
         # load tractography
         try:
