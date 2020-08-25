@@ -18,5 +18,3 @@ dependencies:
   - qt=4.8.7
   - pip:
     - git+https://github.com/fos/fos.git
-prefix: /home/connectbrain/.conda/envs/tractome
-
