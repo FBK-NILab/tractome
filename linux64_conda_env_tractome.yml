@@ -1,0 +1,22 @@
+name: tractome
+channels:
+  - https://repo.anaconda.com/pkgs/free
+  - conda-forge
+  - defaults
+dependencies:
+  - cython=0.29.7
+  - dipy=0.14.0
+  - joblib=0.13.2
+  - matplotlib=1.5.1
+  - nibabel=2.4.0
+  - numpy=1.11
+  - pip=19.1
+  - pyglet=1.3.2
+  - pyqt=4.11.4
+  - pyside=1.2.4
+  - python=2.7.16
+  - qt=4.8.7
+  - pip:
+    - git+https://github.com/fos/fos.git
+prefix: /home/connectbrain/.conda/envs/tractome
+

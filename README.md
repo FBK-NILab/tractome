@@ -34,17 +34,15 @@ apt-get install python-pyglet python-pyside python-nibabel python-dipy python-sk
 <!-- 2. ```apt-get install ipython/precise-backports``` -->
 
 <!-- For more details about Ubuntu backports: https://help.ubuntu.com/community/UbuntuBackports -->
+Conda installation (suggested)
+---------------
 
-Installation with conda is also possible. A compatible version of package in this case is:
-- dipy=0.14 channel conda-forge
-- pyglet=1.2.4 channel conda-forge
-- pyside=1.2.4 channel conda-forge
-- matplotlib=1.5.1 channel anaconda
-- qt=4.8.7 channel anaconda
-- cython
-- joblib
-
-fos installed from source with the pip inside conda
+Installation with conda is also possible (tested using miniconda 4.8.4 under Ubuntu 18.04 and 20.04). A compatible version of the modules is listed
+in `linux64_conda_env_tractome.yml`. The yml file contains all the information to build a proper conda environment with the name `tractome`. To create the environment you need to launch the command 
+```
+conda env create -f linux64_conda_env_tractome.yml
+``` 
+Once the environment is created, you need to activate it through `conda activate tractome`, and run tractome (see below).
 
 To Run Tractome
 ---------------
