@@ -54,7 +54,7 @@ class Tractome(object):
         self.list_oper_ROIS = []
      
      
-    def loading_structural(self, structpath = None):
+    def loading_structural(self, structpath = None,  actor_name = 'Volume Slicer'):
         """
         Loading structural data.
         """
@@ -75,11 +75,11 @@ class Tractome(object):
         
         # Create the Guillotine object
         data = (np.interp(data, [data.min(), data.max()], [0, 255]))
-        self.guil = Guillotine('Volume Slicer', data, np.copy(self.affine))
+        self.guil = Guillotine(actor_name, data, np.copy(self.affine))
         self.scene.add_actor(self.guil) 
     
         
-    def loading_full_tractograpy(self, tracpath=None):
+    def loading_full_tractograpy(self, tracpath=None, actor_name = 'Bundle Picker'):
         """
         Loading full tractography and creates StreamlineLabeler to
         show it all.
@@ -140,7 +140,7 @@ class Tractome(object):
         # self.T = np.array([t for t in self.T if length(t)>= 15],  dtype=np.object)
                     
         # create the interaction system for tracks, 
-        self.streamlab  = StreamlineLabeler('Bundle Picker',
+        self.streamlab  = StreamlineLabeler(actor_name,
                                             self.buffers, self.clusters,
                                             vol_shape=self.dims, 
                                             affine=np.copy(self.affine),
