@@ -1,0 +1,15 @@
+[project]
+name = "tractome"
+description = "Imaging tool for brain analysis"
+license = { file = "COPYING.txt" }
+requires-python = ">=3.10"
+readme = "README.md"
+version = "2.0.0.dev0"
+dependencies = [
+  "dipy>=1.11.0",
+  "click>=8.1.8"
+]
+
+
+[project.scripts]
+tractome_transform_tract = "track:transform_tract"
