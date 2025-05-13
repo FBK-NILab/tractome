@@ -16,8 +16,6 @@ from dipy.tracking.streamline import Streamlines, length
 def process_tractogram(
     tractogram, min_lengths=None, min_size=None, threshold=15.0, output=None
 ):
-    logging.basicConfig(level=logging.INFO)
-
     sft = load_tractogram(tractogram, "same", bbox_valid_check=False)
 
     streamlines = sft.streamlines
