@@ -11,6 +11,8 @@ dependencies = [
   "PySide6>=6.9.0",
 ]
 
+[project.optional-dependencies]
+parallel = ["ray>=2.46.0"]
 
 [project.scripts]
-tractome_transform_tract = "track:transform_tract"
+tractome_transform_tract = "tractome.track:transform_tract"

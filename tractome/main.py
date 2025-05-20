@@ -16,10 +16,7 @@ class Tractome(QtWidgets.QWidget):
         self._streamlines = streamlines
         self._color_generator = distinguishable_colormap()
         colors = np.zeros((len(self._streamlines), 3))
-        # for i in range(len(self._streamlines)):
-        #     colors[i] = next(self._color_generator)
         colors = np.tile(next(self._color_generator), (len(self._streamlines), 1))
-        # colors = np.random.rand(len(self._streamlines), 3)
 
         self._streamlines_actor = actor.line(
             self._streamlines, colors=colors, line_width=2
@@ -55,7 +52,6 @@ def tractome(tractogram_path):
     sft = load_tractogram(tractogram_path, "same", bbox_valid_check=False)
     tractome_app = Tractome(streamlines=sft.streamlines)
     tractome_app.show_manager.start()
-    # print(streamlines.shape)
 
 
 if __name__ == "__main__":
