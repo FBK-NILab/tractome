@@ -9,6 +9,7 @@ dependencies = [
   "dipy>=1.11.0",
   "click>=8.1.8",
   "PySide6>=6.9.0",
+  "plyfile>=1.1",
 ]
 
 [project.optional-dependencies]
