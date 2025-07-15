@@ -13,14 +13,28 @@ To install the tractome from the source, we need to install the dependencies. Ex
 pip install -r requirements.txt
 ```
 
-Once, we gather the dependencies we can install the tractome locally. (Required: If you want to use the CLI). 
+Once, we gather the dependencies we can install the tractome locally. (Required: If you want to use the CLI).
 
 ```
 pip install -e .
 ```
 
-You can also run tractome without installing it, by using pythonic way
+**To run the tractome**
 
 ```
-python tractome/main.py
+tractome --tractogram <file_path> --mesh <file_path> --mesh_tex <file_path> --t1 <file_path>
+```
+
+NOTE: All the options above are optional you can start and empty window as well. The functionality to add/swap files will be later in the UI.
+
+**To run the compute and save tractogram**
+
+```
+tractome_compute_dis_matrix <file_path>
+```
+
+For getting a complete list and details of the options available.
+
+```
+tractome_compute_dis_matrix --help
 ```
