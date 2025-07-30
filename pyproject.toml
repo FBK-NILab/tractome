@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 parallel = ["ray>=2.47.0"]
+dev = ["ruff>=0.12.7"]
 
 [project.scripts]
 tractome = "tractome.cli:tractome"

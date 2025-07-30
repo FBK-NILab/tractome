@@ -1,4 +1,5 @@
 import numpy as np
+
 from fury import actor
 from fury.colormap import distinguishable_colormap
 
@@ -66,5 +67,5 @@ def create_image_slicer(volume, *, affine=None):
     """
     if affine is None:
         affine = np.eye(4)
-    image = actor.volume_slicer(volume, affine=affine)
+    image = actor.slicer(volume)
     return image
