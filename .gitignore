@@ -1,2 +1,4 @@
 *.pyc
-*~
+*.trk
+*.trx
+*.egg-info

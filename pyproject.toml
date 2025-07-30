@@ -1,0 +1,21 @@
+[project]
+name = "tractome"
+description = "Imaging tool for brain analysis"
+license = { file = "COPYING.txt" }
+requires-python = ">=3.10"
+readme = "README.md"
+version = "2.0.0.dev0"
+dependencies = [
+  "dipy>=1.11.0",
+  "click>=8.1.8",
+  "PySide6>=6.9.0",
+  "fury>=2.0.0a1",
+  "trimesh>=4.6.12",
+]
+
+[project.optional-dependencies]
+parallel = ["ray>=2.47.0"]
+
+[project.scripts]
+tractome = "tractome.cli:tractome"
+tractome_compute_dis_matrix = "tractome.cli:compute_dissimilarity_matrix"
