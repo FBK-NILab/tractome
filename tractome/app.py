@@ -1,7 +1,9 @@
 from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
+from pygfx import OrthographicCamera, PanZoomController
 
 from fury import window
+from fury.lib import DirectionalLight, OrbitController, PerspectiveCamera
 from fury.utils import set_group_visibility, show_slices
 from tractome.io import read_mesh, read_nifti, read_tractogram
 from tractome.ui import STYLE_SHEET, create_slice_sliders, create_ui
@@ -30,53 +32,87 @@ class Tractome(QMainWindow):
         self.mesh = mesh
         self.mesh_texture = mesh_texture
         self.t1 = t1
+        self._mode = "3D"
         self._3D_actors = {"t1": None, "tractogram": None, "mesh": None}
-        self._2D_actors = []
+        self._2D_actors = {"t1": None, "tractogram": None, "mesh": None}
         self._init_UI()
         self._init_actors()
-        window.update_camera(self.show_manager.screens[0].camera, None, self.scene)
 
     def _init_UI(self):
         """Initialize the user interface."""
         self.resize(800, 800)
         self.setWindowTitle("Tractome 2.0")
-        self.scene = window.Scene()
+
+        self._3D_scene = window.Scene()
+        self._2D_scene = window.Scene()
+
+        self._3D_scene.add(DirectionalLight())
+        self._2D_scene.add(DirectionalLight())
+
+        self._3D_camera = PerspectiveCamera()
+        self._2D_camera = OrthographicCamera()
 
         self.show_manager = window.ShowManager(
-            scene=self.scene,
+            scene=self._3D_scene,
+            camera=self._3D_camera,
             qt_app=app,
             qt_parent=self,
             window_type="qt",
         )
 
-        main_widget, left_panel, right_panel = create_ui(self.show_manager.window)
+        self._3D_controller = OrbitController(
+            self._3D_camera, register_events=self.show_manager.renderer
+        )
+        self._2D_controller = PanZoomController(
+            self._2D_camera, register_events=self.show_manager.renderer
+        )
+        self._2D_controller.enabled = False
+
+        (
+            main_widget,
+            self.left_panel,
+            self.right_panel,
+            self._toggle_3d,
+            self._toggle_2d,
+        ) = create_ui(self.show_manager.window)
+        self._toggle_3d.clicked.connect(self.toggle_3D_mode)
+        self._toggle_2d.clicked.connect(self.toggle_2D_mode)
         self.setCentralWidget(main_widget)
-        self.left_panel = left_panel
-        self.right_panel = right_panel
         self.setStyleSheet(STYLE_SHEET)
+
+        # Toggle Control Widgets
+        self._slice_widget = None
+        self._3D_check_box_values = None
+        self._2D_radio_buttons_values = None
 
     def _init_actors(self):
         """Initialize the actors for the scene."""
         if self.tractogram:
             sft = read_tractogram(self.tractogram)
             tractogram_actor = create_tractogram(sft)
-            self.scene.add(tractogram_actor)
+            self._3D_scene.add(tractogram_actor)
 
         if self.mesh:
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
             mesh_actor = create_mesh(mesh_obj, texture=texture)
-            self.scene.add(mesh_actor)
+            self._3D_scene.add(mesh_actor)
 
         if self.t1:
             nifti_img, affine = read_nifti(self.t1)
+
             image_slicer = create_image_slicer(nifti_img, affine=affine)
-            self.scene.add(image_slicer)
+            self._3D_scene.add(image_slicer)
+
+            image_slice = create_image_slicer(nifti_img, affine=affine)
+            set_group_visibility(image_slice, (False, False, True))
+            self._2D_scene.add(image_slice)
+
             min_vals, max_vals = image_slicer.get_bounding_box()
-            slider_widget, sliders, checkboxes = create_slice_sliders(
+            self._slice_widget, sliders, checkboxes, _ = create_slice_sliders(
                 min_vals=np.asarray(min_vals, dtype=np.int32),
                 max_vals=np.asarray(max_vals, dtype=np.int32),
             )
-            self.left_panel.layout().addWidget(slider_widget)
+            self.left_panel.layout().addWidget(self._slice_widget)
             self._x_slider, self._y_slider, self._z_slider = sliders
 
             for slider in sliders:
@@ -88,6 +124,9 @@ class Tractome(QMainWindow):
                 checkbox.stateChanged.connect(self.update_slice_visibility)
 
             self._3D_actors["t1"] = image_slicer
+            self._2D_actors["t1"] = image_slice
+
+        window.update_camera(self._3D_camera, None, self._3D_scene)
         self.show_manager.start()
 
     def get_current_slider_position(self):
@@ -133,6 +172,7 @@ class Tractome(QMainWindow):
         """
         slices = self.get_current_slider_position()
         show_slices(self._3D_actors["t1"], slices)
+        show_slices(self._2D_actors["t1"], slices)
         self.show_manager.render()
 
     def update_slice_visibility(self, _value):
@@ -144,6 +184,98 @@ class Tractome(QMainWindow):
         _value : bool
             The current checked state of the checkbox.
         """
-        checkbox_states = self.get_current_checkbox_states()
-        set_group_visibility(self._3D_actors["t1"], checkbox_states)
+        if self._mode == "3D":
+            checkbox_states = self.get_current_checkbox_states()
+            set_group_visibility(self._3D_actors["t1"], checkbox_states)
+        elif self._mode == "2D":
+            radio_states = self.get_current_checkbox_states()
+            self._2D_camera.show_object(
+                self._2D_actors["t1"], tuple(np.asarray(radio_states, dtype=int))
+            )
+            set_group_visibility(self._2D_actors["t1"], radio_states)
         self.show_manager.render()
+
+    def toggle_3D_mode(self):
+        """Toggle to 3D mode."""
+        if self._mode != "3D":
+            self._mode = "3D"
+            self.show_manager.screens[0].scene = self._3D_scene
+            self.show_manager.screens[0].camera = self._3D_camera
+            self.show_manager.screens[0].controller = self._3D_controller
+            self._3D_controller.enabled = True
+            self._2D_controller.enabled = False
+            window.update_camera(self._3D_camera, None, self._3D_scene)
+            self.show_manager.render()
+
+            # Safely remove and delete the existing widget
+            if self._slice_widget is not None:
+                self.left_panel.layout().removeWidget(self._slice_widget)
+                self._slice_widget.deleteLater()
+
+            min_vals, max_vals = self._3D_actors["t1"].get_bounding_box()
+            self._slice_widget, sliders, checkboxes, _ = create_slice_sliders(
+                min_vals=np.asarray(min_vals, dtype=np.int32),
+                max_vals=np.asarray(max_vals, dtype=np.int32),
+                control_type="checkbox",
+                default_vals=self.get_current_slider_position(),
+            )
+            self.left_panel.layout().addWidget(self._slice_widget)
+            self._x_slider, self._y_slider, self._z_slider = sliders
+
+            for slider in sliders:
+                slider.valueChanged.connect(self.update_slices)
+
+            self._2D_radio_buttons_values = self.get_current_checkbox_states()
+
+            if self._3D_check_box_values is None:
+                self._3D_check_box_values = (True, True, True)
+
+            self._x_checkbox, self._y_checkbox, self._z_checkbox = checkboxes
+            for checkbox, value in zip(checkboxes, self._3D_check_box_values):
+                checkbox.setChecked(value)
+                checkbox.stateChanged.connect(self.update_slice_visibility)
+
+    def toggle_2D_mode(self):
+        """Toggle to 2D mode."""
+        if self._mode != "2D":
+            self._mode = "2D"
+            self.show_manager.screens[0].scene = self._2D_scene
+            self.show_manager.screens[0].camera = self._2D_camera
+            self.show_manager.screens[0].controller = self._2D_controller
+            self._3D_controller.enabled = False
+            self._2D_controller.enabled = True
+            window.update_camera(self._2D_camera, None, self._2D_scene)
+            self.show_manager.render()
+
+            # Safely remove and delete the existing widget
+            if self._slice_widget is not None:
+                self.left_panel.layout().removeWidget(self._slice_widget)
+                self._slice_widget.deleteLater()
+
+            min_vals, max_vals = self._3D_actors["t1"].get_bounding_box()
+            self._slice_widget, sliders, radio_buttons, button_group = (
+                create_slice_sliders(
+                    min_vals=np.asarray(min_vals, dtype=np.int32),
+                    max_vals=np.asarray(max_vals, dtype=np.int32),
+                    control_type="radio",
+                    default_vals=self.get_current_slider_position(),
+                )
+            )
+            self.left_panel.layout().addWidget(self._slice_widget)
+            self._x_slider, self._y_slider, self._z_slider = sliders
+
+            for slider in sliders:
+                slider.valueChanged.connect(self.update_slices)
+
+            self._3D_check_box_values = self.get_current_checkbox_states()
+
+            if self._2D_radio_buttons_values is None:
+                self._2D_radio_buttons_values = (False, False, True)
+
+            self._x_checkbox, self._y_checkbox, self._z_checkbox = radio_buttons
+
+            for radio_button, value in zip(
+                radio_buttons, self._2D_radio_buttons_values
+            ):
+                radio_button.setChecked(value)
+                radio_button.toggled.connect(self.update_slice_visibility)

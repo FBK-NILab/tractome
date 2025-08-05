@@ -1,10 +1,12 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QRadioButton,
     QSlider,
     QVBoxLayout,
     QWidget,
@@ -95,7 +97,14 @@ QSlider::handle:horizontal:pressed {
 """
 
 
-def _create_slider(axis_name, min_val, max_val, object_suffix):
+def _create_slider(
+    axis_name,
+    min_val,
+    max_val,
+    object_suffix,
+    control_type="checkbox",
+    default_value=None,
+):
     """Create a slice slider with its layout.
 
     Parameters
@@ -108,28 +117,41 @@ def _create_slider(axis_name, min_val, max_val, object_suffix):
         The maximum value for the slider.
     object_suffix : str
         The suffix for the slider object name.
+    control_type : str, optional
+        Type of control widget: "checkbox" or "radio". Default is "checkbox".
+    default_value : int, optional
+        The default value for the slider. If None, uses the middle value
+        between min and max.
 
     Returns
     -------
     tuple
-        A tuple containing (main_layout, slider, value_label, checkbox).
+        A tuple containing (main_layout, slider, value_label, control_widget).
     """
+    # Calculate default value
+    if default_value is None:
+        default_value = (max_val + min_val) // 2
+
     # Create labels
     label = QLabel(f"{axis_name} Slice:")
     label.setObjectName("SliceLabel")
-    value_label = QLabel(str((max_val + min_val) // 2))
+    value_label = QLabel(str(default_value))
     value_label.setObjectName("SliceValueLabel")
     value_label.setMinimumWidth(40)
 
-    # Create checkbox
-    checkbox = QCheckBox()
-    checkbox.setChecked(True)  # Default to checked
+    # Create control widget based on type
+    if control_type.lower() == "radio":
+        control_widget = QRadioButton()
+        control_widget.setChecked(True)  # Default to checked
+    else:  # Default to checkbox
+        control_widget = QCheckBox()
+        control_widget.setChecked(True)  # Default to checked
 
     # Create slider
     slider = QSlider(Qt.Horizontal)
     slider.setMinimum(min_val)
     slider.setMaximum(max_val)
-    slider.setValue((max_val + min_val) // 2)
+    slider.setValue(default_value)
     slider.setObjectName(f"{object_suffix}SliceSlider")
     slider.setMaximumHeight(20)
 
@@ -138,13 +160,13 @@ def _create_slider(axis_name, min_val, max_val, object_suffix):
     main_layout.setSpacing(2)
     main_layout.setContentsMargins(0, 0, 0, 0)
 
-    # First line: Label, current value, and checkbox
+    # First line: Label, current value, and control widget
     label_value_layout = QHBoxLayout()
     label_value_layout.setSpacing(5)
     label_value_layout.addWidget(label)
     label_value_layout.addWidget(value_label)
     label_value_layout.addStretch()
-    label_value_layout.addWidget(checkbox)
+    label_value_layout.addWidget(control_widget)
 
     # Second line: Min, slider, max
     slider_layout = QHBoxLayout()
@@ -166,10 +188,15 @@ def _create_slider(axis_name, min_val, max_val, object_suffix):
     # Connect slider to update value label
     slider.valueChanged.connect(lambda val: value_label.setText(str(val)))
 
-    return main_layout, slider, value_label, checkbox
+    return main_layout, slider, value_label, control_widget
 
 
-def create_slice_sliders(min_vals=(0, 0, 0), max_vals=(100, 100, 100)):
+def create_slice_sliders(
+    min_vals=(0, 0, 0),
+    max_vals=(100, 100, 100),
+    control_type="checkbox",
+    default_vals=None,
+):
     """Create slice control sliders for x, y, z axes.
 
     Parameters
@@ -178,11 +205,17 @@ def create_slice_sliders(min_vals=(0, 0, 0), max_vals=(100, 100, 100)):
         The minimum values for x, y, z sliders respectively. Default is (0, 0, 0).
     max_vals : tuple, list, or ndarray, optional
         The maximum values for x, y, z sliders respectively. Default is (100, 100, 100).
+    control_type : str, optional
+        Type of control widget: "checkbox" or "radio". Default is "checkbox".
+    default_vals : tuple, list, ndarray, or None, optional
+        The default values for x, y, z sliders respectively. If None, uses
+        the middle value between min and max for each slider.
 
     Returns
     -------
     tuple
-        A tuple containing (widget, sliders_tuple, checkboxes_tuple).
+        A tuple containing (widget, sliders_tuple, controls_tuple, button_group).
+        Note: button_group is None when using checkboxes.
     """
     slice_widget = QGroupBox("Image Controls")
     slice_layout = QVBoxLayout()
@@ -193,20 +226,33 @@ def create_slice_sliders(min_vals=(0, 0, 0), max_vals=(100, 100, 100)):
     # Create sliders for X, Y, Z axes
     axes = ["X", "Y", "Z"]
     sliders = []
-    checkboxes = []
+    controls = []
+    button_group = None
+
+    # Create button group for radio buttons to ensure only one can be selected
+    if control_type.lower() == "radio":
+        button_group = QButtonGroup()
 
     for i, axis in enumerate(axes):
-        layout, slider, value_label, checkbox = _create_slider(
-            axis, min_vals[i], max_vals[i], axis
+        # Get default value for this axis (if provided)
+        default_value = None if default_vals is None else default_vals[i]
+
+        layout, slider, value_label, control_widget = _create_slider(
+            axis, min_vals[i], max_vals[i], axis, control_type, default_value
         )
         slice_layout.addLayout(layout)
         sliders.append(slider)
-        checkboxes.append(checkbox)
+        controls.append(control_widget)
+
+        # Add radio buttons to button group
+        if button_group is not None:
+            button_group.addButton(control_widget)
 
     return (
         slice_widget,
         (sliders[0], sliders[1], sliders[2]),
-        (checkboxes[0], checkboxes[1], checkboxes[2]),
+        (controls[0], controls[1], controls[2]),
+        button_group,
     )
 
 
@@ -251,8 +297,8 @@ def _create_right_panel(viz_window):
 
     Returns
     -------
-    QWidget
-        The right panel widget.
+    tuple
+        A tuple containing (right_panel_widget, button_3d, button_2d).
     """
     right_panel_widget = QWidget()
     right_layout = QVBoxLayout(right_panel_widget)
@@ -261,13 +307,17 @@ def _create_right_panel(viz_window):
 
     toggle_button_layout = QHBoxLayout()
     toggle_button_layout.addStretch(1)
-    toggle_button_layout.addWidget(QPushButton("3D VIEW"))
-    toggle_button_layout.addWidget(QPushButton("2D VIEW"))
+
+    button_3d = QPushButton("3D VIEW")
+    button_2d = QPushButton("2D VIEW")
+
+    toggle_button_layout.addWidget(button_3d)
+    toggle_button_layout.addWidget(button_2d)
     right_layout.addLayout(toggle_button_layout)
 
     right_layout.addWidget(viz_window)
 
-    return right_panel_widget
+    return right_panel_widget, button_3d, button_2d
 
 
 def create_ui(viz_window):
@@ -281,15 +331,15 @@ def create_ui(viz_window):
     Returns
     -------
     tuple
-        A tuple containing the main widget, left panel, and right panel.
+        A tuple containing (main_widget, left_panel, right_panel, button_3d, button_2d).
     """
     main_widget = QWidget()
     main_layout = QHBoxLayout(main_widget)
 
     left_panel = _create_left_panel()
-    right_panel = _create_right_panel(viz_window)
+    right_panel, button_3d, button_2d = _create_right_panel(viz_window)
 
     main_layout.addWidget(left_panel)
     main_layout.addWidget(right_panel, 1)
 
-    return main_widget, left_panel, right_panel
+    return main_widget, left_panel, right_panel, button_3d, button_2d
