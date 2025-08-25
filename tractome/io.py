@@ -1,10 +1,9 @@
 import logging
 import os
 
-import trimesh
 from dipy.io.image import load_nifti
-from dipy.io.streamline import load_tractogram
-from dipy.io.streamline import save_tractogram as dipy_save_tractogram
+from dipy.io.streamline import load_tractogram, save_tractogram as dipy_save_tractogram
+import trimesh
 
 
 def validate_path(path):

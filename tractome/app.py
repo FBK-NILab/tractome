@@ -5,9 +5,20 @@ from pygfx import OrthographicCamera, PanZoomController
 from fury import window
 from fury.lib import DirectionalLight, OrbitController, PerspectiveCamera
 from fury.utils import set_group_visibility, show_slices
+from tractome.compute import mkbm_clustering
 from tractome.io import read_mesh, read_nifti, read_tractogram
-from tractome.ui import STYLE_SHEET, create_slice_sliders, create_ui
-from tractome.viz import create_image_slicer, create_mesh, create_tractogram
+from tractome.ui import (
+    STYLE_SHEET,
+    create_clusters_slider,
+    create_slice_sliders,
+    create_ui,
+)
+from tractome.viz import (
+    create_image_slicer,
+    create_mesh,
+    create_streamlines,
+    create_streamtube,
+)
 
 app = QApplication([])
 
@@ -35,6 +46,11 @@ class Tractome(QMainWindow):
         self._mode = "3D"
         self._3D_actors = {"t1": None, "tractogram": None, "mesh": None}
         self._2D_actors = {"t1": None, "tractogram": None, "mesh": None}
+        self._sft = None
+        self._clusters = None
+        self._cluster_reps = {}
+        self._streamline_bundles = []
+        self._selected_clusters = set()
         self._init_UI()
         self._init_actors()
 
@@ -46,10 +62,12 @@ class Tractome(QMainWindow):
         self._3D_scene = window.Scene()
         self._2D_scene = window.Scene()
 
-        self._3D_scene.add(DirectionalLight())
+        self._3D_scene.add()
         self._2D_scene.add(DirectionalLight())
 
         self._3D_camera = PerspectiveCamera()
+        self._3D_camera.add(DirectionalLight())
+        self._3D_scene.add(self._3D_camera)
         self._2D_camera = OrthographicCamera()
 
         self.show_manager = window.ShowManager(
@@ -58,6 +76,13 @@ class Tractome(QMainWindow):
             qt_app=app,
             qt_parent=self,
             window_type="qt",
+            blend_mode="weighted_plus",
+        )
+
+        # TODO: Remove long press event handler for Qt
+        # This is a temporary workaround for the long press issue in Qt
+        self.show_manager.renderer.remove_event_handler(
+            self.show_manager._set_key_long_press_event, "key_up", "key_down"
         )
 
         self._3D_controller = OrbitController(
@@ -88,9 +113,25 @@ class Tractome(QMainWindow):
     def _init_actors(self):
         """Initialize the actors for the scene."""
         if self.tractogram:
-            sft = read_tractogram(self.tractogram)
-            tractogram_actor = create_tractogram(sft)
-            self._3D_scene.add(tractogram_actor)
+            self._sft = read_tractogram(self.tractogram)
+            if (
+                self._sft.data_per_streamline is None
+                or "dismatrix" not in self._sft.data_per_streamline
+            ):
+                tractogram = create_streamlines(self._sft.streamlines, color=(0, 1, 0))
+                self._3D_scene.add(tractogram)
+            else:
+                self.perform_clustering(100)
+                self.show_manager.renderer.add_event_handler(
+                    self.handle_key_strokes, "key_down"
+                )
+                self._cluster_widget, self._cluster_slider, _ = create_clusters_slider(
+                    default_value=100
+                )
+                self.left_panel.layout().addWidget(self._cluster_widget)
+                self._cluster_slider.sliderReleased.connect(
+                    lambda: self.perform_clustering(self._cluster_slider.value())
+                )
 
         if self.mesh:
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
@@ -194,6 +235,78 @@ class Tractome(QMainWindow):
             )
             set_group_visibility(self._2D_actors["t1"], radio_states)
         self.show_manager.render()
+
+    def perform_clustering(self, value):
+        self._selected_clusters.clear()
+        self._collapse_streamline_bundles()
+        self._clusters = mkbm_clustering(
+            self._sft.data_per_streamline["dismatrix"],
+            n_clusters=value,
+            streamline_ids=np.indices((len(self._sft.streamlines),))[0],
+        )
+        self._3D_scene.remove(*self._cluster_reps.values())
+        self._cluster_reps = create_streamtube(self._clusters, self._sft.streamlines)
+        for cluster in self._cluster_reps.values():
+            cluster.add_event_handler(self.toggle_cluster_selection, "pointer_down")
+            self._3D_scene.add(cluster)
+        self.show_manager.render()
+
+    def toggle_cluster_selection(self, event):
+        """Toggle the selection state of a cluster.
+
+        Parameters
+        ----------
+        event : Event
+            The click event.
+        """
+        cluster = event.target
+        if cluster in self._selected_clusters:
+            self._selected_clusters.remove(cluster)
+        else:
+            self._selected_clusters.add(cluster)
+
+    def handle_key_strokes(self, event):
+        if event.key == "e":
+            for cluster in self._selected_clusters:
+                if cluster in self._3D_scene.children:
+                    self._3D_scene.remove(cluster)
+                streamlines = [
+                    np.asarray(self._sft.streamlines[line])
+                    for line in self._clusters[cluster.rep]
+                ]
+                streamlines = create_streamlines(
+                    streamlines,
+                    cluster.geometry.colors.data[0],
+                )
+                streamlines.rep = cluster.rep
+                self._streamline_bundles.append(streamlines)
+                self._3D_scene.add(streamlines)
+        elif event.key == "c":
+            self._collapse_streamline_bundles()
+        elif event.key == "h":
+            for cluster in self._cluster_reps.values():
+                if (
+                    cluster not in self._selected_clusters
+                    and cluster in self._3D_scene.children
+                ):
+                    self._3D_scene.remove(cluster)
+
+        elif event.key == "s":
+            for cluster in self._cluster_reps.values():
+                if (
+                    cluster not in self._3D_scene.children
+                    and cluster not in self._selected_clusters
+                ):
+                    self._3D_scene.add(cluster)
+
+        self.show_manager.render()
+
+    def _collapse_streamline_bundles(self):
+        """Collapse all streamline bundles."""
+        for bundle in self._streamline_bundles:
+            self._3D_scene.remove(bundle)
+            self._3D_scene.add(self._cluster_reps[bundle.rep])
+        self._streamline_bundles = []
 
     def toggle_3D_mode(self):
         """Toggle to 3D mode."""
