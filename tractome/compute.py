@@ -2,8 +2,9 @@ import json
 import logging
 import tempfile
 
-import numpy as np
 from dipy.utils.optpkg import optional_package
+import numpy as np
+from sklearn.cluster import MiniBatchKMeans
 
 ray, has_ray, _ = optional_package("ray")
 
@@ -128,3 +129,32 @@ def compute_dissimilarity(
         data_dissimilarity = distance(data, prototype)
 
     return data_dissimilarity
+
+
+def mkbm_clustering(dissimilarity_matrix, n_clusters, streamline_ids):
+    streamline_ids = np.asarray(streamline_ids, dtype=np.int32)
+    dissimilarity_matrix = dissimilarity_matrix[streamline_ids]
+
+    logging.info(f"Clustering with MKBM with {n_clusters} clusters")
+    mbkm = MiniBatchKMeans(
+        init="random",
+        n_clusters=n_clusters,
+        batch_size=1000,
+        n_init=10,
+        max_no_improvement=5,
+        verbose=0,
+    )
+    mbkm.fit(dissimilarity_matrix)
+
+    medoids_exhs = np.zeros(n_clusters, dtype=np.int32)
+    idxs = []
+    for i, centroid in enumerate(mbkm.cluster_centers_):
+        idx_i = np.where(mbkm.labels_ == i)[0]
+        if idx_i.size == 0:
+            idx_i = [0]
+        tmp = dissimilarity_matrix[idx_i] - centroid
+        medoids_exhs[i] = streamline_ids[idx_i[(tmp * tmp).sum(1).argmin()]]
+        idxs.append(streamline_ids[idx_i].tolist())
+
+    clusters = dict(zip(medoids_exhs, idxs))
+    return clusters

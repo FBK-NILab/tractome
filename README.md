@@ -25,9 +25,11 @@ pip install -e .
 tractome --tractogram <file_path> --mesh <file_path> --mesh_tex <file_path> --t1 <file_path>
 ```
 
-NOTE: All the options above are optional you can start and empty window as well. The functionality to add/swap files will be later in the UI.
+NOTE: All the options above are optional you can start and empty window as well. The functionality to add/swap files will be added later in the UI.
 
-**To run the compute and save tractogram**
+**To visualize cluster representation**
+
+You are required to pre-compute the embeddings of the streamlines, use the following command to save a new `.trx` file with embedding. Later you can provide this newly saved file to open the tractogram in the above command.
 
 ```
 tractome_compute_dis_matrix <file_path>

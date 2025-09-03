@@ -58,13 +58,13 @@ QLabel {
     font-weight: bold;
     padding-bottom: 10px;
 }
-#SliceValueLabel {
+#SliderValueLabel {
     font-weight: bold;
     color: #333333;
     text-align: right;
     margin-left: 5px;
 }
-#SliceMinMaxLabel {
+#SliderMinMaxLabel {
     font-size: 10px;
     color: #666666;
     min-width: 30px;
@@ -98,19 +98,19 @@ QSlider::handle:horizontal:pressed {
 
 
 def _create_slider(
-    axis_name,
+    slider_label,
     min_val,
     max_val,
     object_suffix,
     control_type="checkbox",
     default_value=None,
 ):
-    """Create a slice slider with its layout.
+    """Create a slider with its layout.
 
     Parameters
     ----------
-    axis_name : str
-        The name of the axis (e.g., "X", "Y", "Z").
+    slider_label : str
+        The label text for the slider (e.g., "X Slice:", "Clusters:").
     min_val : int
         The minimum value for the slider.
     max_val : int
@@ -118,7 +118,7 @@ def _create_slider(
     object_suffix : str
         The suffix for the slider object name.
     control_type : str, optional
-        Type of control widget: "checkbox" or "radio". Default is "checkbox".
+        Type of control widget: "checkbox", "radio", or "none". Default is "checkbox".
     default_value : int, optional
         The default value for the slider. If None, uses the middle value
         between min and max.
@@ -133,26 +133,28 @@ def _create_slider(
         default_value = (max_val + min_val) // 2
 
     # Create labels
-    label = QLabel(f"{axis_name} Slice:")
-    label.setObjectName("SliceLabel")
+    label = QLabel(slider_label)
+    label.setObjectName("SliderLabel")
     value_label = QLabel(str(default_value))
-    value_label.setObjectName("SliceValueLabel")
+    value_label.setObjectName("SliderValueLabel")
     value_label.setMinimumWidth(40)
 
     # Create control widget based on type
+    control_widget = None
     if control_type.lower() == "radio":
         control_widget = QRadioButton()
         control_widget.setChecked(True)  # Default to checked
-    else:  # Default to checkbox
+    elif control_type.lower() == "checkbox":
         control_widget = QCheckBox()
         control_widget.setChecked(True)  # Default to checked
+    # If control_type is "none" or anything else, no control widget is created
 
     # Create slider
     slider = QSlider(Qt.Horizontal)
     slider.setMinimum(min_val)
     slider.setMaximum(max_val)
     slider.setValue(default_value)
-    slider.setObjectName(f"{object_suffix}SliceSlider")
+    slider.setObjectName(f"{object_suffix}Slider")
     slider.setMaximumHeight(20)
 
     # Create vertical layout for two-line slider controls
@@ -160,21 +162,22 @@ def _create_slider(
     main_layout.setSpacing(2)
     main_layout.setContentsMargins(0, 0, 0, 0)
 
-    # First line: Label, current value, and control widget
+    # First line: Label, current value, and control widget (if any)
     label_value_layout = QHBoxLayout()
     label_value_layout.setSpacing(5)
     label_value_layout.addWidget(label)
     label_value_layout.addWidget(value_label)
     label_value_layout.addStretch()
-    label_value_layout.addWidget(control_widget)
+    if control_widget is not None:
+        label_value_layout.addWidget(control_widget)
 
     # Second line: Min, slider, max
     slider_layout = QHBoxLayout()
     slider_layout.setSpacing(5)
     min_label = QLabel(str(min_val))
-    min_label.setObjectName("SliceMinMaxLabel")
+    min_label.setObjectName("SliderMinMaxLabel")
     max_label = QLabel(str(max_val))
-    max_label.setObjectName("SliceMinMaxLabel")
+    max_label.setObjectName("SliderMinMaxLabel")
 
     slider_layout.addWidget(min_label)
     slider_layout.addWidget(slider, 1)
@@ -238,7 +241,12 @@ def create_slice_sliders(
         default_value = None if default_vals is None else default_vals[i]
 
         layout, slider, value_label, control_widget = _create_slider(
-            axis, min_vals[i], max_vals[i], axis, control_type, default_value
+            f"{axis} Slice:",
+            min_vals[i],
+            max_vals[i],
+            axis,
+            control_type,
+            default_value,
         )
         slice_layout.addLayout(layout)
         sliders.append(slider)
@@ -254,6 +262,34 @@ def create_slice_sliders(
         (controls[0], controls[1], controls[2]),
         button_group,
     )
+
+
+def create_clusters_slider(default_value=250):
+    """Create a clusters slider with value ranging from 0 to 500.
+
+    Parameters
+    ----------
+    default_value : int, optional
+        The default value for the slider. Default is 250.
+
+    Returns
+    -------
+    tuple
+        A tuple containing (widget, slider, value_label).
+    """
+    tractogram_widget = QGroupBox("Tractogram Controls")
+    tractogram_layout = QVBoxLayout()
+    tractogram_layout.setContentsMargins(10, 20, 5, 5)
+    tractogram_layout.setSpacing(10)
+    tractogram_widget.setLayout(tractogram_layout)
+
+    layout, slider, value_label, _ = _create_slider(
+        "Clusters:", 0, 500, "Clusters", "none", default_value
+    )
+
+    tractogram_layout.addLayout(layout)
+
+    return tractogram_widget, slider, value_label
 
 
 def _create_left_panel(fix_width=250, title="Tractome 2.0"):
