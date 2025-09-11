@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
-from pygfx import OrthographicCamera, PanZoomController, TrackballController
+from pygfx import OrthographicCamera, TrackballController
 
 from fury import window
 from fury.lib import DirectionalLight, PerspectiveCamera
@@ -17,6 +17,7 @@ from tractome.viz import (
     create_image_slicer,
     create_mesh,
     create_streamlines,
+    create_streamlines_projection,
     create_streamtube,
 )
 
@@ -51,6 +52,7 @@ class Tractome(QMainWindow):
         self._cluster_reps = {}
         self._streamline_bundles = []
         self._selected_clusters = set()
+        self._streamline_projections = set()
         self._init_UI()
         self._init_actors()
 
@@ -66,6 +68,7 @@ class Tractome(QMainWindow):
         self._2D_scene.add(DirectionalLight())
 
         self._3D_camera = PerspectiveCamera()
+
         self._3D_camera.add(DirectionalLight())
         self._3D_scene.add(self._3D_camera)
         self._2D_camera = OrthographicCamera()
@@ -88,7 +91,7 @@ class Tractome(QMainWindow):
         self._3D_controller = TrackballController(
             self._3D_camera, register_events=self.show_manager.renderer
         )
-        self._2D_controller = PanZoomController(
+        self._2D_controller = OrbitController(
             self._2D_camera, register_events=self.show_manager.renderer
         )
         self._2D_controller.enabled = False
@@ -129,7 +132,7 @@ class Tractome(QMainWindow):
                     default_value=100
                 )
                 self.left_panel.layout().addWidget(self._cluster_widget)
-                self._cluster_slider.sliderReleased.connect(
+                self._cluster_slider.valueChanged.connect(
                     lambda: self.perform_clustering(self._cluster_slider.value())
                 )
 
@@ -168,7 +171,7 @@ class Tractome(QMainWindow):
             self._3D_actors["t1"] = image_slicer
             self._2D_actors["t1"] = image_slice
 
-        window.update_camera(self._3D_camera, None, self._3D_scene)
+        self._3D_camera.show_object(self._3D_scene, (0, 0, 1))
         self.show_manager.start()
 
     def get_current_slider_position(self):
@@ -215,6 +218,7 @@ class Tractome(QMainWindow):
         slices = self.get_current_slider_position()
         show_slices(self._3D_actors["t1"], slices)
         show_slices(self._2D_actors["t1"], slices)
+        [show_slices(projection, slices) for projection in self._streamline_projections]
         self.show_manager.render()
 
     def update_slice_visibility(self, _value):
@@ -231,10 +235,20 @@ class Tractome(QMainWindow):
             set_group_visibility(self._3D_actors["t1"], checkbox_states)
         elif self._mode == "2D":
             radio_states = self.get_current_checkbox_states()
+            # This is required to reset the camera orientation.
+            self._2D_camera.show_object(self._2D_actors["t1"], (0, 0, -1))
             self._2D_camera.show_object(
                 self._2D_actors["t1"], tuple(np.asarray(radio_states, dtype=int))
             )
+            self._3D_camera.show_object(self._3D_actors["t1"], (0, 0, -1))
+            self._3D_camera.show_object(
+                self._3D_actors["t1"], tuple(np.asarray(radio_states, dtype=int))
+            )
             set_group_visibility(self._2D_actors["t1"], radio_states)
+            [
+                set_group_visibility(proj, radio_states)
+                for proj in self._streamline_projections
+            ]
         self.show_manager.render()
 
     def perform_clustering(self, value):
@@ -309,6 +323,22 @@ class Tractome(QMainWindow):
             self._3D_scene.add(self._cluster_reps[bundle.rep])
         self._streamline_bundles = []
 
+    def _create_streamlines_projection(self):
+        self._2D_scene.remove(*self._streamline_projections)
+        self._streamline_projections.clear()
+        for cluster in self._selected_clusters:
+            streamlines = [
+                np.asarray(self._sft.streamlines[line])
+                for line in self._clusters[cluster.rep]
+            ]
+            projection = create_streamlines_projection(
+                streamlines=streamlines,
+                colors=cluster.geometry.colors.data[0],
+                slice_values=self.get_current_slider_position(),
+            )
+            self._streamline_projections.add(projection)
+        self._2D_scene.add(*self._streamline_projections)
+
     def toggle_3D_mode(self):
         """Toggle to 3D mode."""
         if self._mode != "3D":
@@ -318,7 +348,7 @@ class Tractome(QMainWindow):
             self.show_manager.screens[0].controller = self._3D_controller
             self._3D_controller.enabled = True
             self._2D_controller.enabled = False
-            window.update_camera(self._3D_camera, None, self._3D_scene)
+            # self._3D_camera.show_object(self._3D_scene, (0, 0, 1))
             self.show_manager.render()
 
             # Safely remove and delete the existing widget
@@ -358,8 +388,8 @@ class Tractome(QMainWindow):
             self.show_manager.screens[0].controller = self._2D_controller
             self._3D_controller.enabled = False
             self._2D_controller.enabled = True
-            window.update_camera(self._2D_camera, None, self._2D_scene)
-            self.show_manager.render()
+            self._2D_camera.show_object(self._2D_scene, (0, 0, -1))
+            self._create_streamlines_projection()
 
             # Safely remove and delete the existing widget
             if self._slice_widget is not None:
@@ -392,4 +422,11 @@ class Tractome(QMainWindow):
                 radio_buttons, self._2D_radio_buttons_values
             ):
                 radio_button.setChecked(value)
-                radio_button.toggled.connect(self.update_slice_visibility)
+                radio_button.clicked.connect(self.update_slice_visibility)
+
+            radio_states = self.get_current_checkbox_states()
+            self._2D_camera.show_object(
+                self._2D_scene, tuple(np.asarray(radio_states, dtype=int))
+            )
+            self.update_slice_visibility(None)
+            self.show_manager.render()
