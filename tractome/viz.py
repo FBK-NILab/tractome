@@ -33,23 +33,23 @@ def create_streamlines_projection(streamlines, colors, slice_values):
     z_projection = actor.line_projection(
         streamlines,
         plane=(0, 0, -1, slice_values[2]),
-        colors=(1, 0, 0),
+        colors=colors,
         thickness=7,
-        outline_thickness=2,
+        outline_thickness=1,
     )
     y_projection = actor.line_projection(
         streamlines,
         plane=(0, -1, 0, slice_values[1]),
-        colors=(0, 1, 0),
+        colors=colors,
         thickness=7,
-        outline_thickness=2,
+        outline_thickness=1,
     )
     x_projection = actor.line_projection(
         streamlines,
         plane=(-1, 0, 0, slice_values[0]),
-        colors=(0, 0, 1),
+        colors=colors,
         thickness=7,
-        outline_thickness=2,
+        outline_thickness=1,
     )
 
     obj = Group()
