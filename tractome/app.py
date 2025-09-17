@@ -91,7 +91,7 @@ class Tractome(QMainWindow):
         self._3D_controller = TrackballController(
             self._3D_camera, register_events=self.show_manager.renderer
         )
-        self._2D_controller = OrbitController(
+        self._2D_controller = PanZoomController(
             self._2D_camera, register_events=self.show_manager.renderer
         )
         self._2D_controller.enabled = False

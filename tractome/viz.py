@@ -29,27 +29,29 @@ def create_mesh(mesh_obj, *, texture=None):
 
 
 def create_streamlines_projection(streamlines, colors, slice_values):
-    print("Slice values:", slice_values)
     z_projection = actor.line_projection(
         streamlines,
         plane=(0, 0, -1, slice_values[2]),
         colors=colors,
-        thickness=7,
-        outline_thickness=1,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=4.0,
     )
     y_projection = actor.line_projection(
         streamlines,
         plane=(0, -1, 0, slice_values[1]),
         colors=colors,
-        thickness=7,
-        outline_thickness=1,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=4.0,
     )
     x_projection = actor.line_projection(
         streamlines,
         plane=(-1, 0, 0, slice_values[0]),
         colors=colors,
-        thickness=7,
-        outline_thickness=1,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=4.0,
     )
 
     obj = Group()
