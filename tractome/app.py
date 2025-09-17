@@ -113,7 +113,7 @@ class Tractome(QMainWindow):
     def _init_actors(self):
         """Initialize the actors for the scene."""
         if self.tractogram:
-            self._sft = read_tractogram(self.tractogram)
+            self._sft = read_tractogram(self.tractogram, reference=self.t1)
             if (
                 self._sft.data_per_streamline is None
                 or "dismatrix" not in self._sft.data_per_streamline

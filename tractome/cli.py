@@ -1,6 +1,6 @@
 import click
-import numpy as np
 from dipy.tracking.distances import bundles_distances_mam, bundles_distances_mdf
+import numpy as np
 
 from tractome.app import Tractome
 from tractome.compute import compute_dissimilarity
@@ -43,10 +43,18 @@ def tractome(tractogram=None, mesh=None, mesh_texture=None, t1=None):
     type=click.Path(exists=True),
 )
 @click.option(
+    "--reference",
+    type=click.Path(exists=True),
+    help="Path to the reference image file.",
+)
+@click.option(
     "--distance",
     type=click.Choice(["bundles_distances_mam", "bundles_distances_mdf"]),
     default="bundles_distances_mam",
-    help="Distance metric to use. Must be one of ['bundles_distances_mam', 'bundles_distances_mdf'].",
+    help=(
+        "Distance metric to use. Must be one of ['bundles_distances_mam',"
+        "'bundles_distances_mdf']."
+    ),
 )
 @click.option(
     "--prototype_policy",
@@ -72,10 +80,13 @@ def tractome(tractogram=None, mesh=None, mesh_texture=None, t1=None):
     "--output_file",
     type=click.Path(),
     default="computed.trx",
-    help="File path to save the computed dissimilarity matrix along with the tractogram.",
+    help=(
+        "File path to save the computed dissimilarity matrix along with the tractogram."
+    ),
 )
 def compute_dissimilarity_matrix(
     tractogram_path,
+    reference=None,
     distance="bundles_distances_mam",
     prototype_policy="sff",
     num_prototypes=40,
@@ -90,6 +101,8 @@ def compute_dissimilarity_matrix(
     ----------
     tractogram_path : str
         The path to the tractogram file.
+    reference : str, optional
+        The path to the reference image file.
     distance : str, optional
         The distance metric to use.
     prototype_policy : str, optional
@@ -104,7 +117,8 @@ def compute_dissimilarity_matrix(
     n_jobs : int, optional
         The number of parallel jobs to run.
     output_file : str, optional
-        The file path to save the computed dissimilarity matrix along with the tractogram.
+        The file path to save the computed dissimilarity matrix along with the
+        tractogram.
 
     Raises
     ------
@@ -113,7 +127,7 @@ def compute_dissimilarity_matrix(
     ValueError
         The prototype selection policy to use.
     """
-    sft = read_tractogram(tractogram_path)
+    sft = read_tractogram(tractogram_path, reference=reference)
 
     if distance == "bundles_distances_mam":
         distance = bundles_distances_mam
@@ -121,12 +135,14 @@ def compute_dissimilarity_matrix(
         distance = bundles_distances_mdf
     else:
         raise ValueError(
-            f"Unknown distance metric: {distance}, must be one of ['bundles_distances_mam', 'bundles_distances_mdf']"
+            f"Unknown distance metric: {distance}, must be one of "
+            "['bundles_distances_mam', 'bundles_distances_mdf']"
         )
 
     if prototype_policy not in ["random", "fft", "sff"]:
         raise ValueError(
-            f"Unknown prototype policy: {prototype_policy}, must be one of ['random', 'fft', 'sff']"
+            f"Unknown prototype policy: {prototype_policy},"
+            "must be one of ['random', 'fft', 'sff']"
         )
 
     data_dissimilarity = compute_dissimilarity(

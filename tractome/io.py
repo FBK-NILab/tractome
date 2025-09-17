@@ -31,7 +31,7 @@ def validate_path(path):
         raise FileNotFoundError(f"The file {path} does not exist or is not a file.")
 
 
-def read_tractogram(file_path):
+def read_tractogram(file_path, reference=None):
     """Read a tractogram file.
 
     Parameters
@@ -48,7 +48,18 @@ def read_tractogram(file_path):
     validated_path = validate_path(file_path)
     logging.info(f"Loading tractogram from {validated_path} ...")
 
-    sft = load_tractogram(validated_path, "same", bbox_valid_check=False)
+    if reference is None:
+        if validated_path.endswith((".trk", ".trx")):
+            reference = "same"
+        else:
+            raise ValueError(
+                "Reference image must be provided for files other than "
+                ".trk and .trx files."
+            )
+
+    sft = load_tractogram(validated_path, reference, bbox_valid_check=False)
+    if not sft:
+        raise ValueError(f"Failed to load tractogram from {validated_path}.")
 
     if sft.data_per_streamline is not None and "dismatrix" in sft.data_per_streamline:
         logging.info("Dissimilarity matrix already present in the tractogram data.")
