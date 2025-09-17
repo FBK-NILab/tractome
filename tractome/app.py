@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
-from pygfx import OrthographicCamera, PanZoomController
+from pygfx import OrthographicCamera, PanZoomController, TrackballController
 
 from fury import window
-from fury.lib import DirectionalLight, OrbitController, PerspectiveCamera
+from fury.lib import DirectionalLight, PerspectiveCamera
 from fury.utils import set_group_visibility, show_slices
 from tractome.compute import mkbm_clustering
 from tractome.io import read_mesh, read_nifti, read_tractogram
@@ -85,7 +85,7 @@ class Tractome(QMainWindow):
             self.show_manager._set_key_long_press_event, "key_up", "key_down"
         )
 
-        self._3D_controller = OrbitController(
+        self._3D_controller = TrackballController(
             self._3D_camera, register_events=self.show_manager.renderer
         )
         self._2D_controller = PanZoomController(
@@ -134,6 +134,7 @@ class Tractome(QMainWindow):
                 )
 
         if self.mesh:
+            print("Loading mesh...")
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
             mesh_actor = create_mesh(mesh_obj, texture=texture)
             self._3D_scene.add(mesh_actor)
