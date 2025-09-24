@@ -1,9 +1,14 @@
 from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
-from pygfx import OrthographicCamera, TrackballController
 
 from fury import window
-from fury.lib import DirectionalLight, PerspectiveCamera
+from fury.lib import (
+    DirectionalLight,
+    OrthographicCamera,
+    PanZoomController,
+    PerspectiveCamera,
+    TrackballController,
+)
 from fury.utils import set_group_visibility, show_slices
 from tractome.compute import mkbm_clustering
 from tractome.io import read_mesh, read_nifti, read_tractogram
@@ -79,7 +84,6 @@ class Tractome(QMainWindow):
             qt_app=app,
             qt_parent=self,
             window_type="qt",
-            blend_mode="weighted_plus",
         )
 
         # TODO: Remove long press event handler for Qt

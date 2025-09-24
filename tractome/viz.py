@@ -20,8 +20,7 @@ def create_mesh(mesh_obj, *, texture=None):
         The created 3D mesh.
     """
 
-    # TODO: remove muliplication by 10e5 when data is fixed.
-    vertices = mesh_obj.vertices * 10e5
+    vertices = mesh_obj.vertices
     faces = mesh_obj.faces
 
     mesh = actor.surface(vertices, faces, material="basic", texture=texture)
@@ -91,7 +90,7 @@ def create_streamlines(streamlines, color):
         normalized_streamlines,
         colors=color,
         thickness=4,
-        outline_thickness=0.5,
+        outline_thickness=1,
         outline_color=(0, 0, 0),
     )
     return bundle
