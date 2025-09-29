@@ -42,7 +42,6 @@ class StateManager:
             The state to add.
         """
         self._states.append(state)
-        print(f"States: {self._states}")
 
     def get_latest_state(self):
         """Latest state.

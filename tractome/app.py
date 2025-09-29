@@ -366,6 +366,8 @@ class Tractome(QMainWindow):
     def toggle_3D_mode(self):
         """Toggle to 3D mode."""
         if self._mode != "3D":
+            if self.tractogram and self._cluster_widget:
+                self._cluster_widget.show()
             self._mode = "3D"
             self.show_manager.screens[0].scene = self._3D_scene
             self.show_manager.screens[0].camera = self._3D_camera
@@ -406,6 +408,8 @@ class Tractome(QMainWindow):
     def toggle_2D_mode(self):
         """Toggle to 2D mode."""
         if self._mode != "2D":
+            if self.tractogram and self._cluster_widget:
+                self._cluster_widget.hide()
             self._mode = "2D"
             self.show_manager.screens[0].scene = self._2D_scene
             self.show_manager.screens[0].camera = self._2D_camera
