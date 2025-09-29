@@ -193,7 +193,7 @@ def _create_slider(
     # Connect slider to update value label
     slider.valueChanged.connect(lambda val: value_label.setText(str(val)))
 
-    return main_layout, slider, value_label, control_widget
+    return main_layout, slider, value_label, control_widget, max_label
 
 
 def create_slice_sliders(
@@ -242,7 +242,7 @@ def create_slice_sliders(
         # Get default value for this axis (if provided)
         default_value = None if default_vals is None else default_vals[i]
 
-        layout, slider, value_label, control_widget = _create_slider(
+        layout, slider, value_label, control_widget, _ = _create_slider(
             f"{axis} Slice:",
             min_vals[i],
             max_vals[i],
@@ -277,7 +277,8 @@ def create_clusters_slider(default_value=250):
     Returns
     -------
     tuple
-        A tuple containing (widget, slider, value_label, prev_button, save_button, history_table).
+        A tuple containing (widget, slider, value_label, prev_button,
+        save_button, history_table, max_label).
     """
     tractogram_widget = QGroupBox("Tractogram Controls")
     tractogram_layout = QVBoxLayout()
@@ -285,7 +286,7 @@ def create_clusters_slider(default_value=250):
     tractogram_layout.setSpacing(10)
     tractogram_widget.setLayout(tractogram_layout)
 
-    layout, slider, value_label, _ = _create_slider(
+    layout, slider, value_label, _, max_label = _create_slider(
         "Clusters:", 0, 500, "Clusters", "none", default_value
     )
 
@@ -313,7 +314,24 @@ def create_clusters_slider(default_value=250):
         prev_button,
         save_button,
         history_table,
+        max_label,
     )
+
+
+def update_cluster_slider(slider, max_label, max_value):
+    """Update the cluster slider's max value and text.
+
+    Parameters
+    ----------
+    slider : QSlider
+        The slider to update.
+    max_label : QLabel
+        The label showing the max value of the slider.
+    max_value : int
+        The new maximum value for the slider.
+    """
+    slider.setMaximum(max_value)
+    max_label.setText(str(max_value))
 
 
 def update_history_table(table, data):

@@ -15,6 +15,7 @@ from tractome.ui import (
     create_clusters_slider,
     create_slice_sliders,
     create_ui,
+    update_cluster_slider,
     update_history_table,
 )
 from tractome.viz import (
@@ -127,7 +128,7 @@ class Tractome(QMainWindow):
                 self._3D_scene.add(tractogram)
             else:
                 self._state_manager.add_state(
-                    ClusterState(100, np.arange(len(self._sft.streamlines)))
+                    ClusterState(100, np.arange(len(self._sft.streamlines)), 500)
                 )
                 self.perform_clustering(100)
                 self.show_manager.renderer.add_event_handler(
@@ -140,6 +141,7 @@ class Tractome(QMainWindow):
                     self._prev_state_button,
                     self._save_state_button,
                     self._history_table,
+                    self._cluster_max_label,
                 ) = create_clusters_slider(default_value=100)
                 self.left_panel.layout().addWidget(self._cluster_widget)
                 self._cluster_slider.sliderReleased.connect(
@@ -285,6 +287,9 @@ class Tractome(QMainWindow):
         if self._state_manager.can_move_back():
             self._state_manager.move_back()
             latest_state = self._state_manager.get_latest_state()
+            update_cluster_slider(
+                self._cluster_slider, self._cluster_max_label, latest_state.max_clusters
+            )
             self.perform_clustering(latest_state.nb_clusters)
             self._cluster_slider.setValue(latest_state.nb_clusters)
             self._update_history_table()
@@ -298,8 +303,24 @@ class Tractome(QMainWindow):
             streamline_ids.extend(self._clusters[cluster.rep])
 
         if len(streamline_ids) > 0:
+            old_max = self._cluster_slider.maximum()
+            old_value = self._cluster_slider.value()
+            new_max = min(500, len(streamline_ids))
+
+            update_cluster_slider(
+                self._cluster_slider, self._cluster_max_label, new_max
+            )
+
+            if old_max > 0:
+                new_value = int((old_value / old_max) * new_max)
+                self._cluster_slider.setValue(new_value)
+
             self._state_manager.add_state(
-                ClusterState(self._cluster_slider.value(), np.array(streamline_ids))
+                ClusterState(
+                    self._cluster_slider.value(),
+                    np.array(streamline_ids),
+                    self._cluster_slider.maximum(),
+                )
             )
             self.perform_clustering(self._cluster_slider.value())
             self._update_history_table()

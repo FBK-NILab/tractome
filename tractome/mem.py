@@ -10,6 +10,7 @@ class ClusterState:
 
     nb_clusters: int
     streamline_ids: np.ndarray
+    max_clusters: int
 
 
 class StateManager:
