@@ -267,7 +267,7 @@ def create_slice_sliders(
 
 
 def create_clusters_slider(default_value=250):
-    """Create a clusters slider with value ranging from 0 to 500.
+    """Create a clusters slider.
 
     Parameters
     ----------
@@ -287,7 +287,7 @@ def create_clusters_slider(default_value=250):
     tractogram_widget.setLayout(tractogram_layout)
 
     layout, slider, value_label, _, max_label = _create_slider(
-        "Clusters:", 0, 500, "Clusters", "none", default_value
+        "Clusters:", 1, 1000, "Clusters", "none", default_value
     )
 
     tractogram_layout.addLayout(layout)
