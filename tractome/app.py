@@ -1,3 +1,5 @@
+import logging
+
 from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
 from pygfx import OrthographicCamera, PanZoomController, TrackballController
@@ -7,11 +9,13 @@ from fury.lib import DirectionalLight, PerspectiveCamera
 from fury.utils import set_group_visibility, show_slices
 from tractome.compute import mkbm_clustering
 from tractome.io import read_mesh, read_nifti, read_tractogram
+from tractome.mem import ClusterState, StateManager
 from tractome.ui import (
     STYLE_SHEET,
     create_clusters_slider,
     create_slice_sliders,
     create_ui,
+    update_history_table,
 )
 from tractome.viz import (
     create_image_slicer,
@@ -51,6 +55,7 @@ class Tractome(QMainWindow):
         self._cluster_reps = {}
         self._streamline_bundles = []
         self._selected_clusters = set()
+        self._state_manager = StateManager()
         self._init_UI()
         self._init_actors()
 
@@ -121,20 +126,30 @@ class Tractome(QMainWindow):
                 tractogram = create_streamlines(self._sft.streamlines, color=(0, 1, 0))
                 self._3D_scene.add(tractogram)
             else:
+                self._state_manager.add_state(
+                    ClusterState(100, np.arange(len(self._sft.streamlines)))
+                )
                 self.perform_clustering(100)
                 self.show_manager.renderer.add_event_handler(
                     self.handle_key_strokes, "key_down"
                 )
-                self._cluster_widget, self._cluster_slider, _ = create_clusters_slider(
-                    default_value=100
-                )
+                (
+                    self._cluster_widget,
+                    self._cluster_slider,
+                    _,
+                    self._prev_state_button,
+                    self._save_state_button,
+                    self._history_table,
+                ) = create_clusters_slider(default_value=100)
                 self.left_panel.layout().addWidget(self._cluster_widget)
                 self._cluster_slider.sliderReleased.connect(
                     lambda: self.perform_clustering(self._cluster_slider.value())
                 )
+                self._prev_state_button.clicked.connect(self.on_prev_state)
+                self._save_state_button.clicked.connect(self.on_save_state)
+                self._update_history_table()
 
         if self.mesh:
-            print("Loading mesh...")
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
             mesh_actor = create_mesh(mesh_obj, texture=texture)
             self._3D_scene.add(mesh_actor)
@@ -217,6 +232,11 @@ class Tractome(QMainWindow):
         show_slices(self._2D_actors["t1"], slices)
         self.show_manager.render()
 
+    def _update_history_table(self):
+        """Update the history table with the latest data."""
+        all_states = self._state_manager.get_all_states()
+        update_history_table(self._history_table, all_states)
+
     def update_slice_visibility(self, _value):
         """Update the visibility of the slices based on checkbox states. Callback
         for the checkbox changes.
@@ -238,12 +258,20 @@ class Tractome(QMainWindow):
         self.show_manager.render()
 
     def perform_clustering(self, value):
+        """Perform clustering on the current data.
+
+        Parameters
+        ----------
+        value : int
+            The number of clusters to create.
+        """
+        latest_state = self._state_manager.get_latest_state()
         self._selected_clusters.clear()
         self._collapse_streamline_bundles()
         self._clusters = mkbm_clustering(
             self._sft.data_per_streamline["dismatrix"],
             n_clusters=value,
-            streamline_ids=np.indices((len(self._sft.streamlines),))[0],
+            streamline_ids=latest_state.streamline_ids,
         )
         self._3D_scene.remove(*self._cluster_reps.values())
         self._cluster_reps = create_streamtube(self._clusters, self._sft.streamlines)
@@ -251,6 +279,32 @@ class Tractome(QMainWindow):
             cluster.add_event_handler(self.toggle_cluster_selection, "pointer_down")
             self._3D_scene.add(cluster)
         self.show_manager.render()
+
+    def on_prev_state(self):
+        """Handle the 'Previous State' button click."""
+        if self._state_manager.can_move_back():
+            self._state_manager.move_back()
+            latest_state = self._state_manager.get_latest_state()
+            self.perform_clustering(latest_state.nb_clusters)
+            self._cluster_slider.setValue(latest_state.nb_clusters)
+            self._update_history_table()
+        else:
+            logging.warning("No previous state available.")
+
+    def on_save_state(self):
+        """Handle the 'Save State' button click."""
+        streamline_ids = []
+        for cluster in self._selected_clusters:
+            streamline_ids.extend(self._clusters[cluster.rep])
+
+        if len(streamline_ids) > 0:
+            self._state_manager.add_state(
+                ClusterState(self._cluster_slider.value(), np.array(streamline_ids))
+            )
+            self.perform_clustering(self._cluster_slider.value())
+            self._update_history_table()
+        else:
+            logging.warning("No clusters selected to save a state.")
 
     def toggle_cluster_selection(self, event):
         """Toggle the selection state of a cluster.

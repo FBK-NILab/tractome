@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QRadioButton,
     QSlider,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -275,7 +277,7 @@ def create_clusters_slider(default_value=250):
     Returns
     -------
     tuple
-        A tuple containing (widget, slider, value_label).
+        A tuple containing (widget, slider, value_label, prev_button, save_button, history_table).
     """
     tractogram_widget = QGroupBox("Tractogram Controls")
     tractogram_layout = QVBoxLayout()
@@ -289,7 +291,46 @@ def create_clusters_slider(default_value=250):
 
     tractogram_layout.addLayout(layout)
 
-    return tractogram_widget, slider, value_label
+    # Create state management buttons
+    button_layout = QHBoxLayout()
+    prev_button = QPushButton("Prev. State")
+    save_button = QPushButton("Save State")
+    button_layout.addWidget(prev_button)
+    button_layout.addWidget(save_button)
+    tractogram_layout.addLayout(button_layout)
+
+    # Create history table
+    history_table = QTableWidget()
+    history_table.setRowCount(10)
+    history_table.setColumnCount(2)
+    history_table.setHorizontalHeaderLabels(["# clusters", "# streamlines"])
+    tractogram_layout.addWidget(history_table)
+
+    return (
+        tractogram_widget,
+        slider,
+        value_label,
+        prev_button,
+        save_button,
+        history_table,
+    )
+
+
+def update_history_table(table, data):
+    """Update the history table with the latest data.
+
+    Parameters
+    ----------
+    table : QTableWidget
+        The table to update.
+    data : list of ClusterState
+        A list of ClusterState objects.
+    """
+    table.clearContents()
+    table.setRowCount(len(data))
+    for i, state in enumerate(data):
+        table.setItem(i, 0, QTableWidgetItem(str(state.nb_clusters)))
+        table.setItem(i, 1, QTableWidgetItem(str(len(state.streamline_ids))))
 
 
 def _create_left_panel(fix_width=250, title="Tractome 2.0"):
