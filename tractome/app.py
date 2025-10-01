@@ -141,7 +141,6 @@ class Tractome(QMainWindow):
                 )
 
         if self.mesh:
-            print("Loading mesh...")
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
             mesh_actor = create_mesh(mesh_obj, texture=texture)
             self._3D_scene.add(mesh_actor)

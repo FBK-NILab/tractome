@@ -85,7 +85,7 @@ def read_mesh(file_path, *, texture=None):
     validated_path = validate_path(file_path)
     logging.info(f"Loading mesh from {validated_path} ...")
 
-    mesh = trimesh.load(validated_path)
+    mesh = trimesh.load_mesh(validated_path)
 
     if texture:
         texture = validate_path(texture)
