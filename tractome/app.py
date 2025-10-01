@@ -76,7 +76,6 @@ class Tractome(QMainWindow):
             qt_app=app,
             qt_parent=self,
             window_type="qt",
-            blend_mode="weighted_plus",
         )
 
         # TODO: Remove long press event handler for Qt
@@ -134,7 +133,6 @@ class Tractome(QMainWindow):
                 )
 
         if self.mesh:
-            print("Loading mesh...")
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
             mesh_actor = create_mesh(mesh_obj, texture=texture)
             self._3D_scene.add(mesh_actor)
