@@ -12,6 +12,7 @@ from tractome.io import read_mesh, read_nifti, read_tractogram
 from tractome.mem import ClusterState, StateManager
 from tractome.ui import (
     STYLE_SHEET,
+    create_cluster_selection_buttons,
     create_clusters_slider,
     create_slice_sliders,
     create_ui,
@@ -82,7 +83,6 @@ class Tractome(QMainWindow):
             qt_app=app,
             qt_parent=self,
             window_type="qt",
-            blend_mode="weighted_plus",
         )
 
         # TODO: Remove long press event handler for Qt
@@ -139,7 +139,7 @@ class Tractome(QMainWindow):
                     self._cluster_slider,
                     _,
                     self._prev_state_button,
-                    self._save_state_button,
+                    self._next_state_button,
                     self._history_table,
                     self._cluster_max_label,
                 ) = create_clusters_slider(default_value=100)
@@ -148,8 +148,21 @@ class Tractome(QMainWindow):
                     lambda: self.perform_clustering(self._cluster_slider.value())
                 )
                 self._prev_state_button.clicked.connect(self.on_prev_state)
-                self._save_state_button.clicked.connect(self.on_save_state)
+                self._next_state_button.clicked.connect(self.on_next_state)
                 self._update_history_table()
+
+                (
+                    self._cluster_selection_widget,
+                    self._select_all_button,
+                    self._select_none_button,
+                    self._swap_selection_button,
+                    self._delete_selected_button,
+                ) = create_cluster_selection_buttons()
+                self.left_panel.layout().addWidget(self._cluster_selection_widget)
+                self._select_all_button.clicked.connect(self.on_select_all)
+                self._select_none_button.clicked.connect(self.on_select_null)
+                self._swap_selection_button.clicked.connect(self.on_swap_selection)
+                self._delete_selected_button.clicked.connect(self.on_delete_selected)
 
         if self.mesh:
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
@@ -276,17 +289,30 @@ class Tractome(QMainWindow):
             streamline_ids=latest_state.streamline_ids,
         )
         self._3D_scene.remove(*self._cluster_reps.values())
+        self._3D_scene.remove(*self._streamline_bundles)
         self._cluster_reps = create_streamtube(self._clusters, self._sft.streamlines)
         for cluster in self._cluster_reps.values():
             cluster.add_event_handler(self.toggle_cluster_selection, "pointer_down")
             self._3D_scene.add(cluster)
         self.show_manager.render()
 
+    def on_next_state(self):
+        """Handle the 'Next State' button click."""
+        if self._state_manager.can_move_next():
+            latest_state = self._state_manager.move_next()
+            update_cluster_slider(
+                self._cluster_slider, self._cluster_max_label, latest_state.max_clusters
+            )
+            self.perform_clustering(latest_state.nb_clusters)
+            self._cluster_slider.setValue(latest_state.nb_clusters)
+            self._update_history_table()
+        else:
+            logging.warning("No next state available.")
+
     def on_prev_state(self):
         """Handle the 'Previous State' button click."""
         if self._state_manager.can_move_back():
-            self._state_manager.move_back()
-            latest_state = self._state_manager.get_latest_state()
+            latest_state = self._state_manager.move_back()
             update_cluster_slider(
                 self._cluster_slider, self._cluster_max_label, latest_state.max_clusters
             )
@@ -296,8 +322,8 @@ class Tractome(QMainWindow):
         else:
             logging.warning("No previous state available.")
 
-    def on_save_state(self):
-        """Handle the 'Save State' button click."""
+    def on_delete_selected(self):
+        """Handle the 'Delete Selected' button click."""
         streamline_ids = []
         for cluster in self._selected_clusters:
             streamline_ids.extend(self._clusters[cluster.rep])
@@ -326,6 +352,18 @@ class Tractome(QMainWindow):
             self._update_history_table()
         else:
             logging.warning("No clusters selected to save a state.")
+
+    def on_swap_selection(self):
+        """Handle the 'Swap Selection' button click."""
+        logging.warning("Swap Selection button clicked, but not implemented yet.")
+
+    def on_select_null(self):
+        """Handle the 'Select Null' button click."""
+        logging.warning("Select Null button clicked, but not implemented yet.")
+
+    def on_select_all(self):
+        """Handle the 'Select All' button click."""
+        logging.warning("Select All button clicked, but not implemented yet.")
 
     def toggle_cluster_selection(self, event):
         """Toggle the selection state of a cluster.
@@ -389,6 +427,7 @@ class Tractome(QMainWindow):
         if self._mode != "3D":
             if self.tractogram and self._cluster_widget:
                 self._cluster_widget.show()
+                self._cluster_selection_widget.show()
             self._mode = "3D"
             self.show_manager.screens[0].scene = self._3D_scene
             self.show_manager.screens[0].camera = self._3D_camera
@@ -431,6 +470,7 @@ class Tractome(QMainWindow):
         if self._mode != "2D":
             if self.tractogram and self._cluster_widget:
                 self._cluster_widget.hide()
+                self._cluster_selection_widget.hide()
             self._mode = "2D"
             self.show_manager.screens[0].scene = self._2D_scene
             self.show_manager.screens[0].camera = self._2D_camera

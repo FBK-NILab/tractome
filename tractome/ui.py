@@ -295,9 +295,9 @@ def create_clusters_slider(default_value=250):
     # Create state management buttons
     button_layout = QHBoxLayout()
     prev_button = QPushButton("Prev. State")
-    save_button = QPushButton("Save State")
+    next_button = QPushButton("Next State")
     button_layout.addWidget(prev_button)
-    button_layout.addWidget(save_button)
+    button_layout.addWidget(next_button)
     tractogram_layout.addLayout(button_layout)
 
     # Create history table
@@ -312,9 +312,43 @@ def create_clusters_slider(default_value=250):
         slider,
         value_label,
         prev_button,
-        save_button,
+        next_button,
         history_table,
         max_label,
+    )
+
+
+def create_cluster_selection_buttons():
+    """Create the cluster selection buttons.
+
+    Returns
+    -------
+    tuple
+        A tuple containing (widget, all_button, none_button, swap_button,
+        delete_button).
+    """
+    cluster_selection_widget = QGroupBox("Cluster Selection")
+    cluster_selection_layout = QHBoxLayout()
+    cluster_selection_layout.setContentsMargins(10, 20, 10, 5)
+    cluster_selection_layout.setSpacing(10)
+    cluster_selection_widget.setLayout(cluster_selection_layout)
+
+    all_button = QPushButton("All")
+    none_button = QPushButton("None")
+    swap_button = QPushButton("Swap")
+    delete_button = QPushButton("Del")
+
+    cluster_selection_layout.addWidget(all_button)
+    cluster_selection_layout.addWidget(none_button)
+    cluster_selection_layout.addWidget(swap_button)
+    cluster_selection_layout.addWidget(delete_button)
+
+    return (
+        cluster_selection_widget,
+        all_button,
+        none_button,
+        swap_button,
+        delete_button,
     )
 
 
