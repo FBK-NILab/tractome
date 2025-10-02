@@ -34,7 +34,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         colors=colors,
         thickness=4,
         outline_thickness=0.5,
-        lift=4.0,
+        lift=-4.0,
     )
     y_projection = actor.line_projection(
         streamlines,
@@ -42,7 +42,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         colors=colors,
         thickness=4,
         outline_thickness=0.5,
-        lift=4.0,
+        lift=-4.0,
     )
     x_projection = actor.line_projection(
         streamlines,
@@ -50,7 +50,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         colors=colors,
         thickness=4,
         outline_thickness=0.5,
-        lift=4.0,
+        lift=-4.0,
     )
 
     obj = Group()
