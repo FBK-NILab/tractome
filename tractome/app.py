@@ -299,12 +299,9 @@ class Tractome(QMainWindow):
             self._selected_clusters.add(cluster)
 
     def handle_key_strokes(self, event):
-        print(event.key)
-
         if event.key == "e":
             for cluster in self._selected_clusters:
-                if cluster in self._3D_scene.children:
-                    print("Removing cluster from 3D scene:", cluster)
+                if cluster in self._3D_scene.main_scene.children:
                     self._3D_scene.remove(cluster)
                 streamlines = [
                     np.asarray(self._sft.streamlines[line])
@@ -320,19 +317,17 @@ class Tractome(QMainWindow):
         elif event.key == "c":
             self._collapse_streamline_bundles()
         elif event.key == "h":
-            print("Hiding unselected clusters")
             for cluster in self._cluster_reps.values():
-                print(self._3D_scene.children)
                 if (
                     cluster not in self._selected_clusters
-                    and cluster in self._3D_scene.children
+                    and cluster in self._3D_scene.main_scene.children
                 ):
                     self._3D_scene.remove(cluster)
 
         elif event.key == "s":
             for cluster in self._cluster_reps.values():
                 if (
-                    cluster not in self._3D_scene.children
+                    cluster not in self._3D_scene.main_scene.children
                     and cluster not in self._selected_clusters
                 ):
                     self._3D_scene.add(cluster)
