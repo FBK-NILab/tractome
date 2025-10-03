@@ -2,10 +2,14 @@ import logging
 
 from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
-from pygfx import OrthographicCamera, PanZoomController, TrackballController
+from pygfx import OrthographicCamera, PanZoomController
 
 from fury import window
-from fury.lib import DirectionalLight, PerspectiveCamera
+from fury.lib import (
+    DirectionalLight,
+    OrbitController,
+    PerspectiveCamera,
+)
 from fury.utils import set_group_visibility, show_slices
 from tractome.compute import mkbm_clustering
 from tractome.io import read_mesh, read_nifti, read_tractogram
@@ -23,6 +27,7 @@ from tractome.viz import (
     create_image_slicer,
     create_mesh,
     create_streamlines,
+    create_streamlines_projection,
     create_streamtube,
 )
 
@@ -57,6 +62,7 @@ class Tractome(QMainWindow):
         self._cluster_reps = {}
         self._streamline_bundles = []
         self._selected_clusters = set()
+        self._streamline_projections = set()
         self._state_manager = StateManager()
         self._init_UI()
         self._init_actors()
@@ -73,6 +79,7 @@ class Tractome(QMainWindow):
         self._2D_scene.add(DirectionalLight())
 
         self._3D_camera = PerspectiveCamera()
+
         self._3D_camera.add(DirectionalLight())
         self._3D_scene.add(self._3D_camera)
         self._2D_camera = OrthographicCamera()
@@ -91,7 +98,7 @@ class Tractome(QMainWindow):
             self.show_manager._set_key_long_press_event, "key_up", "key_down"
         )
 
-        self._3D_controller = TrackballController(
+        self._3D_controller = OrbitController(
             self._3D_camera, register_events=self.show_manager.renderer
         )
         self._2D_controller = PanZoomController(
@@ -119,7 +126,7 @@ class Tractome(QMainWindow):
     def _init_actors(self):
         """Initialize the actors for the scene."""
         if self.tractogram:
-            self._sft = read_tractogram(self.tractogram, reference=self.t1)
+            self._sft = read_tractogram(self.tractogram)
             if (
                 self._sft.data_per_streamline is None
                 or "dismatrix" not in self._sft.data_per_streamline
@@ -144,7 +151,7 @@ class Tractome(QMainWindow):
                     self._cluster_max_label,
                 ) = create_clusters_slider(default_value=100)
                 self.left_panel.layout().addWidget(self._cluster_widget)
-                self._cluster_slider.sliderReleased.connect(
+                self._cluster_slider.valueChanged.connect(
                     lambda: self.perform_clustering(self._cluster_slider.value())
                 )
                 self._prev_state_button.clicked.connect(self.on_prev_state)
@@ -198,7 +205,6 @@ class Tractome(QMainWindow):
             self._3D_actors["t1"] = image_slicer
             self._2D_actors["t1"] = image_slice
 
-        window.update_camera(self._3D_camera, None, self._3D_scene)
         self.show_manager.start()
 
     def get_current_slider_position(self):
@@ -245,6 +251,7 @@ class Tractome(QMainWindow):
         slices = self.get_current_slider_position()
         show_slices(self._3D_actors["t1"], slices)
         show_slices(self._2D_actors["t1"], slices)
+        [show_slices(projection, slices) for projection in self._streamline_projections]
         self.show_manager.render()
 
     def _update_history_table(self):
@@ -258,18 +265,43 @@ class Tractome(QMainWindow):
 
         Parameters
         ----------
-        _value : bool
+        _value : int
             The current checked state of the checkbox.
         """
         if self._mode == "3D":
             checkbox_states = self.get_current_checkbox_states()
             set_group_visibility(self._3D_actors["t1"], checkbox_states)
+            if self._3D_check_box_values is not None:
+                prev_states = np.asarray(self._3D_check_box_values, dtype=bool)
+                curr_states = np.asarray(checkbox_states, dtype=bool)
+                changed_indices = np.where(prev_states != curr_states)[0]
+                if changed_indices.size != 0:
+                    changed_index = changed_indices[0]
+                    if curr_states[changed_index]:
+                        self._3D_camera.show_object(
+                            self._3D_actors["t1"],
+                            (0, 0, -1)
+                            if changed_index == 2
+                            else (0, -1, 0)
+                            if changed_index == 1
+                            else (-1, 0, 0),
+                        )
+            self._3D_check_box_values = checkbox_states
         elif self._mode == "2D":
             radio_states = self.get_current_checkbox_states()
+            self._2D_camera.show_object(self._2D_actors["t1"], (0, 0, -1))
             self._2D_camera.show_object(
-                self._2D_actors["t1"], tuple(np.asarray(radio_states, dtype=int))
+                self._2D_actors["t1"], tuple(-1 * np.asarray(radio_states, dtype=int))
+            )
+            self._3D_camera.show_object(self._3D_actors["t1"], (0, 0, -1))
+            self._3D_camera.show_object(
+                self._3D_actors["t1"], tuple(-1 * np.asarray(radio_states, dtype=int))
             )
             set_group_visibility(self._2D_actors["t1"], radio_states)
+            [
+                set_group_visibility(proj, radio_states)
+                for proj in self._streamline_projections
+            ]
         self.show_manager.render()
 
     def perform_clustering(self, value):
@@ -382,7 +414,7 @@ class Tractome(QMainWindow):
     def handle_key_strokes(self, event):
         if event.key == "e":
             for cluster in self._selected_clusters:
-                if cluster in self._3D_scene.children:
+                if cluster in self._3D_scene.main_scene.children:
                     self._3D_scene.remove(cluster)
                 streamlines = [
                     np.asarray(self._sft.streamlines[line])
@@ -401,14 +433,14 @@ class Tractome(QMainWindow):
             for cluster in self._cluster_reps.values():
                 if (
                     cluster not in self._selected_clusters
-                    and cluster in self._3D_scene.children
+                    and cluster in self._3D_scene.main_scene.children
                 ):
                     self._3D_scene.remove(cluster)
 
         elif event.key == "s":
             for cluster in self._cluster_reps.values():
                 if (
-                    cluster not in self._3D_scene.children
+                    cluster not in self._3D_scene.main_scene.children
                     and cluster not in self._selected_clusters
                 ):
                     self._3D_scene.add(cluster)
@@ -422,6 +454,22 @@ class Tractome(QMainWindow):
             self._3D_scene.add(self._cluster_reps[bundle.rep])
         self._streamline_bundles = []
 
+    def _create_streamlines_projection(self):
+        self._2D_scene.remove(*self._streamline_projections)
+        self._streamline_projections.clear()
+        for cluster in self._selected_clusters:
+            streamlines = [
+                np.asarray(self._sft.streamlines[line])
+                for line in self._clusters[cluster.rep]
+            ]
+            projection = create_streamlines_projection(
+                streamlines=streamlines,
+                colors=cluster.geometry.colors.data[0],
+                slice_values=self.get_current_slider_position(),
+            )
+            self._streamline_projections.add(projection)
+        self._2D_scene.add(*self._streamline_projections)
+
     def toggle_3D_mode(self):
         """Toggle to 3D mode."""
         if self._mode != "3D":
@@ -434,7 +482,12 @@ class Tractome(QMainWindow):
             self.show_manager.screens[0].controller = self._3D_controller
             self._3D_controller.enabled = True
             self._2D_controller.enabled = False
-            window.update_camera(self._3D_camera, None, self._3D_scene)
+
+            if self._2D_radio_buttons_values is not None:
+                self._3D_camera.show_object(
+                    self._3D_actors["t1"],
+                    tuple(-1 * np.asarray(self._2D_radio_buttons_values, dtype=int)),
+                )
             self.show_manager.render()
 
             # Safely remove and delete the existing widget
@@ -467,7 +520,7 @@ class Tractome(QMainWindow):
 
     def toggle_2D_mode(self):
         """Toggle to 2D mode."""
-        if self._mode != "2D":
+        if self._mode != "2D" and self.t1 is not None:
             if self.tractogram and self._cluster_widget:
                 self._cluster_widget.hide()
                 self._cluster_selection_widget.hide()
@@ -477,8 +530,7 @@ class Tractome(QMainWindow):
             self.show_manager.screens[0].controller = self._2D_controller
             self._3D_controller.enabled = False
             self._2D_controller.enabled = True
-            window.update_camera(self._2D_camera, None, self._2D_scene)
-            self.show_manager.render()
+            self._create_streamlines_projection()
 
             # Safely remove and delete the existing widget
             if self._slice_widget is not None:
@@ -511,4 +563,14 @@ class Tractome(QMainWindow):
                 radio_buttons, self._2D_radio_buttons_values
             ):
                 radio_button.setChecked(value)
-                radio_button.toggled.connect(self.update_slice_visibility)
+                radio_button.clicked.connect(self.update_slice_visibility)
+
+            radio_states = self.get_current_checkbox_states()
+            self._2D_camera.show_object(
+                self._2D_actors["t1"], tuple(-1 * np.asarray(radio_states, dtype=int))
+            )
+            self.update_slice_visibility(None)
+            self.show_manager.render()
+
+        else:
+            logging.warning("Load a t1 image with the tractogram to enable 2D mode.")

@@ -1,6 +1,7 @@
 import numpy as np
 
 from fury import actor
+from fury.lib import Group
 
 
 def create_mesh(mesh_obj, *, texture=None):
@@ -19,12 +20,42 @@ def create_mesh(mesh_obj, *, texture=None):
         The created 3D mesh.
     """
 
-    # TODO: remove muliplication by 10e5 when data is fixed.
-    vertices = mesh_obj.vertices * 10e5
+    vertices = mesh_obj.vertices
     faces = mesh_obj.faces
 
     mesh = actor.surface(vertices, faces, material="basic", texture=texture)
     return mesh
+
+
+def create_streamlines_projection(streamlines, colors, slice_values):
+    z_projection = actor.line_projection(
+        streamlines,
+        plane=(0, 0, -1, slice_values[2]),
+        colors=colors,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=-4.0,
+    )
+    y_projection = actor.line_projection(
+        streamlines,
+        plane=(0, -1, 0, slice_values[1]),
+        colors=colors,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=-4.0,
+    )
+    x_projection = actor.line_projection(
+        streamlines,
+        plane=(-1, 0, 0, slice_values[0]),
+        colors=colors,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=-4.0,
+    )
+
+    obj = Group()
+    obj.add(x_projection, y_projection, z_projection)
+    return obj
 
 
 def create_streamlines(streamlines, color):
@@ -59,7 +90,7 @@ def create_streamlines(streamlines, color):
         normalized_streamlines,
         colors=color,
         thickness=4,
-        outline_thickness=0.5,
+        outline_thickness=1,
         outline_color=(0, 0, 0),
     )
     return bundle
