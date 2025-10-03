@@ -125,11 +125,11 @@ def create_streamtube(clusters, streamlines):
 
     Returns
     -------
-    list
-        List of streamtube actors with scaled radii.
+    dict
+        Dictionary of streamtube actors with scaled radii.
     """
     if not clusters:
-        return []
+        return {}
 
     cluster_sizes = [len(lines) for lines in clusters.values()]
 

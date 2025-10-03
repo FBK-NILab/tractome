@@ -129,3 +129,13 @@ class StateManager:
             A list of all states.
         """
         return list(self._states)
+
+    def get_current_index(self):
+        """Get the current index in the history.
+
+        Returns
+        -------
+        int
+            The current index.
+        """
+        return self._current_index

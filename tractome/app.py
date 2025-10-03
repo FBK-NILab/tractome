@@ -20,7 +20,6 @@ from tractome.ui import (
     create_clusters_slider,
     create_slice_sliders,
     create_ui,
-    update_cluster_slider,
     update_history_table,
 )
 from tractome.viz import (
@@ -143,16 +142,16 @@ class Tractome(QMainWindow):
                 )
                 (
                     self._cluster_widget,
-                    self._cluster_slider,
-                    _,
+                    self._cluster_input,
+                    self._apply_button,
                     self._prev_state_button,
                     self._next_state_button,
                     self._history_table,
-                    self._cluster_max_label,
                 ) = create_clusters_slider(default_value=100)
                 self.left_panel.layout().addWidget(self._cluster_widget)
-                self._cluster_slider.valueChanged.connect(
-                    lambda: self.perform_clustering(self._cluster_slider.value())
+                self._apply_button.clicked.connect(self.on_apply_clusters)
+                self._cluster_input.lineEdit().returnPressed.connect(
+                    self.on_apply_clusters
                 )
                 self._prev_state_button.clicked.connect(self.on_prev_state)
                 self._next_state_button.clicked.connect(self.on_next_state)
@@ -257,7 +256,8 @@ class Tractome(QMainWindow):
     def _update_history_table(self):
         """Update the history table with the latest data."""
         all_states = self._state_manager.get_all_states()
-        update_history_table(self._history_table, all_states)
+        current_index = self._state_manager.get_current_index()
+        update_history_table(self._history_table, all_states, current_index)
 
     def update_slice_visibility(self, _value):
         """Update the visibility of the slices based on checkbox states. Callback
@@ -320,23 +320,30 @@ class Tractome(QMainWindow):
             n_clusters=value,
             streamline_ids=latest_state.streamline_ids,
         )
-        self._3D_scene.remove(*self._cluster_reps.values())
-        self._3D_scene.remove(*self._streamline_bundles)
+
+        for cluster in self._cluster_reps.values():
+            if cluster in self._3D_scene.main_scene.children:
+                self._3D_scene.remove(cluster)
+
+        for bundle in self._streamline_bundles:
+            if bundle in self._3D_scene.main_scene.children:
+                self._3D_scene.remove(bundle)
+
         self._cluster_reps = create_streamtube(self._clusters, self._sft.streamlines)
         for cluster in self._cluster_reps.values():
             cluster.add_event_handler(self.toggle_cluster_selection, "pointer_down")
             self._3D_scene.add(cluster)
         self.show_manager.render()
+        self._last_clustered_value = value
+        if hasattr(self, "_cluster_input"):
+            self._cluster_input.setValue(value)
 
     def on_next_state(self):
         """Handle the 'Next State' button click."""
         if self._state_manager.can_move_next():
             latest_state = self._state_manager.move_next()
-            update_cluster_slider(
-                self._cluster_slider, self._cluster_max_label, latest_state.max_clusters
-            )
-            self.perform_clustering(latest_state.nb_clusters)
-            self._cluster_slider.setValue(latest_state.nb_clusters)
+            self._cluster_input.setMaximum(latest_state.max_clusters)
+            self._cluster_input.setValue(latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No next state available.")
@@ -345,11 +352,8 @@ class Tractome(QMainWindow):
         """Handle the 'Previous State' button click."""
         if self._state_manager.can_move_back():
             latest_state = self._state_manager.move_back()
-            update_cluster_slider(
-                self._cluster_slider, self._cluster_max_label, latest_state.max_clusters
-            )
-            self.perform_clustering(latest_state.nb_clusters)
-            self._cluster_slider.setValue(latest_state.nb_clusters)
+            self._cluster_input.setMaximum(latest_state.max_clusters)
+            self._cluster_input.setValue(latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No previous state available.")
@@ -361,27 +365,30 @@ class Tractome(QMainWindow):
             streamline_ids.extend(self._clusters[cluster.rep])
 
         if len(streamline_ids) > 0:
-            old_max = self._cluster_slider.maximum()
-            old_value = self._cluster_slider.value()
+            old_max = self._cluster_input.maximum()
+            old_value = (
+                self._cluster_input.value() if hasattr(self, "_cluster_input") else 100
+            )
             new_max = min(1000, len(streamline_ids))
 
-            update_cluster_slider(
-                self._cluster_slider, self._cluster_max_label, new_max
-            )
+            self._cluster_input.setMaximum(new_max)
 
-            if old_max > 0:
+            new_value = len(self._selected_clusters)
+            if old_max > new_max:
                 new_value = int((old_value / old_max) * new_max)
-                self._cluster_slider.setValue(new_value)
 
+            self._cluster_input.setValue(new_value)
             self._state_manager.add_state(
                 ClusterState(
-                    self._cluster_slider.value(),
+                    new_value,
                     np.array(streamline_ids),
-                    self._cluster_slider.maximum(),
+                    self._cluster_input.maximum(),
                 )
             )
-            self.perform_clustering(self._cluster_slider.value())
+
+            self.perform_clustering(new_value)
             self._update_history_table()
+            self.show_manager.render()
         else:
             logging.warning("No clusters selected to save a state.")
 
@@ -574,3 +581,11 @@ class Tractome(QMainWindow):
 
         else:
             logging.warning("Load a t1 image with the tractogram to enable 2D mode.")
+
+    def on_apply_clusters(self):
+        """Handle the apply clusters button or editing finished."""
+        value = self._cluster_input.value()
+        if 1 <= value <= self._cluster_input.maximum():
+            self.perform_clustering(value)
+        else:
+            self._cluster_input.setValue(self._last_clustered_value or 100)
