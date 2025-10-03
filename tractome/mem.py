@@ -23,7 +23,7 @@ class StateManager:
             cls._instance = super(StateManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, max_size=10):
+    def __init__(self, max_size=50):
         """Initialize the state manager.
 
         Parameters

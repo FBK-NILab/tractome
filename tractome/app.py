@@ -476,6 +476,14 @@ class Tractome(QMainWindow):
                     and cluster not in self._selected_clusters
                 ):
                     self._3D_scene.add(cluster)
+        elif event.key == "a":
+            self.on_select_all()
+        elif event.key == "n":
+            self.on_select_null()
+        elif event.key == "i":
+            self.on_swap_selection()
+        elif event.key == "d":
+            self.on_delete_selected()
 
         self.show_manager.render()
 

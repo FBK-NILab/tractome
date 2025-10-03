@@ -71,23 +71,8 @@ def create_streamlines(streamlines, color):
     Line
         The created 3D tractogram.
     """
-    # TODO: Need to remove once the fury fix for heterogeneous streamlines is
-    # implemented
-    max_len = max(len(s) for s in streamlines)
-
-    # Normalize all streamlines to have the same length
-    normalized_streamlines = []
-    for s in streamlines:
-        if len(s) < max_len:
-            # Pad with [np.nan, np.nan, np.nan] for shorter streamlines
-            padding = np.full((max_len - len(s), 3), np.nan)
-            padded_streamline = np.vstack([s, padding])
-            normalized_streamlines.append(padded_streamline)
-        else:
-            normalized_streamlines.append(s)
-
     bundle = actor.streamlines(
-        normalized_streamlines,
+        streamlines,
         colors=color,
         thickness=4,
         outline_thickness=1,
