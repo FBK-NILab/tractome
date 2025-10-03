@@ -132,6 +132,22 @@ def compute_dissimilarity(
 
 
 def mkbm_clustering(dissimilarity_matrix, n_clusters, streamline_ids):
+    """Perform MKBM clustering on the dissimilarity matrix.
+
+    Parameters
+    ----------
+    dissimilarity_matrix : ndarray
+        The dissimilarity matrix to cluster.
+    n_clusters : int
+        The number of clusters to create.
+    streamline_ids : ndarray
+        The IDs of the streamlines to cluster.
+
+    Returns
+    -------
+    dict
+        A dictionary mapping cluster centers to lists of streamline IDs.
+    """
     streamline_ids = np.asarray(streamline_ids, dtype=np.int32)
     dissimilarity_matrix = dissimilarity_matrix[streamline_ids]
 

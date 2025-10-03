@@ -1,3 +1,5 @@
+import os
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -8,11 +10,22 @@ from PySide6.QtWidgets import (
     QPushButton,
     QRadioButton,
     QSlider,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-STYLE_SHEET = """
+UP_ARROW = os.path.join(os.path.dirname(__file__), "assets", "up_arrow.svg").replace(
+    "\\", "/"
+)
+DOWN_ARROW = os.path.join(
+    os.path.dirname(__file__), "assets", "down_arrow.svg"
+).replace("\\", "/")
+
+STYLE_SHEET = (
+    """
 QMainWindow {
     background-color: #FFFFFF;
 }
@@ -38,17 +51,40 @@ QPushButton {
     min-height: 20px;
     color: #333333;
 }
-QPushButton:hover {
+QPushButton:hover, QSpinBox::up-button:hover, QSpinBox::down-button:hover {
     background-color: #D1D1D1;
     border: 1px solid #999999;
 }
 QPushButton:pressed {
     background-color: #C1C1C1;
 }
-QLineEdit {
-    border: 1px solid #CCCCCC;
-    padding: 5px;
+QSpinBox {
+    min-height: 20px;
+    border: 1px solid #ADADAD;
     border-radius: 3px;
+    color: #333333;
+    padding: 5px;
+}
+QSpinBox::up-button {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    border: 1px solid #ADADAD;
+    width: 10px;
+    height: 10px;
+    padding: 2px;
+    background-color: #E1E1E1;
+    border-top-right-radius: 2px;
+}
+
+QSpinBox::down-button {
+    subcontrol-origin: padding;
+    subcontrol-position: bottom right;
+    border: 1px solid #ADADAD;
+    width: 10px;
+    height: 10px;
+    padding: 2px;
+    background-color: #E1E1E1;
+    border-bottom-right-radius: 2px;
 }
 QLabel {
     color: #333333;
@@ -95,6 +131,19 @@ QSlider::handle:horizontal:pressed {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #E5E5E5, stop:1 #B5B5B5);
 }
 """
+    + f"""
+QSpinBox::up-arrow {{
+    image: url('{str(UP_ARROW)}');
+    width: 20px;
+    height: 20px;
+}}
+QSpinBox::down-arrow {{
+    image: url('{str(DOWN_ARROW)}');
+    width: 20px;
+    height: 20px;
+}}
+"""
+)
 
 
 def _create_slider(
@@ -191,7 +240,7 @@ def _create_slider(
     # Connect slider to update value label
     slider.valueChanged.connect(lambda val: value_label.setText(str(val)))
 
-    return main_layout, slider, value_label, control_widget
+    return main_layout, slider, value_label, control_widget, max_label
 
 
 def create_slice_sliders(
@@ -240,7 +289,7 @@ def create_slice_sliders(
         # Get default value for this axis (if provided)
         default_value = None if default_vals is None else default_vals[i]
 
-        layout, slider, value_label, control_widget = _create_slider(
+        layout, slider, value_label, control_widget, _ = _create_slider(
             f"{axis} Slice:",
             min_vals[i],
             max_vals[i],
@@ -265,17 +314,18 @@ def create_slice_sliders(
 
 
 def create_clusters_slider(default_value=250):
-    """Create a clusters slider with value ranging from 0 to 500.
+    """Create a clusters input control.
 
     Parameters
     ----------
     default_value : int, optional
-        The default value for the slider. Default is 250.
+        The default value for the input.
 
     Returns
     -------
     tuple
-        A tuple containing (widget, slider, value_label).
+        A tuple containing (widget, input_widget, apply_button, prev_button,
+        next_button, history_table).
     """
     tractogram_widget = QGroupBox("Tractogram Controls")
     tractogram_layout = QVBoxLayout()
@@ -283,13 +333,107 @@ def create_clusters_slider(default_value=250):
     tractogram_layout.setSpacing(10)
     tractogram_widget.setLayout(tractogram_layout)
 
-    layout, slider, value_label, _ = _create_slider(
-        "Clusters:", 0, 500, "Clusters", "none", default_value
+    # Create label
+    label = QLabel("Clusters:")
+    label.setObjectName("SliderLabel")
+    tractogram_layout.addWidget(label)
+
+    # Create input and button layout
+    input_layout = QHBoxLayout()
+    cluster_input = QSpinBox()
+    cluster_input.setMinimum(1)
+    cluster_input.setMaximum(1000)
+    cluster_input.setValue(default_value)
+    apply_button = QPushButton("Apply")
+    input_layout.addWidget(cluster_input)
+    input_layout.addWidget(apply_button)
+    tractogram_layout.addLayout(input_layout)
+
+    # Create state management buttons
+    button_layout = QHBoxLayout()
+    prev_button = QPushButton("Prev. State")
+    next_button = QPushButton("Next State")
+    button_layout.addWidget(prev_button)
+    button_layout.addWidget(next_button)
+    tractogram_layout.addLayout(button_layout)
+
+    # Create history table
+    history_table = QTableWidget()
+    history_table.setRowCount(10)
+    history_table.setColumnCount(2)
+    history_table.setHorizontalHeaderLabels(["# clusters", "# streamlines"])
+    history_table.verticalHeader().setVisible(False)
+    tractogram_layout.addWidget(history_table)
+
+    return (
+        tractogram_widget,
+        cluster_input,
+        apply_button,
+        prev_button,
+        next_button,
+        history_table,
     )
 
-    tractogram_layout.addLayout(layout)
 
-    return tractogram_widget, slider, value_label
+def create_cluster_selection_buttons():
+    """Create the cluster selection buttons.
+
+    Returns
+    -------
+    tuple
+        A tuple containing (widget, all_button, none_button, swap_button,
+        delete_button).
+    """
+    cluster_selection_widget = QGroupBox("Cluster Selection")
+    cluster_selection_layout = QHBoxLayout()
+    cluster_selection_layout.setContentsMargins(10, 20, 10, 5)
+    cluster_selection_layout.setSpacing(10)
+    cluster_selection_widget.setLayout(cluster_selection_layout)
+
+    all_button = QPushButton("All")
+    none_button = QPushButton("None")
+    swap_button = QPushButton("Swap")
+    delete_button = QPushButton("Del")
+
+    cluster_selection_layout.addWidget(all_button)
+    cluster_selection_layout.addWidget(none_button)
+    cluster_selection_layout.addWidget(swap_button)
+    cluster_selection_layout.addWidget(delete_button)
+
+    return (
+        cluster_selection_widget,
+        all_button,
+        none_button,
+        swap_button,
+        delete_button,
+    )
+
+
+def update_history_table(table, data, current_index=None):
+    """Update the history table with the latest data.
+
+    Parameters
+    ----------
+    table : QTableWidget
+        The table to update.
+    data : list of ClusterState
+        A list of ClusterState objects.
+    current_index : int, optional
+        The index of the currently selected state to highlight.
+    """
+    table.clearContents()
+    table.setRowCount(len(data))
+    for i, state in enumerate(data):
+        item0 = QTableWidgetItem(str(state.nb_clusters))
+        item1 = QTableWidgetItem(str(len(state.streamline_ids)))
+        if current_index is not None and i == current_index:
+            from PySide6.QtGui import QColor
+
+            highlight_color = QColor(173, 216, 230)  # Light blue
+            item0.setBackground(highlight_color)
+            item1.setBackground(highlight_color)
+        table.setItem(i, 0, item0)
+        table.setItem(i, 1, item1)
 
 
 def _create_left_panel(fix_width=250, title="Tractome 2.0"):
