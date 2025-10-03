@@ -96,6 +96,45 @@ def create_streamlines(streamlines, color):
     return bundle
 
 
+def _deselect_streamtube(streamtube):
+    """Deselect a streamtube by setting its opacity to 0.5.
+
+    Parameters
+    ----------
+    streamtube : Actor
+        The streamtube actor to deselect.
+    """
+    streamtube.material.opacity = 0.5
+    streamtube.material.uniform_buffer.update_full()
+
+
+def _select_streamtube(streamtube):
+    """Select a streamtube by setting its opacity to 1.0.
+
+    Parameters
+    ----------
+    streamtube : Actor
+        The streamtube actor to select.
+    """
+    streamtube.material.opacity = 1.0
+    streamtube.material.uniform_buffer.update_full()
+
+
+def _toggle_streamtube_selection(streamtube):
+    """Toggle the selection state of a streamtube.
+
+    Parameters
+    ----------
+    streamtube : Actor
+        The streamtube actor to toggle.
+    """
+    opacity = streamtube.material.opacity
+    if opacity == 1.0:
+        _deselect_streamtube(streamtube)
+    else:
+        _select_streamtube(streamtube)
+
+
 def toggle_streamtube_selection(event):
     """Handle click events on streamtubes.
 
@@ -106,10 +145,7 @@ def toggle_streamtube_selection(event):
     """
 
     st = event.target
-    opacity = st.material.opacity
-    opacity = 0.5 if opacity == 1.0 else 1.0
-    st.material.opacity = opacity
-    st.material.uniform_buffer.update_full()
+    _toggle_streamtube_selection(st)
 
 
 def create_streamtube(clusters, streamlines):
@@ -143,7 +179,7 @@ def create_streamtube(clusters, streamlines):
         num_streamlines = len(lines)
         scaled_radius = ((num_streamlines - min_size) / size_range) * 2.0
 
-        radius = max(scaled_radius, 0.1)
+        radius = max(scaled_radius, 0.5)
 
         streamtube = actor.streamtube(
             [streamlines[rep]],

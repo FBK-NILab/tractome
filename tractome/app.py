@@ -23,6 +23,9 @@ from tractome.ui import (
     update_history_table,
 )
 from tractome.viz import (
+    _deselect_streamtube,
+    _select_streamtube,
+    _toggle_streamtube_selection,
     create_image_slicer,
     create_mesh,
     create_streamlines,
@@ -344,6 +347,7 @@ class Tractome(QMainWindow):
             latest_state = self._state_manager.move_next()
             self._cluster_input.setMaximum(latest_state.max_clusters)
             self._cluster_input.setValue(latest_state.nb_clusters)
+            self.perform_clustering(latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No next state available.")
@@ -354,6 +358,7 @@ class Tractome(QMainWindow):
             latest_state = self._state_manager.move_back()
             self._cluster_input.setMaximum(latest_state.max_clusters)
             self._cluster_input.setValue(latest_state.nb_clusters)
+            self.perform_clustering(latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No previous state available.")
@@ -394,15 +399,37 @@ class Tractome(QMainWindow):
 
     def on_swap_selection(self):
         """Handle the 'Swap Selection' button click."""
-        logging.warning("Swap Selection button clicked, but not implemented yet.")
+        for cluster in self._cluster_reps.values():
+            self._toggle_cluster_selection(cluster)
+            _toggle_streamtube_selection(cluster)
+        self.show_manager.render()
 
     def on_select_null(self):
         """Handle the 'Select Null' button click."""
-        logging.warning("Select Null button clicked, but not implemented yet.")
+        self._selected_clusters.clear()
+        for cluster in self._cluster_reps.values():
+            _deselect_streamtube(cluster)
+        self.show_manager.render()
 
     def on_select_all(self):
         """Handle the 'Select All' button click."""
-        logging.warning("Select All button clicked, but not implemented yet.")
+        self._selected_clusters = set(self._cluster_reps.values())
+        for cluster in self._cluster_reps.values():
+            _select_streamtube(cluster)
+        self.show_manager.render()
+
+    def _toggle_cluster_selection(self, cluster):
+        """Toggle the selection state of a cluster.
+
+        Parameters
+        ----------
+        cluster : Actor
+            The cluster actor to toggle.
+        """
+        if cluster in self._selected_clusters:
+            self._selected_clusters.remove(cluster)
+        else:
+            self._selected_clusters.add(cluster)
 
     def toggle_cluster_selection(self, event):
         """Toggle the selection state of a cluster.
@@ -413,10 +440,8 @@ class Tractome(QMainWindow):
             The click event.
         """
         cluster = event.target
-        if cluster in self._selected_clusters:
-            self._selected_clusters.remove(cluster)
-        else:
-            self._selected_clusters.add(cluster)
+        self._toggle_cluster_selection(cluster)
+        self.show_manager.render()
 
     def handle_key_strokes(self, event):
         if event.key == "e":
