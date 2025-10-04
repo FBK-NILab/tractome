@@ -3,6 +3,7 @@ import logging
 import numpy as np
 
 from fury import actor
+from fury.lib import Group
 
 
 def create_mesh(mesh_obj, *, texture=None):
@@ -21,8 +22,7 @@ def create_mesh(mesh_obj, *, texture=None):
         The created 3D mesh.
     """
 
-    # TODO: remove muliplication by 10e5 when data is fixed.
-    vertices = mesh_obj.vertices * 10e5
+    vertices = mesh_obj.vertices
     faces = mesh_obj.faces
 
     texture_coords = None
@@ -48,6 +48,37 @@ def create_mesh(mesh_obj, *, texture=None):
     return mesh
 
 
+def create_streamlines_projection(streamlines, colors, slice_values):
+    z_projection = actor.line_projection(
+        streamlines,
+        plane=(0, 0, -1, slice_values[2]),
+        colors=colors,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=-4.0,
+    )
+    y_projection = actor.line_projection(
+        streamlines,
+        plane=(0, -1, 0, slice_values[1]),
+        colors=colors,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=-4.0,
+    )
+    x_projection = actor.line_projection(
+        streamlines,
+        plane=(-1, 0, 0, slice_values[0]),
+        colors=colors,
+        thickness=4,
+        outline_thickness=0.5,
+        lift=-4.0,
+    )
+
+    obj = Group()
+    obj.add(x_projection, y_projection, z_projection)
+    return obj
+
+
 def create_streamlines(streamlines, color):
     """Create a 3D tractogram from the provided StatefulTractogram.
 
@@ -61,29 +92,53 @@ def create_streamlines(streamlines, color):
     Line
         The created 3D tractogram.
     """
-    # TODO: Need to remove once the fury fix for heterogeneous streamlines is
-    # implemented
-    max_len = max(len(s) for s in streamlines)
-
-    # Normalize all streamlines to have the same length
-    normalized_streamlines = []
-    for s in streamlines:
-        if len(s) < max_len:
-            # Pad with [np.nan, np.nan, np.nan] for shorter streamlines
-            padding = np.full((max_len - len(s), 3), np.nan)
-            padded_streamline = np.vstack([s, padding])
-            normalized_streamlines.append(padded_streamline)
-        else:
-            normalized_streamlines.append(s)
-
     bundle = actor.streamlines(
-        normalized_streamlines,
+        streamlines,
         colors=color,
         thickness=4,
-        outline_thickness=0.5,
+        outline_thickness=1,
         outline_color=(0, 0, 0),
     )
     return bundle
+
+
+def _deselect_streamtube(streamtube):
+    """Deselect a streamtube by setting its opacity to 0.5.
+
+    Parameters
+    ----------
+    streamtube : Actor
+        The streamtube actor to deselect.
+    """
+    streamtube.material.opacity = 0.5
+    streamtube.material.uniform_buffer.update_full()
+
+
+def _select_streamtube(streamtube):
+    """Select a streamtube by setting its opacity to 1.0.
+
+    Parameters
+    ----------
+    streamtube : Actor
+        The streamtube actor to select.
+    """
+    streamtube.material.opacity = 1.0
+    streamtube.material.uniform_buffer.update_full()
+
+
+def _toggle_streamtube_selection(streamtube):
+    """Toggle the selection state of a streamtube.
+
+    Parameters
+    ----------
+    streamtube : Actor
+        The streamtube actor to toggle.
+    """
+    opacity = streamtube.material.opacity
+    if opacity == 1.0:
+        _deselect_streamtube(streamtube)
+    else:
+        _select_streamtube(streamtube)
 
 
 def toggle_streamtube_selection(event):
@@ -96,10 +151,7 @@ def toggle_streamtube_selection(event):
     """
 
     st = event.target
-    opacity = st.material.opacity
-    opacity = 0.5 if opacity == 1.0 else 1.0
-    st.material.opacity = opacity
-    st.material.uniform_buffer.update_full()
+    _toggle_streamtube_selection(st)
 
 
 def create_streamtube(clusters, streamlines):
@@ -115,11 +167,11 @@ def create_streamtube(clusters, streamlines):
 
     Returns
     -------
-    list
-        List of streamtube actors with scaled radii.
+    dict
+        Dictionary of streamtube actors with scaled radii.
     """
     if not clusters:
-        return []
+        return {}
 
     cluster_sizes = [len(lines) for lines in clusters.values()]
 
@@ -133,7 +185,7 @@ def create_streamtube(clusters, streamlines):
         num_streamlines = len(lines)
         scaled_radius = ((num_streamlines - min_size) / size_range) * 2.0
 
-        radius = max(scaled_radius, 0.1)
+        radius = max(scaled_radius, 0.5)
 
         streamtube = actor.streamtube(
             [streamlines[rep]],
