@@ -175,7 +175,8 @@ def _create_slider(
     Returns
     -------
     tuple
-        A tuple containing (main_layout, slider, value_label, control_widget).
+        A tuple containing
+        (main_layout, slider, value_label, control_widget, max_label).
     """
     # Calculate default value
     if default_value is None:
@@ -523,3 +524,37 @@ def create_ui(viz_window):
     main_layout.addWidget(right_panel, 1)
 
     return main_widget, left_panel, right_panel, button_3d, button_2d
+
+
+def create_mesh_controls():
+    """Create mesh control widgets for opacity and visibility.
+
+    Returns
+    -------
+    tuple
+        A tuple containing (widget, opacity_slider, visibility_checkbox).
+    """
+    mesh_widget = QGroupBox("Mesh Controls")
+    mesh_layout = QVBoxLayout()
+    mesh_layout.setContentsMargins(10, 20, 5, 5)
+    mesh_layout.setSpacing(10)
+    mesh_widget.setLayout(mesh_layout)
+
+    # Slider for opacity with visibility checkbox on the right
+    (
+        opacity_layout,
+        opacity_slider,
+        opacity_value_label,
+        visibility_checkbox,
+        _,
+    ) = _create_slider(
+        "Opacity:",
+        0,
+        100,
+        "Opacity",
+        "checkbox",
+        100,
+    )
+    mesh_layout.addLayout(opacity_layout)
+
+    return mesh_widget, opacity_slider, visibility_checkbox
