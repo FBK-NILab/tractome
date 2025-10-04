@@ -599,6 +599,9 @@ class Tractome(QMainWindow):
                 checkbox.setChecked(value)
                 checkbox.stateChanged.connect(self.update_slice_visibility)
 
+            if hasattr(self, "_mesh_controls_widget"):
+                self._mesh_controls_widget.show()
+
     def toggle_2D_mode(self):
         """Toggle to 2D mode."""
         if self._mode != "2D" and self.t1 is not None:
@@ -612,6 +615,9 @@ class Tractome(QMainWindow):
             self._3D_controller.enabled = False
             self._2D_controller.enabled = True
             self._create_streamlines_projection()
+
+            if hasattr(self, "_mesh_controls_widget"):
+                self._mesh_controls_widget.hide()
 
             # Safely remove and delete the existing widget
             if self._slice_widget is not None:
