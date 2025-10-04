@@ -22,7 +22,7 @@ def create_mesh(mesh_obj, *, texture=None):
         The created 3D mesh.
     """
 
-    vertices = mesh_obj.vertices
+    vertices = mesh_obj.vertices * 10
     faces = mesh_obj.faces
 
     texture_coords = None
