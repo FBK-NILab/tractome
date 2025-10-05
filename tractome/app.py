@@ -18,6 +18,7 @@ from tractome.ui import (
     STYLE_SHEET,
     create_cluster_selection_buttons,
     create_clusters_slider,
+    create_mesh_controls,
     create_slice_sliders,
     create_ui,
     update_history_table,
@@ -177,6 +178,17 @@ class Tractome(QMainWindow):
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
             mesh_actor = create_mesh(mesh_obj, texture=texture)
             self._3D_scene.add(mesh_actor)
+            self._3D_actors["mesh"] = mesh_actor
+            (
+                self._mesh_controls_widget,
+                self._mesh_opacity_slider,
+                self._mesh_visibility_checkbox,
+            ) = create_mesh_controls()
+            self.left_panel.layout().addWidget(self._mesh_controls_widget)
+            self._mesh_visibility_checkbox.stateChanged.connect(
+                self.toggle_mesh_visibility
+            )
+            self._mesh_opacity_slider.valueChanged.connect(self.update_mesh_opacity)
 
         if self.t1:
             nifti_img, affine = read_nifti(self.t1)
@@ -305,6 +317,35 @@ class Tractome(QMainWindow):
                 set_group_visibility(proj, radio_states)
                 for proj in self._streamline_projections
             ]
+        self.show_manager.render()
+
+    def toggle_mesh_visibility(self, state):
+        """Toggle the visibility of the mesh in the 3D scene.
+
+        Parameters
+        ----------
+        state : int
+            The checked state of the checkbox (Qt.Checked or Qt.Unchecked).
+        """
+        CHECKED = 2  # Qt.Checked
+        if state == CHECKED:
+            if self._3D_actors["mesh"] not in self._3D_scene.main_scene.children:
+                self._3D_scene.add(self._3D_actors["mesh"])
+        else:
+            if self._3D_actors["mesh"] in self._3D_scene.main_scene.children:
+                self._3D_scene.remove(self._3D_actors["mesh"])
+        self.show_manager.render()
+
+    def update_mesh_opacity(self, value):
+        """Update the opacity of the mesh.
+
+        Parameters
+        ----------
+        value : int
+            The slider value (0-100).
+        """
+        opacity = value / 100.0
+        self._3D_actors["mesh"].material.opacity = opacity
         self.show_manager.render()
 
     def perform_clustering(self, value):
@@ -558,6 +599,9 @@ class Tractome(QMainWindow):
                 checkbox.setChecked(value)
                 checkbox.stateChanged.connect(self.update_slice_visibility)
 
+            if hasattr(self, "_mesh_controls_widget"):
+                self._mesh_controls_widget.show()
+
     def toggle_2D_mode(self):
         """Toggle to 2D mode."""
         if self._mode != "2D" and self.t1 is not None:
@@ -571,6 +615,9 @@ class Tractome(QMainWindow):
             self._3D_controller.enabled = False
             self._2D_controller.enabled = True
             self._create_streamlines_projection()
+
+            if hasattr(self, "_mesh_controls_widget"):
+                self._mesh_controls_widget.hide()
 
             # Safely remove and delete the existing widget
             if self._slice_widget is not None:

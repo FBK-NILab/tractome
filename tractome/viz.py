@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from fury import actor
@@ -20,10 +22,29 @@ def create_mesh(mesh_obj, *, texture=None):
         The created 3D mesh.
     """
 
-    vertices = mesh_obj.vertices
+    vertices = mesh_obj.vertices * 10
     faces = mesh_obj.faces
 
-    mesh = actor.surface(vertices, faces, material="basic", texture=texture)
+    texture_coords = None
+    if texture and hasattr(mesh_obj.visual, "uv"):
+        texture_coords = mesh_obj.visual.uv
+        logging.info(
+            "Flipping the texture coordinates vertically. To move to the"
+            " top-left origin."
+        )
+        texture_coords[:, 1] = 1 - texture_coords[:, 1]
+
+    normals = None
+    if hasattr(mesh_obj, "vertex_normals"):
+        normals = mesh_obj.vertex_normals
+
+    mesh = actor.surface(
+        vertices,
+        faces,
+        texture=texture,
+        texture_coords=texture_coords,
+        normals=normals,
+    )
     return mesh
 
 
