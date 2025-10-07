@@ -93,6 +93,9 @@ QTableWidget {
     color: #333333;
     background-color: #FFFFFF;
 }
+QRadioButton {
+    color: #333333;
+}
 QLabel {
     color: #333333;
 }
@@ -540,12 +543,13 @@ def create_ui(viz_window):
 
 
 def create_mesh_controls():
-    """Create mesh control widgets for opacity and visibility.
+    """Create mesh control widgets for opacity, visibility, and mesh mode selection.
 
     Returns
     -------
     tuple
-        A tuple containing (widget, opacity_slider, visibility_checkbox).
+        A tuple containing (widget, opacity_slider, visibility_checkbox,
+        radio_group, photogram_radio, normals_radio).
     """
     mesh_widget = QGroupBox("Mesh Controls")
     mesh_layout = QVBoxLayout()
@@ -570,4 +574,23 @@ def create_mesh_controls():
     )
     mesh_layout.addLayout(opacity_layout)
 
-    return mesh_widget, opacity_slider, visibility_checkbox
+    radio_layout = QHBoxLayout()
+    radio_layout.setSpacing(10)
+    photogram_radio = QRadioButton("Photogrammetric")
+    normals_radio = QRadioButton("Normals")
+    photogram_radio.setChecked(True)
+    radio_group = QButtonGroup(mesh_widget)
+    radio_group.addButton(photogram_radio)
+    radio_group.addButton(normals_radio)
+    radio_layout.addWidget(photogram_radio)
+    radio_layout.addWidget(normals_radio)
+    mesh_layout.addLayout(radio_layout)
+
+    return (
+        mesh_widget,
+        opacity_slider,
+        visibility_checkbox,
+        radio_group,
+        photogram_radio,
+        normals_radio,
+    )
