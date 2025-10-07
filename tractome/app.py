@@ -75,8 +75,8 @@ class Tractome(QMainWindow):
         self.resize(800, 800)
         self.setWindowTitle("Tractome 2.0")
 
-        self._3D_scene = window.Scene()
-        self._2D_scene = window.Scene()
+        self._3D_scene = window.Scene(background=(0.2, 0.2, 0.2))
+        self._2D_scene = window.Scene(background=(0.2, 0.2, 0.2))
 
         self._3D_scene.add()
         self._2D_scene.add(DirectionalLight())
