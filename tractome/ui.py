@@ -1,11 +1,13 @@
 import os
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
     QRadioButton,
@@ -64,6 +66,7 @@ QSpinBox {
     border-radius: 3px;
     color: #333333;
     padding: 5px;
+    background-color: #FFFFFF;
 }
 QSpinBox::up-button {
     subcontrol-origin: padding;
@@ -85,6 +88,10 @@ QSpinBox::down-button {
     padding: 2px;
     background-color: #E1E1E1;
     border-bottom-right-radius: 2px;
+}
+QTableWidget {
+    color: #333333;
+    background-color: #FFFFFF;
 }
 QLabel {
     color: #333333;
@@ -362,8 +369,9 @@ def create_clusters_slider(default_value=250):
     history_table = QTableWidget()
     history_table.setRowCount(10)
     history_table.setColumnCount(2)
-    history_table.setHorizontalHeaderLabels(["# clusters", "# streamlines"])
+    history_table.setHorizontalHeaderLabels(["# of Clusters", "# of Fibers"])
     history_table.verticalHeader().setVisible(False)
+    history_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
     tractogram_layout.addWidget(history_table)
 
     return (
@@ -427,9 +435,9 @@ def update_history_table(table, data, current_index=None):
     for i, state in enumerate(data):
         item0 = QTableWidgetItem(str(state.nb_clusters))
         item1 = QTableWidgetItem(str(len(state.streamline_ids)))
+        item0.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        item1.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         if current_index is not None and i == current_index:
-            from PySide6.QtGui import QColor
-
             highlight_color = QColor(173, 216, 230)  # Light blue
             item0.setBackground(highlight_color)
             item1.setBackground(highlight_color)
