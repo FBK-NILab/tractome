@@ -69,7 +69,7 @@ class Tractome(QMainWindow):
         self._streamline_bundles = []
         self._selected_clusters = set()
         self._streamline_projections = set()
-        self._mesh_mode = "Photogrammetric"
+        self._mesh_mode = "Normals"
         self._state_manager = StateManager()
         self._focused_actor = None
         self._init_UI()
@@ -207,8 +207,8 @@ class Tractome(QMainWindow):
                 self._mesh_opacity_slider,
                 self._mesh_visibility_checkbox,
                 self._mesh_mode_group,
-                self._photogram_radio,
                 self._normals_radio,
+                self._photographic_radio,
             ) = create_mesh_controls()
             self.left_panel.layout().addWidget(self._mesh_controls_widget)
             self._mesh_visibility_checkbox.stateChanged.connect(
@@ -248,7 +248,7 @@ class Tractome(QMainWindow):
 
         self.show_manager.start()
 
-    def _create_mesh_actor(self, mode="Photogrammetric"):
+    def _create_mesh_actor(self, mode="Normals"):
         """Create a 3D mesh actor from the loaded mesh."""
         mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
         mesh_actor = create_mesh(mesh_obj, texture=texture, mode=mode)

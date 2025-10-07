@@ -576,14 +576,14 @@ def create_mesh_controls():
 
     radio_layout = QHBoxLayout()
     radio_layout.setSpacing(10)
-    photogram_radio = QRadioButton("Photogrammetric")
     normals_radio = QRadioButton("Normals")
-    photogram_radio.setChecked(True)
+    normals_radio.setChecked(True)
+    photographic_radio = QRadioButton("Photographic")
     radio_group = QButtonGroup(mesh_widget)
-    radio_group.addButton(photogram_radio)
     radio_group.addButton(normals_radio)
-    radio_layout.addWidget(photogram_radio)
+    radio_group.addButton(photographic_radio)
     radio_layout.addWidget(normals_radio)
+    radio_layout.addWidget(photographic_radio)
     mesh_layout.addLayout(radio_layout)
 
     return (
@@ -591,6 +591,6 @@ def create_mesh_controls():
         opacity_slider,
         visibility_checkbox,
         radio_group,
-        photogram_radio,
         normals_radio,
+        photographic_radio,
     )
