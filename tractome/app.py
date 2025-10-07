@@ -2,12 +2,14 @@ import logging
 
 from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
-from pygfx import OrthographicCamera, PanZoomController
 
 from fury import window
 from fury.lib import (
     DirectionalLight,
+    Group,
     OrbitController,
+    OrthographicCamera,
+    PanZoomController,
     PerspectiveCamera,
 )
 from fury.utils import set_group_visibility, show_slices
@@ -115,9 +117,11 @@ class Tractome(QMainWindow):
             self.right_panel,
             self._toggle_3d,
             self._toggle_2d,
+            self._reset_view,
         ) = create_ui(self.show_manager.window)
         self._toggle_3d.clicked.connect(self.toggle_3D_mode)
         self._toggle_2d.clicked.connect(self.toggle_2D_mode)
+        self._reset_view.clicked.connect(self.reset_view)
         self.setCentralWidget(main_widget)
         self.setStyleSheet(STYLE_SHEET)
 
@@ -129,21 +133,19 @@ class Tractome(QMainWindow):
     def _init_actors(self):
         """Initialize the actors for the scene."""
         if self.tractogram:
-            self._sft = read_tractogram(self.tractogram)
+            self._sft = read_tractogram(self.tractogram, reference=self.t1)
             if (
                 self._sft.data_per_streamline is None
                 or "dismatrix" not in self._sft.data_per_streamline
             ):
                 tractogram = create_streamlines(self._sft.streamlines, color=(0, 1, 0))
                 self._3D_scene.add(tractogram)
+                self._3D_actors["tractogram"] = tractogram
             else:
                 self._state_manager.add_state(
                     ClusterState(100, np.arange(len(self._sft.streamlines)), 1000)
                 )
                 self.perform_clustering(100)
-                self.show_manager.renderer.add_event_handler(
-                    self.handle_key_strokes, "key_down"
-                )
                 (
                     self._cluster_widget,
                     self._cluster_input,
@@ -173,6 +175,9 @@ class Tractome(QMainWindow):
                 self._select_none_button.clicked.connect(self.on_select_null)
                 self._swap_selection_button.clicked.connect(self.on_swap_selection)
                 self._delete_selected_button.clicked.connect(self.on_delete_selected)
+            self.show_manager.renderer.add_event_handler(
+                self.handle_key_strokes, "key_down"
+            )
 
         if self.mesh:
             mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
@@ -286,31 +291,11 @@ class Tractome(QMainWindow):
         if self._mode == "3D":
             checkbox_states = self.get_current_checkbox_states()
             set_group_visibility(self._3D_actors["t1"], checkbox_states)
-            if self._3D_check_box_values is not None:
-                prev_states = np.asarray(self._3D_check_box_values, dtype=bool)
-                curr_states = np.asarray(checkbox_states, dtype=bool)
-                changed_indices = np.where(prev_states != curr_states)[0]
-                if changed_indices.size != 0:
-                    changed_index = changed_indices[0]
-                    if curr_states[changed_index]:
-                        self._3D_camera.show_object(
-                            self._3D_actors["t1"],
-                            (0, 0, -1)
-                            if changed_index == 2
-                            else (0, -1, 0)
-                            if changed_index == 1
-                            else (-1, 0, 0),
-                        )
-            self._3D_check_box_values = checkbox_states
         elif self._mode == "2D":
             radio_states = self.get_current_checkbox_states()
             self._2D_camera.show_object(self._2D_actors["t1"], (0, 0, -1))
             self._2D_camera.show_object(
                 self._2D_actors["t1"], tuple(-1 * np.asarray(radio_states, dtype=int))
-            )
-            self._3D_camera.show_object(self._3D_actors["t1"], (0, 0, -1))
-            self._3D_camera.show_object(
-                self._3D_actors["t1"], tuple(-1 * np.asarray(radio_states, dtype=int))
             )
             set_group_visibility(self._2D_actors["t1"], radio_states)
             [
@@ -525,6 +510,8 @@ class Tractome(QMainWindow):
             self.on_swap_selection()
         elif event.key == "d":
             self.on_delete_selected()
+        elif event.key == "r":
+            self.reset_view()
 
         self.show_manager.render()
 
@@ -550,6 +537,7 @@ class Tractome(QMainWindow):
             )
             self._streamline_projections.add(projection)
         self._2D_scene.add(*self._streamline_projections)
+        self._2D_actors["tractogram"] = self._streamline_projections
 
     def toggle_3D_mode(self):
         """Toggle to 3D mode."""
@@ -602,9 +590,15 @@ class Tractome(QMainWindow):
             if hasattr(self, "_mesh_controls_widget"):
                 self._mesh_controls_widget.show()
 
+            if hasattr(self, "_reset_view"):
+                self._reset_view.show()
+
     def toggle_2D_mode(self):
         """Toggle to 2D mode."""
-        if self._mode != "2D" and self.t1 is not None:
+        if self._mode != "2D":
+            if self.t1 is None:
+                logging.warning("2D mode requires a T1 image to be loaded.")
+                return
             if self.tractogram and self._cluster_widget:
                 self._cluster_widget.hide()
                 self._cluster_selection_widget.hide()
@@ -618,6 +612,8 @@ class Tractome(QMainWindow):
 
             if hasattr(self, "_mesh_controls_widget"):
                 self._mesh_controls_widget.hide()
+            if hasattr(self, "_reset_view"):
+                self._reset_view.hide()
 
             # Safely remove and delete the existing widget
             if self._slice_widget is not None:
@@ -659,9 +655,6 @@ class Tractome(QMainWindow):
             self.update_slice_visibility(None)
             self.show_manager.render()
 
-        else:
-            logging.warning("Load a t1 image with the tractogram to enable 2D mode.")
-
     def on_apply_clusters(self):
         """Handle the apply clusters button or editing finished."""
         value = self._cluster_input.value()
@@ -669,3 +662,32 @@ class Tractome(QMainWindow):
             self.perform_clustering(value)
         else:
             self._cluster_input.setValue(self._last_clustered_value or 100)
+
+    def reset_view(self):
+        """Reset the 3D view to a default camera position."""
+        if self._mode == "3D":
+            if self.t1 is not None:
+                self._3D_camera.show_object(self._3D_actors["t1"], (0, 0, -1))
+            elif self.tractogram:
+                if self._3D_actors["tractogram"] is not None:
+                    self._3D_camera.show_object(
+                        self._3D_actors["tractogram"], (0, 0, -1)
+                    )
+                else:
+                    group = Group()
+                    for bundle in self._streamline_bundles:
+                        group.add(bundle)
+                    for cluster in self._cluster_reps.values():
+                        group.add(cluster)
+                    self._3D_scene.add(group)
+                    self._3D_camera.show_object(group, (0, 0, -1))
+                    self._3D_scene.remove(group)
+                    for cluster in self._cluster_reps.values():
+                        self._3D_scene.add(cluster)
+                    for bundle in self._streamline_bundles:
+                        self._3D_scene.add(bundle)
+            elif self.mesh:
+                self._3D_camera.show_object(self._3D_actors["mesh"], (0, 0, -1))
+            else:
+                logging.warning("No object to center the view on.")
+        self.show_manager.render()
