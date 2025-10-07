@@ -68,6 +68,7 @@ class Tractome(QMainWindow):
         self._streamline_bundles = []
         self._selected_clusters = set()
         self._streamline_projections = set()
+        self._mesh_mode = "Photogrammetric"
         self._state_manager = StateManager()
         self._init_UI()
         self._init_actors()
@@ -180,20 +181,21 @@ class Tractome(QMainWindow):
             )
 
         if self.mesh:
-            mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
-            mesh_actor = create_mesh(mesh_obj, texture=texture)
-            self._3D_scene.add(mesh_actor)
-            self._3D_actors["mesh"] = mesh_actor
+            self._create_mesh_actor()
             (
                 self._mesh_controls_widget,
                 self._mesh_opacity_slider,
                 self._mesh_visibility_checkbox,
+                self._mesh_mode_group,
+                self._photogram_radio,
+                self._normals_radio,
             ) = create_mesh_controls()
             self.left_panel.layout().addWidget(self._mesh_controls_widget)
             self._mesh_visibility_checkbox.stateChanged.connect(
                 self.toggle_mesh_visibility
             )
             self._mesh_opacity_slider.valueChanged.connect(self.update_mesh_opacity)
+            self._mesh_mode_group.buttonClicked.connect(self.on_mesh_mode_changed)
 
         if self.t1:
             nifti_img, affine = read_nifti(self.t1)
@@ -225,6 +227,22 @@ class Tractome(QMainWindow):
             self._2D_actors["t1"] = image_slice
 
         self.show_manager.start()
+
+    def _create_mesh_actor(self, mode="Photogrammetric"):
+        """Create a 3D mesh actor from the loaded mesh."""
+        mesh_obj, texture = read_mesh(self.mesh, texture=self.mesh_texture)
+        mesh_actor = create_mesh(mesh_obj, texture=texture, mode=mode)
+        self._3D_scene.add(mesh_actor)
+        self._3D_actors["mesh"] = mesh_actor
+
+    def on_mesh_mode_changed(self, button):
+        """Handle mesh mode radio button change."""
+        mode = button.text()
+        if mode.lower() != self._mesh_mode.lower():
+            self._3D_scene.remove(self._3D_actors["mesh"])
+            self._mesh_mode = mode
+            self._create_mesh_actor(mode=mode)
+            self.show_manager.render()
 
     def get_current_slider_position(self):
         """Get the current position of the slice sliders.

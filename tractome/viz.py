@@ -6,7 +6,7 @@ from fury import actor
 from fury.lib import Group
 
 
-def create_mesh(mesh_obj, *, texture=None):
+def create_mesh(mesh_obj, *, texture=None, mode="photogrammetric"):
     """Create a 3D mesh from the provided mesh object.
 
     Parameters
@@ -21,6 +21,9 @@ def create_mesh(mesh_obj, *, texture=None):
     Mesh
         The created 3D mesh.
     """
+    mode = mode.lower()
+    if mode not in ("photogrammetric", "normals"):
+        raise ValueError(f"Unknown mode: {mode}")
 
     vertices = mesh_obj.vertices * 10
     faces = mesh_obj.faces
@@ -41,6 +44,7 @@ def create_mesh(mesh_obj, *, texture=None):
     mesh = actor.surface(
         vertices,
         faces,
+        material="phong" if mode == "photogrammetric" else "basic",
         texture=texture,
         texture_coords=texture_coords,
         normals=normals,
