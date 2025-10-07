@@ -43,8 +43,9 @@ class StateManager:
         state : ClusterState
             The state to add.
         """
+        if self._current_index < len(self._states) - 1:
+            self._states = self._states[: self._current_index + 1]
         self._states.append(state)
-        # Enforce max_size
         if len(self._states) > self._max_size:
             self._states = self._states[-self._max_size :]
         self._current_index = len(self._states) - 1
