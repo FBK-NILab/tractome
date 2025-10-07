@@ -479,7 +479,7 @@ def _create_right_panel(viz_window):
     Returns
     -------
     tuple
-        A tuple containing (right_panel_widget, button_3d, button_2d).
+        A tuple containing (right_panel_widget, button_3d, button_2d, reset_button).
     """
     right_panel_widget = QWidget()
     right_layout = QVBoxLayout(right_panel_widget)
@@ -489,16 +489,20 @@ def _create_right_panel(viz_window):
     toggle_button_layout = QHBoxLayout()
     toggle_button_layout.addStretch(1)
 
+    reset_button = QPushButton("Reset View")
+    separator = QLabel("|")
     button_3d = QPushButton("3D VIEW")
     button_2d = QPushButton("2D VIEW")
 
+    toggle_button_layout.addWidget(reset_button)
+    toggle_button_layout.addWidget(separator)
     toggle_button_layout.addWidget(button_3d)
     toggle_button_layout.addWidget(button_2d)
     right_layout.addLayout(toggle_button_layout)
 
     right_layout.addWidget(viz_window)
 
-    return right_panel_widget, button_3d, button_2d
+    return right_panel_widget, button_3d, button_2d, reset_button
 
 
 def create_ui(viz_window):
@@ -512,18 +516,19 @@ def create_ui(viz_window):
     Returns
     -------
     tuple
-        A tuple containing (main_widget, left_panel, right_panel, button_3d, button_2d).
+        A tuple containing
+        (main_widget, left_panel, right_panel, button_3d, button_2d, reset_button).
     """
     main_widget = QWidget()
     main_layout = QHBoxLayout(main_widget)
 
     left_panel = _create_left_panel()
-    right_panel, button_3d, button_2d = _create_right_panel(viz_window)
+    right_panel, button_3d, button_2d, reset_button = _create_right_panel(viz_window)
 
     main_layout.addWidget(left_panel)
     main_layout.addWidget(right_panel, 1)
 
-    return main_widget, left_panel, right_panel, button_3d, button_2d
+    return main_widget, left_panel, right_panel, button_3d, button_2d, reset_button
 
 
 def create_mesh_controls():
