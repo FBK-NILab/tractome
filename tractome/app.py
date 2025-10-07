@@ -6,6 +6,7 @@ import numpy as np
 from fury import window
 from fury.lib import (
     DirectionalLight,
+    Event,
     Group,
     OrbitController,
     OrthographicCamera,
@@ -69,6 +70,7 @@ class Tractome(QMainWindow):
         self._selected_clusters = set()
         self._streamline_projections = set()
         self._state_manager = StateManager()
+        self._focused_actor = None
         self._init_UI()
         self._init_actors()
 
@@ -101,6 +103,24 @@ class Tractome(QMainWindow):
         # This is a temporary workaround for the long press issue in Qt
         self.show_manager.renderer.remove_event_handler(
             self.show_manager._set_key_long_press_event, "key_up", "key_down"
+        )
+
+        def _register_clicks(event):
+            if event.type == "pointer_down":
+                self._focused_actor = event.target
+                event = Event(type="on_focus", target=event.target, bubbles=False)
+                self.show_manager.renderer.dispatch_event(event)
+            elif event.type == "pointer_up" and self._focused_actor != event.target:
+                event = Event(
+                    type="out_focus", target=self._focused_actor, bubbles=False
+                )
+                self.show_manager.renderer.dispatch_event(event)
+                self._focused_actor = None
+            else:
+                self._focused_actor = None
+
+        self.show_manager.renderer.add_event_handler(
+            _register_clicks, "pointer_down", "pointer_up"
         )
 
         self._3D_controller = OrbitController(
@@ -360,7 +380,7 @@ class Tractome(QMainWindow):
 
         self._cluster_reps = create_streamtube(self._clusters, self._sft.streamlines)
         for cluster in self._cluster_reps.values():
-            cluster.add_event_handler(self.toggle_cluster_selection, "pointer_down")
+            cluster.add_event_handler(self.toggle_cluster_selection, "pointer_up")
             self._3D_scene.add(cluster)
         self.show_manager.render()
         self._last_clustered_value = value
@@ -466,8 +486,9 @@ class Tractome(QMainWindow):
             The click event.
         """
         cluster = event.target
-        self._toggle_cluster_selection(cluster)
-        self.show_manager.render()
+        if hasattr(cluster, "is_clicked") and cluster.is_clicked:
+            self._toggle_cluster_selection(cluster)
+            self.show_manager.render()
 
     def handle_key_strokes(self, event):
         if event.key == "e":
