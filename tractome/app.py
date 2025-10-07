@@ -174,7 +174,7 @@ class Tractome(QMainWindow):
                 self._select_all_button.clicked.connect(self.on_select_all)
                 self._select_none_button.clicked.connect(self.on_select_null)
                 self._swap_selection_button.clicked.connect(self.on_swap_selection)
-                self._delete_selected_button.clicked.connect(self.on_delete_selected)
+                self._delete_selected_button.clicked.connect(self.delete_selection)
             self.show_manager.renderer.add_event_handler(
                 self.handle_key_strokes, "key_down"
             )
@@ -389,13 +389,22 @@ class Tractome(QMainWindow):
         else:
             logging.warning("No previous state available.")
 
-    def on_delete_selected(self):
-        """Handle the 'Delete Selected' button click."""
+    def delete_selection(self):
+        """Delete the selected clusters from the current state."""
         streamline_ids = []
         for cluster in self._selected_clusters:
             streamline_ids.extend(self._clusters[cluster.rep])
 
         if len(streamline_ids) > 0:
+            for cluster in self._cluster_reps.values():
+                if (
+                    cluster in self._3D_scene.main_scene.children
+                    and cluster not in self._selected_clusters
+                ):
+                    self._3D_scene.remove(cluster)
+            self._cluster_reps.clear()
+            for cluster in self._selected_clusters:
+                self._cluster_reps[cluster.rep] = cluster
             old_max = self._cluster_input.maximum()
             old_value = (
                 self._cluster_input.value() if hasattr(self, "_cluster_input") else 100
@@ -417,7 +426,6 @@ class Tractome(QMainWindow):
                 )
             )
 
-            self.perform_clustering(new_value)
             self._update_history_table()
             self.show_manager.render()
         else:
@@ -509,7 +517,7 @@ class Tractome(QMainWindow):
         elif event.key == "i":
             self.on_swap_selection()
         elif event.key == "d":
-            self.on_delete_selected()
+            self.delete_selection()
         elif event.key == "r":
             self.reset_view()
 
