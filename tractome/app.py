@@ -8,10 +8,10 @@ from fury.lib import (
     DirectionalLight,
     Event,
     Group,
-    OrbitController,
     OrthographicCamera,
     PanZoomController,
     PerspectiveCamera,
+    TrackballController,
 )
 from fury.utils import set_group_visibility, show_slices
 from tractome.compute import mkbm_clustering
@@ -107,13 +107,20 @@ class Tractome(QMainWindow):
         )
 
         def _register_clicks(event):
+            """Handle selection clicks.
+
+            Parameters
+            ----------
+            event : Event
+                The click event.
+            """
             if event.type == "pointer_down":
                 self._focused_actor = event.target
-                event = Event(type="on_focus", target=event.target, bubbles=False)
-                self.show_manager.renderer.dispatch_event(event)
             elif event.type == "pointer_up" and self._focused_actor != event.target:
+                self._focused_actor = None
+            elif event.type == "pointer_up" and self._focused_actor == event.target:
                 event = Event(
-                    type="out_focus", target=self._focused_actor, bubbles=False
+                    type="on_selection", target=self._focused_actor, bubbles=False
                 )
                 self.show_manager.renderer.dispatch_event(event)
                 self._focused_actor = None
@@ -124,7 +131,7 @@ class Tractome(QMainWindow):
             _register_clicks, "pointer_down", "pointer_up"
         )
 
-        self._3D_controller = OrbitController(
+        self._3D_controller = TrackballController(
             self._3D_camera, register_events=self.show_manager.renderer
         )
         self._2D_controller = PanZoomController(
@@ -398,7 +405,7 @@ class Tractome(QMainWindow):
 
         self._cluster_reps = create_streamtube(self._clusters, self._sft.streamlines)
         for cluster in self._cluster_reps.values():
-            cluster.add_event_handler(self.toggle_cluster_selection, "pointer_up")
+            cluster.add_event_handler(self.toggle_cluster_selection, "on_selection")
             self._3D_scene.add(cluster)
         self.show_manager.render()
         self._last_clustered_value = value
@@ -512,9 +519,8 @@ class Tractome(QMainWindow):
             The click event.
         """
         cluster = event.target
-        if hasattr(cluster, "is_clicked") and cluster.is_clicked:
-            self._toggle_cluster_selection(cluster)
-            self.show_manager.render()
+        self._toggle_cluster_selection(cluster)
+        self.show_manager.render()
 
     def handle_key_strokes(self, event):
         if event.key == "e":

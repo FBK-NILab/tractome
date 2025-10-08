@@ -145,31 +145,6 @@ def _toggle_streamtube_selection(streamtube):
         _select_streamtube(streamtube)
 
 
-def _register_streamtube_focus(event):
-    """Handle focus events on streamtubes.
-
-    Parameters
-    ----------
-    event : Event
-        The focus event.
-    """
-    st = event.target
-    st.is_clicked = True
-
-
-def _register_streamtube_out_focus(event):
-    """Handle out-focus events on streamtubes.
-
-    Parameters
-    ----------
-    event : Event
-        The out-focus event.
-    """
-    st = event.target
-    if hasattr(st, "is_clicked") and st.is_clicked:
-        st.is_clicked = False
-
-
 def toggle_streamtube_selection(event):
     """Handle click events on streamtubes.
 
@@ -179,10 +154,7 @@ def toggle_streamtube_selection(event):
         The click event.
     """
     st = event.target
-    if hasattr(st, "is_clicked") and st.is_clicked:
-        # _register_streamtube_out_focus(event)
-        st.is_clicked = False
-        _toggle_streamtube_selection(st)
+    _toggle_streamtube_selection(st)
 
 
 def create_streamtube(clusters, streamlines):
@@ -226,9 +198,7 @@ def create_streamtube(clusters, streamlines):
         streamtube.rep = rep
         streamtube.material.opacity = 0.5
         streamtube.material.uniform_buffer.update_full()
-        streamtube.add_event_handler(_register_streamtube_focus, "on_focus")
-        streamtube.add_event_handler(_register_streamtube_out_focus, "out_focus")
-        streamtube.add_event_handler(toggle_streamtube_selection, "pointer_up")
+        streamtube.add_event_handler(toggle_streamtube_selection, "on_selection")
         streamtubes[rep] = streamtube
 
     return streamtubes
