@@ -158,7 +158,7 @@ p img {
 }
 
 pre, code {
-  width: 100%;
+  /* width: 100%; */
   color: #222;
   background-color: #fff;
 
@@ -172,15 +172,14 @@ pre, code {
 
 pre {
   width: 100%;
-  padding: 10px;
   box-shadow: 0 0 10px rgba(0,0,0,.1);
   overflow: auto;
 }
 
 code {
-  padding: 3px;
-  margin: 0 3px;
-  box-shadow: 0 0 10px rgba(0,0,0,.1);
+  padding: 10px;
+  /* margin: 0 3px; */
+  /* box-shadow: 0 0 10px rgba(0,0,0,.1); */
 }
 
 pre code {
@@ -254,6 +253,63 @@ td {
 form {
   background: #f2f2f2;
   padding: 20px;
+}
+
+.code-block-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.code-block-wrapper > pre,
+.code-block-wrapper > .code-container {
+  flex-grow: 1;
+  width: 0; /* Allow flex-grow to work correctly */
+}
+
+pre, .code-container {
+  position: relative;
+}
+
+.copy-btn {
+  position: relative; /* Needed for tooltip positioning */
+  margin-left: 10px;
+  flex-shrink: 0;
+  background-color: transparent;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #373737;
+  
+}
+
+.copy-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #373737;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 10;
+  margin-bottom: 5px; /* Add some space between the button and the tooltip */
+}
+
+.copy-btn:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.copy-btn:hover {
+  color: #007edf;
 }
 
 /*******************************************************************************

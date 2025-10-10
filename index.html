@@ -42,56 +42,77 @@
 <a id="download" class="anchor" href="#download" aria-hidden="true"><span class="octicon octicon-link"></span></a>Download</h2>
 
 <ul>
-<li>Binary: <a href="https://bit.ly/Tractome-MacOS11">tractome-macos.dmg</a> (Mac OS X 10.9.5 or later)</li>
 <li>Sources: <a href="https://github.com/FBK-NILab/tractome/archive/master.tar.gz">tractome.tar.gz</a>
 </li>
+</ul>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<ul>
+<li>Unzip the source archive.</li>
+<li>Install dependencies:<br><code>pip install -r requirements.txt</code></li>
+<li>Install Tractome:<br><code>pip install .</code></li>
 </ul>
 
 <h2>
 <a id="dependencies" class="anchor" href="#dependencies" aria-hidden="true"><span class="octicon octicon-link"></span></a>Dependencies</h2>
 
 <ul>
-<li>pyglet : <a href="http://www.pyglet.org">http://www.pyglet.org</a> , provides the Python bindings to OpenGL.</li>
-<li>fos : <a href="https://github.com/fos/fos.git">https://github.com/fos/fos.git</a> , provides high-level OpenGL Actors for scientific visualisation</li>
-<li>PySide : <a href="http://qt-project.org/wiki/PySide">http://qt-project.org/wiki/PySide</a> , Python bindings for the Qt libraries.</li>
-<li>NiBabel : <a href="http://nipy.org/nibabel">http://nipy.org/nibabel</a> , provides read and write access to common medical and neuroimaging file formats.</li>
-<li>Dipy: <a href="http://www.dipy.org">http://www.dipy.org</a> , provides tools for dMRI data analysis.</li>
-<li>scikit-learn : <a href="http://scikit-learn.org">http://scikit-learn.org</a> , provides the Mini-Batch K-means clustering algorithm.</li>
+<li>fury&gt;=2.0.0a3 : <a href="https://fury.gl/">https://fury.gl/</a> , provides high-level WGPU Actors for scientific visualisation.</li>
+<li>dipy&gt;=1.11.0 : <a href="http://www.dipy.org">http://www.dipy.org</a> , provides tools for dMRI data analysis.</li>
+<li>click&gt;=8.1.8 : <a href="https://click.palletsprojects.com/">https://click.palletsprojects.com/</a> , for creating command-line interfaces.</li>
+<li>PySide6&gt;=6.9.0 : <a href="https://www.qt.io/qt-for-python">https://www.qt.io/qt-for-python</a> , Python bindings for the Qt libraries.</li>
+<li>trimesh&gt;=4.6.12 : <a href="https://github.com/mikedh/trimesh">https://github.com/mikedh/trimesh</a> , for working with triangular meshes.</li>
+<li>scikit-learn&gt;=1.7.1 : <a href="http://scikit-learn.org">http://scikit-learn.org</a> , provides the Mini-Batch K-means clustering algorithm.</li>
 </ul>
 
-<p>The software is developed and tested on Ubuntu 12.04 LTS using the Neurodebian repositories. In Debian/Ubuntu systems the packages of the dependencies - with the exception of fos - can be installed with</p>
+<h2>
+<a id="platform" class="anchor" href="#platform" aria-hidden="true"><span class="octicon octicon-link"></span></a>Multi-Platform Support</h2>
 
-<pre><code>apt-get install python-pyglet python-pyside python-nibabel python-dipy python-sklearn
-</code></pre>
+<p>The software is multi-platform and works with the latest versions of <strong>Ubuntu, Windows,</strong> and <strong>MacOS</strong>.</p>
+<p>Being a Python-based tool, Tractome is compatible with any operating system that can run Python, ensuring a wide range of usability.</p>
 
-<p>With the IPyhon version shipped with Ubuntu 12.04 (IPython v0.12.1), there are issues for the proper performance/visualization of some Qt Dialogs, e.g. QColorDialog. This is already solved in a more recent version of IPython (v0.13.2), which can be directly installed from Ubuntu backports repositories with the following steps:</p>
+<h2>
+<a id="prepare-data" class="anchor" href="#prepare-data" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prepare Data</h2>
 
-<ol>
-<li>Add Ubuntu backports repositories: "go to Software Sources, switch to the Updates tab and make sure Unsupported updates is checked".</li>
-<li><code>apt-get install ipython/precise-backports</code></li>
-</ol>
+<p>Tractome supports various data formats, including <strong>NIfTI (.nii, .nii.gz)</strong>, <strong> Tractography (.trx, .trk, .tck)</strong> and <strong> Mesh (.obj) along with texture.</strong></p>
 
-<p>For more details about Ubuntu backports: <a href="https://help.ubuntu.com/community/UbuntuBackports">https://help.ubuntu.com/community/UbuntuBackports</a></p>
+<p>Before visualizing the tractography data, we need to ensure that we pre-process the tractography data and create embeddings for clustering by running the following command.</p>
+<span>In case of <strong>.trk</strong> and <strong>.trx</strong></span>
+<code>tractome_compute_dis_matrix YOUR_FILE_PATH </code>
+
+<span>In case of <strong>.tck</strong></span>
+<pre><code>tractome_compute_dis_matrix YOUR_FILE_PATH --reference YOUR_REFERENCE_T1_IMAGE_PATH </code></pre>
 
 <h2>
 <a id="to-run-tractome" class="anchor" href="#to-run-tractome" aria-hidden="true"><span class="octicon octicon-link"></span></a>To Run Tractome</h2>
 
-<pre><code>ipython --gui=qt
-run mainwindow.py
-</code></pre>
+<pre><code>tractome --tractogram TRACTOGRAM_PATH --t1 YOUR_T1_IMAGE_PATH --mesh YOUR_MESH_PATH --mesh_texture YOUR_MESH_TEXTURE_PATH</code></pre>
 
-<p>First of all load a structural image (<code>File -&gt; Load Structural</code>). Then load a related tractography (<code>File -&gt; Load Tractography</code>), either in TrackVis format or Dipy format. Tractome loads the file and then executes some pre-computations that may require some time - from seconds to a couple of minutes, depending on the size of the tractography. These pre-computations are saved in the same directory of the tractography, so the second time you load that tractography this step will be faster. After loading, Tractome shows the structural and tractography data in a 3D scene where standard operations like rotating, dragging and zooming are available.</p>
+<p> 
+  This command will launch the Tractome application with the specified paths for the tractogram, T1 image, mesh, and mesh texture.
+  To interact with the application, use the mouse to rotate, zoom, and pan the 3D view. You can select clusters by clicking on them, and use the provided controls to re-cluster or segment the tractography data as needed.
+</p>
+<p>
+  There is a provision for 2D view of the T1 image and the selected clusters. 2D view provides the slice view of the T1 image along with the selected clusters overlaid on it. You can navigate through different slices using the slider provided in the interface. This feature helps in better understanding the spatial relationship between the tractography data and the anatomical structures in the T1 image.
+</p>
 
-<p>Tractome shows clusters of the whole tractography in the 3D scene by displaying the medoid streamline, called <em>representative</em>, of each cluster. You can interact with the clusters in several ways through their representatives:</p>
+<h2>
+<a id="tractome-cheatsheet" class="anchor" href="#tractome-cheatsheet" aria-hidden="true"><span class="octicon octicon-link"></span></a>Tractome Cheat Sheet</h2>
+<pre>
 
-<ol>
-<li>Point one representative streamline with the mouse pointer and then press <strong>P</strong> to select/pick the corresponding cluster. When selected, the representative becomes white. You can select as many representatives/clusters as you like.</li>
-<li>Expand the selected clusters in order to show their streamlines by pressing <strong>E</strong>. Press <strong>E</strong> again to toggle expansion.</li>
-<li>When you are happy with your selection then press <strong>Backspace</strong> to remove all the clusters and streamlines not selected.</li>
-<li>You can re-cluster the streamlines by clicking the button <strong>Apply</strong> in the bottom-left corner after choosing the desired number of cluster with the slider nearby.</li>
-<li>Repeat the previous steps as many time as you want. If you want to step-back one step (undo) press <strong>B</strong>. To move one step forward (redo) press <strong>F</strong>.</li>
-<li>You can save the steps done so far with <code>File -&gt; Save Segmentation</code>.</li>
-</ol>
+  - a: Select all clusters.
+  - n: Deselect all clusters.
+  - i: Invert selection of clusters.
+  - d: Delete selected clusters and create a new state.
+  - e: Expand the cluster selection.
+  - c: Collapse the cluster selection.
+  - s: Show all clusters.
+  - h: Hide unselected clusters.
+  - r: Reset view.
+
+</pre>
 
 <h2>
 <a id="example-datasets" class="anchor" href="#example-datasets" aria-hidden="true"><span class="octicon octicon-link"></span></a>Example Datasets</h2>
@@ -128,6 +149,6 @@ run mainwindow.py
             } catch(err) {}
           </script>
 
-
+          <script src="javascripts/main.js"></script>
   </body>
 </html>
