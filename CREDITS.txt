@@ -1,5 +1,6 @@
 These are the people that contributed to the project so far:
 
+Maharshi Gor (gor.maharshi@gmail.com)
 Emanuele Olivetti (emanuele.olivetti@gmail.com)
 Eleftherios Garyfallidis (garyfallidis@gmail.com)
 Diana Porro (dianaporro@gmail.com)
