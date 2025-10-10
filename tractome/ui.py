@@ -397,7 +397,7 @@ def create_cluster_selection_buttons():
         delete_button).
     """
     cluster_selection_widget = QGroupBox("Cluster Selection")
-    cluster_selection_layout = QHBoxLayout()
+    cluster_selection_layout = QVBoxLayout()
     cluster_selection_layout.setContentsMargins(10, 20, 10, 5)
     cluster_selection_layout.setSpacing(10)
     cluster_selection_widget.setLayout(cluster_selection_layout)
@@ -407,10 +407,25 @@ def create_cluster_selection_buttons():
     swap_button = QPushButton("Swap")
     delete_button = QPushButton("Del")
 
-    cluster_selection_layout.addWidget(all_button)
-    cluster_selection_layout.addWidget(none_button)
-    cluster_selection_layout.addWidget(swap_button)
-    cluster_selection_layout.addWidget(delete_button)
+    row1_layout = QHBoxLayout()
+    row1_layout.setSpacing(10)
+    row1_layout.addWidget(all_button)
+    row1_layout.addWidget(none_button)
+    row1_layout.addWidget(swap_button)
+    row1_layout.addWidget(delete_button)
+    cluster_selection_layout.addLayout(row1_layout)
+
+    row2_layout = QHBoxLayout()
+    row2_layout.setSpacing(10)
+    expand_button = QPushButton("Exp")
+    collapse_button = QPushButton("Coll")
+    show_button = QPushButton("Show")
+    hide_button = QPushButton("Hide")
+    row2_layout.addWidget(expand_button)
+    row2_layout.addWidget(collapse_button)
+    row2_layout.addWidget(show_button)
+    row2_layout.addWidget(hide_button)
+    cluster_selection_layout.addLayout(row2_layout)
 
     return (
         cluster_selection_widget,
@@ -418,6 +433,10 @@ def create_cluster_selection_buttons():
         none_button,
         swap_button,
         delete_button,
+        expand_button,
+        collapse_button,
+        show_button,
+        hide_button,
     )
 
 
@@ -500,11 +519,13 @@ def _create_right_panel(viz_window):
     toggle_button_layout = QHBoxLayout()
     toggle_button_layout.addStretch(1)
 
+    toggle_suggestion_button = QPushButton("Toggle Suggestion")
     reset_button = QPushButton("Reset View")
     separator = QLabel("|")
     button_3d = QPushButton("3D VIEW")
     button_2d = QPushButton("2D VIEW")
 
+    toggle_button_layout.addWidget(toggle_suggestion_button)
     toggle_button_layout.addWidget(reset_button)
     toggle_button_layout.addWidget(separator)
     toggle_button_layout.addWidget(button_3d)
@@ -513,7 +534,13 @@ def _create_right_panel(viz_window):
 
     right_layout.addWidget(viz_window)
 
-    return right_panel_widget, button_3d, button_2d, reset_button
+    return (
+        right_panel_widget,
+        button_3d,
+        button_2d,
+        reset_button,
+        toggle_suggestion_button,
+    )
 
 
 def create_ui(viz_window):
@@ -534,12 +561,22 @@ def create_ui(viz_window):
     main_layout = QHBoxLayout(main_widget)
 
     left_panel = _create_left_panel()
-    right_panel, button_3d, button_2d, reset_button = _create_right_panel(viz_window)
+    right_panel, button_3d, button_2d, reset_button, toggle_suggestion_button = (
+        _create_right_panel(viz_window)
+    )
 
     main_layout.addWidget(left_panel)
     main_layout.addWidget(right_panel, 1)
 
-    return main_widget, left_panel, right_panel, button_3d, button_2d, reset_button
+    return (
+        main_widget,
+        left_panel,
+        right_panel,
+        button_3d,
+        button_2d,
+        reset_button,
+        toggle_suggestion_button,
+    )
 
 
 def create_mesh_controls():
