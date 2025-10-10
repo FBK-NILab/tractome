@@ -197,12 +197,21 @@ class Tractome(QMainWindow):
                     self._select_none_button,
                     self._swap_selection_button,
                     self._delete_selected_button,
+                    self._expand_button,
+                    self._collapse_button,
+                    self._show_button,
+                    self._hide_button,
                 ) = create_cluster_selection_buttons()
                 self.left_panel.layout().addWidget(self._cluster_selection_widget)
                 self._select_all_button.clicked.connect(self.on_select_all)
                 self._select_none_button.clicked.connect(self.on_select_null)
                 self._swap_selection_button.clicked.connect(self.on_swap_selection)
                 self._delete_selected_button.clicked.connect(self.delete_selection)
+                self._expand_button.clicked.connect(self.on_expand_clusters)
+                self._collapse_button.clicked.connect(self.collapse_streamline_bundles)
+                self._show_button.clicked.connect(self.on_show_clusters)
+                self._hide_button.clicked.connect(self.on_hide_clusters)
+
             self.show_manager.renderer.add_event_handler(
                 self.handle_key_strokes, "key_down"
             )
@@ -388,7 +397,7 @@ class Tractome(QMainWindow):
         """
         latest_state = self._state_manager.get_latest_state()
         self._selected_clusters.clear()
-        self._collapse_streamline_bundles()
+        self.collapse_streamline_bundles()
         self._clusters = mkbm_clustering(
             self._sft.data_per_streamline["dismatrix"],
             n_clusters=value,
@@ -476,6 +485,41 @@ class Tractome(QMainWindow):
         else:
             logging.warning("No clusters selected to save a state.")
 
+    def on_expand_clusters(self):
+        """Expand all selected clusters into streamline bundles."""
+        for cluster in self._selected_clusters:
+            if cluster in self._3D_scene.main_scene.children:
+                self._3D_scene.remove(cluster)
+            streamlines = [
+                np.asarray(self._sft.streamlines[line])
+                for line in self._clusters[cluster.rep]
+            ]
+            streamlines = create_streamlines(
+                streamlines,
+                cluster.geometry.colors.data[0],
+            )
+            streamlines.rep = cluster.rep
+            self._streamline_bundles.append(streamlines)
+            self._3D_scene.add(streamlines)
+
+    def on_show_clusters(self):
+        """Show all clusters in the 3D scene."""
+        for cluster in self._cluster_reps.values():
+            if (
+                cluster not in self._3D_scene.main_scene.children
+                and cluster not in self._selected_clusters
+            ):
+                self._3D_scene.add(cluster)
+
+    def on_hide_clusters(self):
+        """Hide all unselected clusters from the 3D scene."""
+        for cluster in self._cluster_reps.values():
+            if (
+                cluster not in self._selected_clusters
+                and cluster in self._3D_scene.main_scene.children
+            ):
+                self._3D_scene.remove(cluster)
+
     def on_swap_selection(self):
         """Handle the 'Swap Selection' button click."""
         for cluster in self._cluster_reps.values():
@@ -524,37 +568,13 @@ class Tractome(QMainWindow):
 
     def handle_key_strokes(self, event):
         if event.key == "e":
-            for cluster in self._selected_clusters:
-                if cluster in self._3D_scene.main_scene.children:
-                    self._3D_scene.remove(cluster)
-                streamlines = [
-                    np.asarray(self._sft.streamlines[line])
-                    for line in self._clusters[cluster.rep]
-                ]
-                streamlines = create_streamlines(
-                    streamlines,
-                    cluster.geometry.colors.data[0],
-                )
-                streamlines.rep = cluster.rep
-                self._streamline_bundles.append(streamlines)
-                self._3D_scene.add(streamlines)
+            self.on_expand_clusters()
         elif event.key == "c":
-            self._collapse_streamline_bundles()
+            self.collapse_streamline_bundles()
         elif event.key == "h":
-            for cluster in self._cluster_reps.values():
-                if (
-                    cluster not in self._selected_clusters
-                    and cluster in self._3D_scene.main_scene.children
-                ):
-                    self._3D_scene.remove(cluster)
-
+            self.on_hide_clusters()
         elif event.key == "s":
-            for cluster in self._cluster_reps.values():
-                if (
-                    cluster not in self._3D_scene.main_scene.children
-                    and cluster not in self._selected_clusters
-                ):
-                    self._3D_scene.add(cluster)
+            self.on_show_clusters()
         elif event.key == "a":
             self.on_select_all()
         elif event.key == "n":
@@ -568,7 +588,7 @@ class Tractome(QMainWindow):
 
         self.show_manager.render()
 
-    def _collapse_streamline_bundles(self):
+    def collapse_streamline_bundles(self):
         """Collapse all streamline bundles."""
         for bundle in self._streamline_bundles:
             self._3D_scene.remove(bundle)

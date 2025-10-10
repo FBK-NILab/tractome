@@ -397,7 +397,7 @@ def create_cluster_selection_buttons():
         delete_button).
     """
     cluster_selection_widget = QGroupBox("Cluster Selection")
-    cluster_selection_layout = QHBoxLayout()
+    cluster_selection_layout = QVBoxLayout()
     cluster_selection_layout.setContentsMargins(10, 20, 10, 5)
     cluster_selection_layout.setSpacing(10)
     cluster_selection_widget.setLayout(cluster_selection_layout)
@@ -407,10 +407,25 @@ def create_cluster_selection_buttons():
     swap_button = QPushButton("Swap")
     delete_button = QPushButton("Del")
 
-    cluster_selection_layout.addWidget(all_button)
-    cluster_selection_layout.addWidget(none_button)
-    cluster_selection_layout.addWidget(swap_button)
-    cluster_selection_layout.addWidget(delete_button)
+    row1_layout = QHBoxLayout()
+    row1_layout.setSpacing(10)
+    row1_layout.addWidget(all_button)
+    row1_layout.addWidget(none_button)
+    row1_layout.addWidget(swap_button)
+    row1_layout.addWidget(delete_button)
+    cluster_selection_layout.addLayout(row1_layout)
+
+    row2_layout = QHBoxLayout()
+    row2_layout.setSpacing(10)
+    expand_button = QPushButton("Exp")
+    collapse_button = QPushButton("Coll")
+    show_button = QPushButton("Show")
+    hide_button = QPushButton("Hide")
+    row2_layout.addWidget(expand_button)
+    row2_layout.addWidget(collapse_button)
+    row2_layout.addWidget(show_button)
+    row2_layout.addWidget(hide_button)
+    cluster_selection_layout.addLayout(row2_layout)
 
     return (
         cluster_selection_widget,
@@ -418,6 +433,10 @@ def create_cluster_selection_buttons():
         none_button,
         swap_button,
         delete_button,
+        expand_button,
+        collapse_button,
+        show_button,
+        hide_button,
     )
 
 
