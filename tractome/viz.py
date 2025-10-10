@@ -6,6 +6,47 @@ from fury import actor
 from fury.lib import Group
 
 
+def create_keystroke_card():
+    """Create a card displaying the keystroke shortcuts.
+
+    Returns
+    -------
+    Group
+        The group containing the keystroke card and its labels.
+    """
+    group = Group()
+    card = actor.square(
+        np.asarray([(35, 40, 0)], dtype=np.float32),
+        colors=(0.1, 0.1, 0.1),
+        scales=(140, 160, 1),
+        material="basic",
+    )
+
+    left = 10
+    y_start = 155
+    y_step = -15
+    keystrokes = [
+        "Key Strokes",
+        "a: Select All",
+        "n: Select None",
+        "i : Swap Selection",
+        "d: Delete Selection",
+        "e: Expand Selection",
+        "c: Collapse Selection",
+        "s: Show Selection",
+        "h: Hide Selection",
+        "x: Toggle this message",
+    ]
+    for i, text in enumerate(keystrokes):
+        y = y_start + y_step * i
+        txt_actor = actor.text(
+            text, position=(left, y, 0), font_size=12.0, anchor="top-left"
+        )
+        group.add(txt_actor)
+    group.add(card)
+    return group
+
+
 def create_mesh(mesh_obj, *, texture=None, mode="normals"):
     """Create a 3D mesh from the provided mesh object.
 

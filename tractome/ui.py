@@ -519,11 +519,13 @@ def _create_right_panel(viz_window):
     toggle_button_layout = QHBoxLayout()
     toggle_button_layout.addStretch(1)
 
+    toggle_suggestion_button = QPushButton("Toggle Suggestion")
     reset_button = QPushButton("Reset View")
     separator = QLabel("|")
     button_3d = QPushButton("3D VIEW")
     button_2d = QPushButton("2D VIEW")
 
+    toggle_button_layout.addWidget(toggle_suggestion_button)
     toggle_button_layout.addWidget(reset_button)
     toggle_button_layout.addWidget(separator)
     toggle_button_layout.addWidget(button_3d)
@@ -532,7 +534,13 @@ def _create_right_panel(viz_window):
 
     right_layout.addWidget(viz_window)
 
-    return right_panel_widget, button_3d, button_2d, reset_button
+    return (
+        right_panel_widget,
+        button_3d,
+        button_2d,
+        reset_button,
+        toggle_suggestion_button,
+    )
 
 
 def create_ui(viz_window):
@@ -553,12 +561,22 @@ def create_ui(viz_window):
     main_layout = QHBoxLayout(main_widget)
 
     left_panel = _create_left_panel()
-    right_panel, button_3d, button_2d, reset_button = _create_right_panel(viz_window)
+    right_panel, button_3d, button_2d, reset_button, toggle_suggestion_button = (
+        _create_right_panel(viz_window)
+    )
 
     main_layout.addWidget(left_panel)
     main_layout.addWidget(right_panel, 1)
 
-    return main_widget, left_panel, right_panel, button_3d, button_2d, reset_button
+    return (
+        main_widget,
+        left_panel,
+        right_panel,
+        button_3d,
+        button_2d,
+        reset_button,
+        toggle_suggestion_button,
+    )
 
 
 def create_mesh_controls():

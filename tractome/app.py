@@ -31,6 +31,7 @@ from tractome.viz import (
     _select_streamtube,
     _toggle_streamtube_selection,
     create_image_slicer,
+    create_keystroke_card,
     create_mesh,
     create_streamlines,
     create_streamlines_projection,
@@ -146,10 +147,12 @@ class Tractome(QMainWindow):
             self._toggle_3d,
             self._toggle_2d,
             self._reset_view,
+            self._toggle_suggestion,
         ) = create_ui(self.show_manager.window)
         self._toggle_3d.clicked.connect(self.toggle_3D_mode)
         self._toggle_2d.clicked.connect(self.toggle_2D_mode)
         self._reset_view.clicked.connect(self.reset_view)
+        self._toggle_suggestion.clicked.connect(self.toggle_suggestion)
         self.setCentralWidget(main_widget)
         self.setStyleSheet(STYLE_SHEET)
 
@@ -211,6 +214,9 @@ class Tractome(QMainWindow):
                 self._collapse_button.clicked.connect(self.collapse_streamline_bundles)
                 self._show_button.clicked.connect(self.on_show_clusters)
                 self._hide_button.clicked.connect(self.on_hide_clusters)
+
+                self._keystroke_card = create_keystroke_card()
+                self._3D_scene.ui_scene.add(self._keystroke_card)
 
             self.show_manager.renderer.add_event_handler(
                 self.handle_key_strokes, "key_down"
@@ -585,6 +591,8 @@ class Tractome(QMainWindow):
             self.delete_selection()
         elif event.key == "r":
             self.reset_view()
+        elif event.key == "x":
+            self.toggle_suggestion()
 
         self.show_manager.render()
 
@@ -662,9 +670,10 @@ class Tractome(QMainWindow):
 
             if hasattr(self, "_mesh_controls_widget"):
                 self._mesh_controls_widget.show()
-
             if hasattr(self, "_reset_view"):
                 self._reset_view.show()
+            if hasattr(self, "_toggle_suggestion"):
+                self._toggle_suggestion.show()
 
     def toggle_2D_mode(self):
         """Toggle to 2D mode."""
@@ -687,6 +696,8 @@ class Tractome(QMainWindow):
                 self._mesh_controls_widget.hide()
             if hasattr(self, "_reset_view"):
                 self._reset_view.hide()
+            if hasattr(self, "_toggle_suggestion"):
+                self._toggle_suggestion.hide()
 
             # Safely remove and delete the existing widget
             if self._slice_widget is not None:
@@ -764,3 +775,10 @@ class Tractome(QMainWindow):
             else:
                 logging.warning("No object to center the view on.")
         self.show_manager.render()
+
+    def toggle_suggestion(self):
+        """Toggle suggestion mode."""
+        if self._keystroke_card in self._3D_scene.ui_scene.children:
+            self._3D_scene.ui_scene.remove(self._keystroke_card)
+        else:
+            self._3D_scene.ui_scene.add(self._keystroke_card)
