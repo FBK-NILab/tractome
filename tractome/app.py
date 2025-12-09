@@ -33,6 +33,7 @@ from tractome.viz import (
     create_image_slicer,
     create_keystroke_card,
     create_mesh,
+    create_roi,
     create_streamlines,
     create_streamlines_projection,
     create_streamtube,
@@ -42,7 +43,9 @@ app = QApplication([])
 
 
 class Tractome(QMainWindow):
-    def __init__(self, tractogram=None, mesh=None, mesh_texture=None, t1=None):
+    def __init__(
+        self, tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=None
+    ):
         """Initialize the Tractome application.
 
         Parameters
@@ -61,6 +64,7 @@ class Tractome(QMainWindow):
         self.mesh = mesh
         self.mesh_texture = mesh_texture
         self.t1 = t1
+        self.roi = roi
         self._mode = "3D"
         self._3D_actors = {"t1": None, "tractogram": None, "mesh": None}
         self._2D_actors = {"t1": None, "tractogram": None, "mesh": None}
@@ -71,6 +75,7 @@ class Tractome(QMainWindow):
         self._selected_clusters = set()
         self._streamline_projections = set()
         self._mesh_mode = "Normals"
+        self._roi_mode = "Object"
         self._state_manager = StateManager()
         self._focused_actor = None
         self._init_UI()
@@ -267,6 +272,12 @@ class Tractome(QMainWindow):
 
             self._3D_actors["t1"] = image_slicer
             self._2D_actors["t1"] = image_slice
+
+        if self.roi:
+            roi_nifti, affine = read_nifti(self.roi)
+
+            roi_object = create_roi(roi_nifti, affine=affine, mode=self._roi_mode)
+            self._3D_scene.add(roi_object)
 
         self.show_manager.start()
 
