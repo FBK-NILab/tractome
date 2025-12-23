@@ -20,8 +20,13 @@ from tractome.io import read_tractogram, save_tractogram
 @click.option(
     "--t1", type=click.Path(exists=True), help="Path to the T1-weighted image file."
 )
-@click.option("--roi", type=click.Path(exists=True), help="Path to the ROI file.")
-def tractome(tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=None):
+@click.option(
+    "--roi",
+    type=click.Path(exists=True),
+    multiple=True,
+    help="Path to an ROI file. Use multiple times for multiple ROIs.",
+)
+def tractome(tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=()):
     """Run the Tractome pipeline.
 
     Parameters
@@ -34,8 +39,8 @@ def tractome(tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=None):
         Path to the mesh texture file
     t1 : str, optional
         Path to the T1-weighted image file
-    roi : str, optional
-        Path to the ROI file
+    roi : tuple[str], optional
+        One or more paths to ROI files
     """
     Tractome(tractogram, mesh, mesh_texture, t1, roi)
 

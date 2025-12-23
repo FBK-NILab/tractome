@@ -3,7 +3,6 @@ import logging
 import numpy as np
 
 from fury import actor
-from fury.lib import Group
 
 
 def create_keystroke_card():
@@ -14,7 +13,7 @@ def create_keystroke_card():
     Group
         The group containing the keystroke card and its labels.
     """
-    group = Group()
+    group = actor.Group()
     card = actor.square(
         np.asarray([(35, 40, 0)], dtype=np.float32),
         colors=(0.1, 0.1, 0.1),
@@ -47,7 +46,7 @@ def create_keystroke_card():
     return group
 
 
-def create_roi(roi_data, *, affine=None, mode="object", color=(1, 0, 0)):
+def create_roi(roi_data, *, affine=None, color=(1, 0, 0)):
     """Create a 3D ROI from the provided ROI data.
 
     Parameters
@@ -56,8 +55,6 @@ def create_roi(roi_data, *, affine=None, mode="object", color=(1, 0, 0)):
         The input ROI data.
     affine : ndarray, optional
         The affine transformation matrix.
-    mode : str, optional
-        The rendering mode, either "object" or "disk".
     color : tuple, optional
         The color of the ROI.
 
@@ -66,10 +63,6 @@ def create_roi(roi_data, *, affine=None, mode="object", color=(1, 0, 0)):
     Mesh
         The created 3D ROI.
     """
-    mode = mode.lower()
-    if mode not in ("object", "disk"):
-        raise ValueError(f"Unknown mode: {mode}")
-
     roi = actor.contour_from_roi(
         roi_data, affine=affine, color=color, opacity=0.8, material="phong"
     )

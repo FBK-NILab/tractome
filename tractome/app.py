@@ -4,16 +4,16 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
 
 from fury import window
+from fury.actor import Group, set_group_visibility, show_slices
+from fury.colormap import distinguishable_colormap
 from fury.lib import (
     DirectionalLight,
     Event,
-    Group,
     OrthographicCamera,
     PanZoomController,
     PerspectiveCamera,
     TrackballController,
 )
-from fury.utils import set_group_visibility, show_slices
 from tractome.compute import mkbm_clustering
 from tractome.io import read_mesh, read_nifti, read_tractogram
 from tractome.mem import ClusterState, StateManager
@@ -58,13 +58,20 @@ class Tractome(QMainWindow):
             The file path to the mesh texture,
         t1 : str, optional
             The file path to the T1 image
+        roi : str or Sequence[str], optional
+            One or more file paths to ROI files.
         """
         super().__init__()
         self.tractogram = tractogram
         self.mesh = mesh
         self.mesh_texture = mesh_texture
         self.t1 = t1
-        self.roi = roi
+        if roi is None:
+            self.rois = []
+        elif isinstance(roi, (list, tuple)):
+            self.rois = list(roi)
+        else:
+            self.rois = [roi]
         self._mode = "3D"
         self._3D_actors = {"t1": None, "tractogram": None, "mesh": None}
         self._2D_actors = {"t1": None, "tractogram": None, "mesh": None}
@@ -74,8 +81,8 @@ class Tractome(QMainWindow):
         self._streamline_bundles = []
         self._selected_clusters = set()
         self._streamline_projections = set()
+        self._roi_actors = []
         self._mesh_mode = "Normals"
-        self._roi_mode = "Object"
         self._state_manager = StateManager()
         self._focused_actor = None
         self._init_UI()
@@ -273,11 +280,13 @@ class Tractome(QMainWindow):
             self._3D_actors["t1"] = image_slicer
             self._2D_actors["t1"] = image_slice
 
-        if self.roi:
-            roi_nifti, affine = read_nifti(self.roi)
+        roi_colors = distinguishable_colormap(nb_colors=len(self.rois))
+        for idx, roi_path in enumerate(self.rois):
+            roi_nifti, affine = read_nifti(roi_path)
 
-            roi_object = create_roi(roi_nifti, affine=affine, mode=self._roi_mode)
+            roi_object = create_roi(roi_nifti, affine=affine, color=roi_colors[idx])
             self._3D_scene.add(roi_object)
+            self._roi_actors.append(roi_object)
 
         self.show_manager.start()
 
