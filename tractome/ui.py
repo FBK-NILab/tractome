@@ -387,6 +387,42 @@ def create_clusters_slider(default_value=250):
     )
 
 
+def create_roi_controls(rois):
+    """Create ROI visibility controls.
+
+    Parameters
+    ----------
+    rois : Sequence[str]
+        Paths or names of ROIs to list.
+
+    Returns
+    -------
+    tuple
+        A tuple containing (widget, roi_checkboxes).
+    """
+    roi_widget = QGroupBox("ROI Controls")
+    roi_layout = QVBoxLayout()
+    roi_layout.setContentsMargins(10, 20, 5, 5)
+    roi_layout.setSpacing(10)
+    roi_widget.setLayout(roi_layout)
+
+    checkboxes = []
+    for roi in rois:
+        row_layout = QHBoxLayout()
+        row_layout.setSpacing(5)
+        label = QLabel(os.path.basename(roi))
+        label.setObjectName("SliderLabel")
+        checkbox = QCheckBox()
+        checkbox.setChecked(True)
+        row_layout.addWidget(label)
+        row_layout.addStretch()
+        row_layout.addWidget(checkbox)
+        roi_layout.addLayout(row_layout)
+        checkboxes.append(checkbox)
+
+    return roi_widget, checkboxes
+
+
 def create_cluster_selection_buttons():
     """Create the cluster selection buttons.
 
