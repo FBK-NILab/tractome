@@ -141,7 +141,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         lift=-4.0,
     )
 
-    obj = Group()
+    obj = actor.Group()
     obj.add(x_projection, y_projection, z_projection)
     return obj
 
@@ -254,9 +254,7 @@ def create_streamtube(clusters, streamlines):
         radius = max(scaled_radius, 0.5)
 
         streamtube = actor.streamtube(
-            [streamlines[rep]],
-            colors=np.random.rand(3),
-            radius=radius,
+            [streamlines[rep]], colors=np.random.rand(3), radius=radius, backend="cpu"
         )
         streamtube.rep = rep
         streamtube.material.opacity = 0.5

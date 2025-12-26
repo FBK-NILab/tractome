@@ -94,11 +94,10 @@ class Tractome(QMainWindow):
 
     def _build_roi_rgba_volume(self, volume, color):
         """Create an RGBA volume for a single ROI with transparent background."""
-        rgba = np.zeros((*volume.shape, 4), dtype=np.float32)
+        rgba = np.zeros((*volume.shape, 3), dtype=np.float32)
         mask = volume != 0
         if np.any(mask):
             rgba[mask, :3] = color
-            rgba[mask, 3] = 0.3
         return rgba
 
     def _init_UI(self):
@@ -304,8 +303,10 @@ class Tractome(QMainWindow):
 
             roi_rgba = self._build_roi_rgba_volume(roi_nifti, roi_colors[idx])
             roi_slice = create_image_slicer(roi_rgba, affine=affine)
+            for slice_actor in roi_slice.children:
+                slice_actor.material.opacity = 0.3
             set_group_visibility(roi_slice, (False, False, True))
-            self._2D_scene.main_scene.add(roi_slice)
+            self._2D_scene.add(roi_slice)
             self._roi_slice_actors.append(roi_slice)
             self.update_slices(None)
 
@@ -391,8 +392,8 @@ class Tractome(QMainWindow):
         slices = self.get_current_slider_position()
         show_slices(self._3D_actors["t1"], slices)
         show_slices(self._2D_actors["t1"], slices)
-        for idx, roi_slice in enumerate(self._roi_slice_actors):
-            show_slices(roi_slice, np.asarray(slices) + 0.01 * idx)
+        for roi_slice in self._roi_slice_actors:
+            show_slices(roi_slice, np.asarray(slices) + 0.1)
         [show_slices(projection, slices) for projection in self._streamline_projections]
         self.show_manager.render()
 
