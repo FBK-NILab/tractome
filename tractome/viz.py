@@ -3,7 +3,6 @@ import logging
 import numpy as np
 
 from fury import actor
-from fury.lib import Group
 
 
 def create_keystroke_card():
@@ -14,7 +13,7 @@ def create_keystroke_card():
     Group
         The group containing the keystroke card and its labels.
     """
-    group = Group()
+    group = actor.Group()
     card = actor.square(
         np.asarray([(35, 40, 0)], dtype=np.float32),
         colors=(0.1, 0.1, 0.1),
@@ -45,6 +44,29 @@ def create_keystroke_card():
         group.add(txt_actor)
     group.add(card)
     return group
+
+
+def create_roi(roi_data, *, affine=None, color=(1, 0, 0)):
+    """Create a 3D ROI from the provided ROI data.
+
+    Parameters
+    ----------
+    roi_data : ndarray
+        The input ROI data.
+    affine : ndarray, optional
+        The affine transformation matrix.
+    color : tuple, optional
+        The color of the ROI.
+
+    Returns
+    -------
+    Mesh
+        The created 3D ROI.
+    """
+    roi = actor.contour_from_roi(
+        roi_data, affine=affine, color=color, opacity=0.8, material="phong"
+    )
+    return roi
 
 
 def create_mesh(mesh_obj, *, texture=None, mode="normals"):
@@ -119,7 +141,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         lift=-4.0,
     )
 
-    obj = Group()
+    obj = actor.Group()
     obj.add(x_projection, y_projection, z_projection)
     return obj
 
@@ -232,9 +254,7 @@ def create_streamtube(clusters, streamlines):
         radius = max(scaled_radius, 0.5)
 
         streamtube = actor.streamtube(
-            [streamlines[rep]],
-            colors=np.random.rand(3),
-            radius=radius,
+            [streamlines[rep]], colors=np.random.rand(3), radius=radius, backend="cpu"
         )
         streamtube.rep = rep
         streamtube.material.opacity = 0.5

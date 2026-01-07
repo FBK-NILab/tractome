@@ -4,16 +4,16 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 import numpy as np
 
 from fury import window
+from fury.actor import Group, set_group_visibility, show_slices
+from fury.colormap import distinguishable_colormap
 from fury.lib import (
     DirectionalLight,
     Event,
-    Group,
     OrthographicCamera,
     PanZoomController,
     PerspectiveCamera,
     TrackballController,
 )
-from fury.utils import set_group_visibility, show_slices
 from tractome.compute import mkbm_clustering
 from tractome.io import read_mesh, read_nifti, read_tractogram
 from tractome.mem import ClusterState, StateManager
@@ -22,6 +22,7 @@ from tractome.ui import (
     create_cluster_selection_buttons,
     create_clusters_slider,
     create_mesh_controls,
+    create_roi_controls,
     create_slice_sliders,
     create_ui,
     update_history_table,
@@ -33,6 +34,7 @@ from tractome.viz import (
     create_image_slicer,
     create_keystroke_card,
     create_mesh,
+    create_roi,
     create_streamlines,
     create_streamlines_projection,
     create_streamtube,
@@ -42,7 +44,9 @@ app = QApplication([])
 
 
 class Tractome(QMainWindow):
-    def __init__(self, tractogram=None, mesh=None, mesh_texture=None, t1=None):
+    def __init__(
+        self, tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=None
+    ):
         """Initialize the Tractome application.
 
         Parameters
@@ -55,26 +59,46 @@ class Tractome(QMainWindow):
             The file path to the mesh texture,
         t1 : str, optional
             The file path to the T1 image
+        roi : str or Sequence[str], optional
+            One or more file paths to ROI files.
         """
         super().__init__()
         self.tractogram = tractogram
         self.mesh = mesh
         self.mesh_texture = mesh_texture
         self.t1 = t1
+        if roi is None:
+            self.rois = []
+        elif isinstance(roi, (list, tuple)):
+            self.rois = list(roi)
+        else:
+            self.rois = [roi]
         self._mode = "3D"
-        self._3D_actors = {"t1": None, "tractogram": None, "mesh": None}
-        self._2D_actors = {"t1": None, "tractogram": None, "mesh": None}
+        self._3D_actors = {"t1": None, "tractogram": None, "mesh": None, "roi": None}
+        self._2D_actors = {"t1": None, "tractogram": None, "mesh": None, "roi": []}
         self._sft = None
         self._clusters = None
         self._cluster_reps = {}
         self._streamline_bundles = []
         self._selected_clusters = set()
         self._streamline_projections = set()
+        self._roi_actors = []
+        self._roi_slice_actors = []
+        self._roi_controls_widget = None
+        self._roi_checkboxes = []
         self._mesh_mode = "Normals"
         self._state_manager = StateManager()
         self._focused_actor = None
         self._init_UI()
         self._init_actors()
+
+    def _build_roi_rgba_volume(self, volume, color):
+        """Create an RGBA volume for a single ROI with transparent background."""
+        rgba = np.zeros((*volume.shape, 3), dtype=np.float32)
+        mask = volume != 0
+        if np.any(mask):
+            rgba[mask, :3] = color
+        return rgba
 
     def _init_UI(self):
         """Initialize the user interface."""
@@ -241,7 +265,6 @@ class Tractome(QMainWindow):
 
         if self.t1:
             nifti_img, affine = read_nifti(self.t1)
-
             image_slicer = create_image_slicer(nifti_img, affine=affine)
             self._3D_scene.add(image_slicer)
 
@@ -267,6 +290,45 @@ class Tractome(QMainWindow):
 
             self._3D_actors["t1"] = image_slicer
             self._2D_actors["t1"] = image_slice
+
+        roi_colors = distinguishable_colormap(nb_colors=len(self.rois))
+        for idx, roi_path in enumerate(self.rois):
+            roi_nifti, affine = read_nifti(roi_path)
+
+            roi_object = create_roi(
+                np.swapaxes(roi_nifti, 0, 2), affine=affine, color=roi_colors[idx]
+            )
+            self._3D_scene.add(roi_object)
+            self._roi_actors.append(roi_object)
+
+            roi_rgba = self._build_roi_rgba_volume(roi_nifti, roi_colors[idx])
+            roi_slice = create_image_slicer(roi_rgba, affine=affine)
+            for slice_actor in roi_slice.children:
+                slice_actor.material.opacity = 0.3
+            set_group_visibility(roi_slice, (False, False, True))
+            self._2D_scene.add(roi_slice)
+            self._roi_slice_actors.append(roi_slice)
+            self.update_slices(None)
+
+        if self._roi_slice_actors:
+            self._2D_actors["roi"] = self._roi_slice_actors
+
+        if self._roi_actors:
+            (
+                self._roi_controls_widget,
+                self._roi_checkboxes,
+            ) = create_roi_controls(self.rois)
+            self.left_panel.layout().addWidget(self._roi_controls_widget)
+            for checkbox, roi_actor, roi_slice in zip(
+                self._roi_checkboxes, self._roi_actors, self._roi_slice_actors
+            ):
+                checkbox.stateChanged.connect(
+                    lambda state,
+                    actor=roi_actor,
+                    slice_actor=roi_slice: self.toggle_roi_visibility(
+                        actor, state, slice_actor
+                    )
+                )
 
         self.show_manager.start()
 
@@ -330,6 +392,8 @@ class Tractome(QMainWindow):
         slices = self.get_current_slider_position()
         show_slices(self._3D_actors["t1"], slices)
         show_slices(self._2D_actors["t1"], slices)
+        for roi_slice in self._roi_slice_actors:
+            show_slices(roi_slice, np.asarray(slices) + 0.1)
         [show_slices(projection, slices) for projection in self._streamline_projections]
         self.show_manager.render()
 
@@ -355,9 +419,12 @@ class Tractome(QMainWindow):
             radio_states = self.get_current_checkbox_states()
             self._2D_camera.show_object(self._2D_actors["t1"], (0, 0, -1))
             self._2D_camera.show_object(
-                self._2D_actors["t1"], tuple(-1 * np.asarray(radio_states, dtype=int))
+                self._2D_scene.main_scene,
+                tuple(-1 * np.asarray(radio_states, dtype=int)),
             )
             set_group_visibility(self._2D_actors["t1"], radio_states)
+            for roi_slice in self._roi_slice_actors:
+                set_group_visibility(roi_slice, radio_states)
             [
                 set_group_visibility(proj, radio_states)
                 for proj in self._streamline_projections
@@ -372,13 +439,53 @@ class Tractome(QMainWindow):
         state : int
             The checked state of the checkbox (Qt.Checked or Qt.Unchecked).
         """
+        self._toggle_visibility(self._3D_actors["mesh"], state)
+
+    def toggle_roi_visibility(self, roi, state, roi_slice=None):
+        """Toggle visibility of a single ROI actor (and its 2D slice overlay).
+
+        Parameters
+        ----------
+        roi : Actor
+            The ROI actor to toggle visibility for.
+        state : int
+            The checked state of the checkbox (Qt.Checked or Qt.Unchecked).
+        roi_slice : Actor, optional
+            The corresponding 2D slice actor, if available.
+        """
+        self._toggle_visibility(roi, state)
+
+        CHECKED = 2  # Qt.Checked
+        if roi_slice is not None:
+            if state == CHECKED:
+                if roi_slice not in self._2D_scene.main_scene.children:
+                    self._2D_scene.add(roi_slice)
+                axes_states = self.get_current_checkbox_states()
+                if axes_states is None:
+                    axes_states = (True, True, True)
+                set_group_visibility(roi_slice, axes_states)
+            else:
+                if roi_slice in self._2D_scene.main_scene.children:
+                    self._2D_scene.remove(roi_slice)
+        self.show_manager.render()
+
+    def _toggle_visibility(self, actor, state):
+        """Toggle the visibility of an actor in the 3D scene.
+
+        Parameters
+        ----------
+        actor : Actor
+            The actor to toggle visibility for.
+        state : int
+            The checked state of the checkbox (Qt.Checked or Qt.Unchecked).
+        """
         CHECKED = 2  # Qt.Checked
         if state == CHECKED:
-            if self._3D_actors["mesh"] not in self._3D_scene.main_scene.children:
-                self._3D_scene.add(self._3D_actors["mesh"])
+            if actor not in self._3D_scene.main_scene.children:
+                self._3D_scene.add(actor)
         else:
-            if self._3D_actors["mesh"] in self._3D_scene.main_scene.children:
-                self._3D_scene.remove(self._3D_actors["mesh"])
+            if actor in self._3D_scene.main_scene.children:
+                self._3D_scene.remove(actor)
         self.show_manager.render()
 
     def update_mesh_opacity(self, value):
@@ -670,6 +777,8 @@ class Tractome(QMainWindow):
 
             if hasattr(self, "_mesh_controls_widget"):
                 self._mesh_controls_widget.show()
+            if self._roi_controls_widget is not None:
+                self._roi_controls_widget.show()
             if hasattr(self, "_reset_view"):
                 self._reset_view.show()
             if hasattr(self, "_toggle_suggestion"):
@@ -694,6 +803,8 @@ class Tractome(QMainWindow):
 
             if hasattr(self, "_mesh_controls_widget"):
                 self._mesh_controls_widget.hide()
+            if self._roi_controls_widget is not None:
+                self._roi_controls_widget.hide()
             if hasattr(self, "_reset_view"):
                 self._reset_view.hide()
             if hasattr(self, "_toggle_suggestion"):
