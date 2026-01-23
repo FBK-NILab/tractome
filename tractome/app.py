@@ -268,7 +268,9 @@ class Tractome(QMainWindow):
             image_slicer = create_image_slicer(nifti_img, affine=affine)
             self._3D_scene.add(image_slicer)
 
-            image_slice = create_image_slicer(nifti_img, affine=affine)
+            image_slice = create_image_slicer(
+                nifti_img, affine=affine, mode="weighted_blend"
+            )
             set_group_visibility(image_slice, (False, False, True))
             self._2D_scene.add(image_slice)
 
@@ -295,14 +297,14 @@ class Tractome(QMainWindow):
         for idx, roi_path in enumerate(self.rois):
             roi_nifti, affine = read_nifti(roi_path)
 
-            roi_object = create_roi(
-                np.swapaxes(roi_nifti, 0, 2), affine=affine, color=roi_colors[idx]
-            )
+            roi_object = create_roi(roi_nifti, affine=affine, color=roi_colors[idx])
             self._3D_scene.add(roi_object)
             self._roi_actors.append(roi_object)
 
             roi_rgba = self._build_roi_rgba_volume(roi_nifti, roi_colors[idx])
-            roi_slice = create_image_slicer(roi_rgba, affine=affine)
+            roi_slice = create_image_slicer(
+                roi_rgba, affine=affine, mode="weighted_blend"
+            )
             for slice_actor in roi_slice.children:
                 slice_actor.material.opacity = 0.3
             set_group_visibility(roi_slice, (False, False, True))

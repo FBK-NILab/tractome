@@ -66,6 +66,8 @@ def create_roi(roi_data, *, affine=None, color=(1, 0, 0)):
     roi = actor.contour_from_roi(
         roi_data, affine=affine, color=color, opacity=0.8, material="phong"
     )
+    for contour in roi.children:
+        contour.material.alpha_mode = "blend"
     return roi
 
 
@@ -112,6 +114,7 @@ def create_mesh(mesh_obj, *, texture=None, mode="normals"):
         texture_coords=texture_coords,
         normals=normals,
     )
+    mesh.material.alpha_mode = "blend"
     return mesh
 
 
@@ -265,7 +268,7 @@ def create_streamtube(clusters, streamlines):
     return streamtubes
 
 
-def create_image_slicer(volume, *, affine=None):
+def create_image_slicer(volume, *, affine=None, mode="auto"):
     """Create a 2D image from the provided NIfTI file.
 
     Parameters
@@ -282,5 +285,7 @@ def create_image_slicer(volume, *, affine=None):
     """
     if affine is None:
         affine = np.eye(4)
-    image = actor.volume_slicer(volume, affine=affine)
+    image = actor.volume_slicer(
+        volume, affine=affine, alpha_mode=mode, depth_write=True
+    )
     return image
