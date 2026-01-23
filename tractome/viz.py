@@ -278,7 +278,7 @@ def create_streamtube(clusters, streamlines):
     return streamtubes
 
 
-def create_image_slicer(volume, *, affine=None, mode="auto"):
+def create_image_slicer(volume, *, affine=None, mode="auto", depth_write=True):
     """Create a 2D image from the provided NIfTI file.
 
     Parameters
@@ -296,7 +296,7 @@ def create_image_slicer(volume, *, affine=None, mode="auto"):
     if affine is None:
         affine = np.eye(4)
     image = actor.volume_slicer(
-        volume, affine=affine, alpha_mode=mode, depth_write=True
+        volume, affine=affine, alpha_mode=mode, depth_write=depth_write
     )
     for plane in image.children:
         plane.material.alpha_mode = "auto"
