@@ -246,29 +246,14 @@ class Tractome(QMainWindow):
                 self.handle_key_strokes, "key_down"
             )
 
-        if self.mesh:
-            self._create_mesh_actor()
-            (
-                self._mesh_controls_widget,
-                self._mesh_opacity_slider,
-                self._mesh_visibility_checkbox,
-                self._mesh_mode_group,
-                self._normals_radio,
-                self._photographic_radio,
-            ) = create_mesh_controls()
-            self.left_panel.layout().addWidget(self._mesh_controls_widget)
-            self._mesh_visibility_checkbox.stateChanged.connect(
-                self.toggle_mesh_visibility
-            )
-            self._mesh_opacity_slider.valueChanged.connect(self.update_mesh_opacity)
-            self._mesh_mode_group.buttonClicked.connect(self.on_mesh_mode_changed)
-
         if self.t1:
             nifti_img, affine = read_nifti(self.t1)
             image_slicer = create_image_slicer(nifti_img, affine=affine)
             self._3D_scene.add(image_slicer)
 
-            image_slice = create_image_slicer(nifti_img, affine=affine)
+            image_slice = create_image_slicer(
+                nifti_img, affine=affine, mode="weighted_blend", depth_write=False
+            )
             set_group_visibility(image_slice, (False, False, True))
             self._2D_scene.add(image_slice)
 
@@ -291,18 +276,35 @@ class Tractome(QMainWindow):
             self._3D_actors["t1"] = image_slicer
             self._2D_actors["t1"] = image_slice
 
+        if self.mesh:
+            self._create_mesh_actor()
+            (
+                self._mesh_controls_widget,
+                self._mesh_opacity_slider,
+                self._mesh_visibility_checkbox,
+                self._mesh_mode_group,
+                self._normals_radio,
+                self._photographic_radio,
+            ) = create_mesh_controls()
+            self.left_panel.layout().addWidget(self._mesh_controls_widget)
+            self._mesh_visibility_checkbox.stateChanged.connect(
+                self.toggle_mesh_visibility
+            )
+            self._mesh_opacity_slider.valueChanged.connect(self.update_mesh_opacity)
+            self._mesh_mode_group.buttonClicked.connect(self.on_mesh_mode_changed)
+
         roi_colors = distinguishable_colormap(nb_colors=len(self.rois))
         for idx, roi_path in enumerate(self.rois):
             roi_nifti, affine = read_nifti(roi_path)
 
-            roi_object = create_roi(
-                np.swapaxes(roi_nifti, 0, 2), affine=affine, color=roi_colors[idx]
-            )
+            roi_object = create_roi(roi_nifti, affine=affine, color=roi_colors[idx])
             self._3D_scene.add(roi_object)
             self._roi_actors.append(roi_object)
 
             roi_rgba = self._build_roi_rgba_volume(roi_nifti, roi_colors[idx])
-            roi_slice = create_image_slicer(roi_rgba, affine=affine)
+            roi_slice = create_image_slicer(
+                roi_rgba, affine=affine, mode="weighted_blend", depth_write=False
+            )
             for slice_actor in roi_slice.children:
                 slice_actor.material.opacity = 0.3
             set_group_visibility(roi_slice, (False, False, True))
@@ -481,12 +483,9 @@ class Tractome(QMainWindow):
         """
         CHECKED = 2  # Qt.Checked
         if state == CHECKED:
-            if actor not in self._3D_scene.main_scene.children:
-                self._3D_scene.add(actor)
+            actor.visible = True
         else:
-            if actor in self._3D_scene.main_scene.children:
-                self._3D_scene.remove(actor)
-        self.show_manager.render()
+            actor.visible = False
 
     def update_mesh_opacity(self, value):
         """Update the opacity of the mesh.
@@ -498,6 +497,12 @@ class Tractome(QMainWindow):
         """
         opacity = value / 100.0
         self._3D_actors["mesh"].material.opacity = opacity
+        if opacity < 1.0:
+            self._3D_actors["mesh"].material.alpha_mode = "blend"
+            self._3D_actors["mesh"].material.depth_write = False
+        else:
+            self._3D_actors["mesh"].material.alpha_mode = "solid"
+            self._3D_actors["mesh"].material.depth_write = True
         self.show_manager.render()
 
     def perform_clustering(self, value):
