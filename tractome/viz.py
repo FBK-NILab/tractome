@@ -17,12 +17,12 @@ def create_keystroke_card():
     card = actor.square(
         np.asarray([(35, 40, 0)], dtype=np.float32),
         colors=(0.1, 0.1, 0.1),
-        scales=(140, 160, 1),
+        scales=(140, 185, 1),
         material="basic",
     )
 
     left = 10
-    y_start = 155
+    y_start = 170
     y_step = -15
     keystrokes = [
         "Key Strokes",
@@ -35,6 +35,7 @@ def create_keystroke_card():
         "s: Show Selection",
         "h: Hide Selection",
         "x: Toggle this message",
+        "t: Save current state",
     ]
     for i, text in enumerate(keystrokes):
         y = y_start + y_step * i
