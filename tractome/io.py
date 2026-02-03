@@ -2,6 +2,7 @@ import logging
 import os
 
 from dipy.io.image import load_nifti
+from dipy.io.stateful_tractogram import Space, StatefulTractogram
 from dipy.io.streamline import load_tractogram, save_tractogram as dipy_save_tractogram
 import trimesh
 
@@ -114,6 +115,33 @@ def read_nifti(file_path):
     nifti_img, affine = load_nifti(validated_path)
 
     return nifti_img, affine
+
+
+def save_tractogram_from_streamlines(
+    streamlines, reference, embeddings, *, file_path="saved.trx"
+):
+    """Save a tractogram from streamlines to a file.
+
+    Parameters
+    ----------
+    streamlines : list or ndarray
+        The streamlines to save.
+    reference : str or Nifti1Image
+        The reference image for the tractogram.
+    embeddings : ndarray
+        The embeddings to attach to the tractogram.
+    file_path : str, optional
+        The path where the tractogram will be saved.
+    """
+
+    sft = StatefulTractogram(
+        streamlines,
+        reference,
+        Space.RASMM,
+        data_per_streamline={"dismatrix": embeddings},
+    )
+    dipy_save_tractogram(sft, file_path, bbox_valid_check=False)
+    logging.info("Tractogram saved successfully.")
 
 
 def save_tractogram(sft, file_path):

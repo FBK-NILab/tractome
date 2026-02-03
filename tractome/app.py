@@ -15,7 +15,12 @@ from fury.lib import (
     TrackballController,
 )
 from tractome.compute import mkbm_clustering
-from tractome.io import read_mesh, read_nifti, read_tractogram
+from tractome.io import (
+    read_mesh,
+    read_nifti,
+    read_tractogram,
+    save_tractogram_from_streamlines,
+)
 from tractome.mem import ClusterState, StateManager
 from tractome.ui import (
     STYLE_SHEET,
@@ -705,6 +710,18 @@ class Tractome(QMainWindow):
             self.reset_view()
         elif event.key == "x":
             self.toggle_suggestion()
+        elif event.key == "t":
+            latest_state = self._state_manager.get_latest_state()
+            streamline_ids = np.asarray(latest_state.streamline_ids, dtype=np.int32)
+            save_tractogram_from_streamlines(
+                self._sft.streamlines[streamline_ids],
+                self.t1,
+                self._sft.data_per_streamline["dismatrix"][streamline_ids],
+                file_path=(
+                    f"state_{self._state_manager.get_current_index()}"
+                    f"_{len(latest_state.streamline_ids.ravel())}.trk"
+                ),
+            )
 
         self.show_manager.render()
 
