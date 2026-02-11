@@ -94,6 +94,7 @@ class Tractome(QMainWindow):
         self._mesh_mode = "Normals"
         self._state_manager = StateManager()
         self._focused_actor = None
+        self._keystroke_card = None
         self._init_UI()
         self._init_actors()
 
@@ -330,10 +331,8 @@ class Tractome(QMainWindow):
                 self._roi_checkboxes, self._roi_actors, self._roi_slice_actors
             ):
                 checkbox.stateChanged.connect(
-                    lambda state,
-                    actor=roi_actor,
-                    slice_actor=roi_slice: self.toggle_roi_visibility(
-                        actor, state, slice_actor
+                    lambda state, actor=roi_actor, slice_actor=roi_slice: (
+                        self.toggle_roi_visibility(actor, state, slice_actor)
                     )
                 )
 
