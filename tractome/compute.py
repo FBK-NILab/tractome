@@ -4,6 +4,7 @@ import tempfile
 
 from dipy.utils.optpkg import optional_package
 import numpy as np
+from scipy.ndimage import affine_transform
 from sklearn.cluster import MiniBatchKMeans
 
 ray, has_ray, _ = optional_package("ray")
@@ -174,3 +175,157 @@ def mkbm_clustering(dissimilarity_matrix, n_clusters, streamline_ids):
 
     clusters = dict(zip(medoids_exhs, idxs))
     return clusters
+
+
+def calculate_filter(rois, *, flip=None, reference_shape=None):
+    """Calculate a combined ROI filter using logical AND.
+
+    Parameters
+    ----------
+    rois : ndarray
+        ROI volumes to combine with shape (X, Y, Z).
+    flip : Sequence[bool] or None, optional
+        Per-ROI flag indicating whether the ROI should be inverted
+        before combination. If None, all ROIs are inverted.
+    reference_shape : tuple[int, ...] or None, optional
+        Expected ROI shape. If None, shape from the first ROI is used.
+
+    Returns
+    -------
+    ndarray
+        Boolean mask resulting from a logical AND across all ROIs
+        (after optional inversion).
+
+    Raises
+    ------
+    ValueError
+        If no ROIs are provided, if `flip` length does not match
+        `rois`, or if no ROI matches `reference_shape`.
+    """
+    if rois is None or len(rois) == 0:
+        raise ValueError("At least one ROI must be provided.")
+
+    if flip is None:
+        flip = [True] * len(rois)
+
+    if len(flip) != len(rois):
+        raise ValueError(
+            "The `flip` list must have the same length as `rois` "
+            f"({len(flip)} != {len(rois)})."
+        )
+
+    if reference_shape is None:
+        reference_shape = np.asarray(rois[0]).shape
+    else:
+        reference_shape = tuple(reference_shape)
+    combined_mask = np.ones(reference_shape, dtype=bool)
+    matched_count = 0
+
+    for idx, (roi, should_flip) in enumerate(zip(rois, flip)):
+        roi_mask = np.asarray(roi).astype(bool, copy=False)
+
+        if roi_mask.shape != reference_shape:
+            logging.warning(
+                "Skipping ROI %s due to shape mismatch: expected %s, got %s.",
+                idx,
+                reference_shape,
+                roi_mask.shape,
+            )
+            continue
+
+        if bool(should_flip):
+            roi_mask = np.logical_not(roi_mask)
+
+        combined_mask = np.logical_and(combined_mask, roi_mask)
+        matched_count += 1
+
+    if matched_count == 0:
+        raise ValueError(
+            f"No ROI matched the reference shape. Expected shape: {reference_shape}."
+        )
+
+    return combined_mask
+
+
+def transform_roi_to_world_grid(roi_data, affine, *, cval=0.0, threshold=0.5):
+    """Resample ROI data to an axis-aligned world-coordinate grid.
+
+    The returned array is indexed in world space using `world_min` as origin:
+    `world_index = world_coord - world_min`.
+
+    Parameters
+    ----------
+    roi_data : ndarray
+        Input ROI volume in voxel coordinates.
+    affine : ndarray, shape (4, 4)
+        Voxel-to-world affine transform.
+    cval : float, optional
+        Constant value for out-of-bounds sampling.
+    threshold : float or None, optional
+        If not None, output is binarized with ``>= threshold``.
+
+    Returns
+    -------
+    tuple[ndarray, ndarray]
+        `(transformed_data, world_min)` where:
+        - `transformed_data` is the ROI in world-grid indexing.
+        - `world_min` is the minimum world coordinate (x, y, z) used as origin.
+
+    Raises
+    ------
+    ValueError
+        If `roi_data` is not 3D or `affine` is not 4x4.
+    """
+    roi_data = np.asarray(roi_data)
+    if roi_data.ndim != 3:
+        raise ValueError(
+            f"`roi_data` must be a 3D array, got shape {roi_data.shape}."
+        )
+
+    affine = np.asarray(affine, dtype=np.float64)
+    if affine.shape != (4, 4):
+        raise ValueError(f"`affine` must have shape (4, 4), got {affine.shape}.")
+
+    if np.linalg.det(affine[:3, :3]) == 0:
+        raise ValueError("`affine` is singular and cannot be inverted.")
+
+    max_idx = np.asarray(roi_data.shape, dtype=np.float64) - 1.0
+    corners_ijk = np.asarray(
+        [
+            [0.0, 0.0, 0.0],
+            [max_idx[0], 0.0, 0.0],
+            [0.0, max_idx[1], 0.0],
+            [0.0, 0.0, max_idx[2]],
+            [max_idx[0], max_idx[1], 0.0],
+            [max_idx[0], 0.0, max_idx[2]],
+            [0.0, max_idx[1], max_idx[2]],
+            [max_idx[0], max_idx[1], max_idx[2]],
+        ],
+        dtype=np.float64,
+    )
+    corners_h = np.c_[corners_ijk, np.ones(len(corners_ijk), dtype=np.float64)]
+    world_corners = (affine @ corners_h.T).T[:, :3]
+
+    world_min = np.floor(world_corners.min(axis=0)).astype(np.int32)
+    world_max = np.ceil(world_corners.max(axis=0)).astype(np.int32)
+    output_shape = tuple((world_max - world_min + 1).astype(np.int32))
+
+    inv_affine = np.linalg.inv(affine)
+    matrix = inv_affine[:3, :3]
+    offset = (inv_affine[:3, :3] @ world_min) + inv_affine[:3, 3]
+
+    transformed_data = affine_transform(
+        roi_data.astype(np.float32, copy=False),
+        matrix=matrix,
+        offset=offset,
+        output_shape=output_shape,
+        order=1,
+        mode="constant",
+        cval=float(cval),
+        prefilter=False,
+    )
+
+    if threshold is not None:
+        transformed_data = transformed_data >= threshold
+
+    return transformed_data, world_min

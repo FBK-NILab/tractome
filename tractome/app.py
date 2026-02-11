@@ -14,7 +14,7 @@ from fury.lib import (
     PerspectiveCamera,
     TrackballController,
 )
-from tractome.compute import mkbm_clustering
+from tractome.compute import calculate_filter, mkbm_clustering
 from tractome.io import (
     read_mesh,
     read_nifti,
@@ -46,6 +46,7 @@ from tractome.viz import (
 )
 
 app = QApplication([])
+CHECKED = 2  # Qt.Checked
 
 
 class Tractome(QMainWindow):
@@ -91,6 +92,9 @@ class Tractome(QMainWindow):
         self._roi_slice_actors = []
         self._roi_controls_widget = None
         self._roi_checkboxes = []
+        self._roi_filter = None
+        self._affine = None
+        self._bounds = None
         self._mesh_mode = "Normals"
         self._state_manager = StateManager()
         self._focused_actor = None
@@ -253,6 +257,8 @@ class Tractome(QMainWindow):
 
         if self.t1:
             nifti_img, affine = read_nifti(self.t1)
+            self._bounds = nifti_img.shape
+            self._affine = affine
             image_slicer = create_image_slicer(nifti_img, affine=affine)
             self._3D_scene.add(image_slicer)
 
@@ -330,14 +336,23 @@ class Tractome(QMainWindow):
                 self._roi_checkboxes, self._roi_actors, self._roi_slice_actors
             ):
                 checkbox.stateChanged.connect(
-                    lambda state,
-                    actor=roi_actor,
-                    slice_actor=roi_slice: self.toggle_roi_visibility(
-                        actor, state, slice_actor
+                    lambda state, actor=roi_actor, slice_actor=roi_slice: (
+                        self.toggle_roi_visibility(actor, state, slice_actor)
                     )
                 )
 
         self.show_manager.start()
+
+    def _create_roi_filter(self):
+        rois = []
+        for idx, roi_path in enumerate(self.rois):
+            if self._roi_checkboxes[idx].state == CHECKED:
+                roi_nifti, _ = read_nifti(roi_path)
+                rois.append(roi_nifti)
+        self._roi_filter = calculate_filter(rois, reference_shape=self._bounds)
+
+    def _apply_roi_filter(self):
+        self._create_roi_filter()
 
     def _create_mesh_actor(self, mode="Normals"):
         """Create a 3D mesh actor from the loaded mesh."""
@@ -462,7 +477,6 @@ class Tractome(QMainWindow):
         """
         self._toggle_visibility(roi, state)
 
-        CHECKED = 2  # Qt.Checked
         if roi_slice is not None:
             if state == CHECKED:
                 if roi_slice not in self._2D_scene.main_scene.children:
