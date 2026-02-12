@@ -14,7 +14,12 @@ from fury.lib import (
     PerspectiveCamera,
     TrackballController,
 )
-from tractome.compute import calculate_filter, mkbm_clustering
+from tractome.compute import (
+    calculate_filter,
+    filter_streamline_ids,
+    mkbm_clustering,
+    transform_roi_to_world_grid,
+)
 from tractome.io import (
     read_mesh,
     read_nifti,
@@ -46,7 +51,7 @@ from tractome.viz import (
 )
 
 app = QApplication([])
-CHECKED = 2  # Qt.Checked
+# Qt.Checked
 
 
 class Tractome(QMainWindow):
@@ -93,6 +98,8 @@ class Tractome(QMainWindow):
         self._roi_controls_widget = None
         self._roi_checkboxes = []
         self._roi_filter = None
+        self._roi_filtered_ids = None
+        self._roi_origin = (0, 0, 0)
         self._affine = None
         self._bounds = None
         self._mesh_mode = "Normals"
@@ -193,6 +200,7 @@ class Tractome(QMainWindow):
         self._slice_widget = None
         self._3D_check_box_values = None
         self._2D_radio_buttons_values = None
+        self._colors_gen = distinguishable_colormap()
 
     def _init_actors(self):
         """Initialize the actors for the scene."""
@@ -202,14 +210,15 @@ class Tractome(QMainWindow):
                 self._sft.data_per_streamline is None
                 or "dismatrix" not in self._sft.data_per_streamline
             ):
-                tractogram = create_streamlines(self._sft.streamlines, color=(0, 1, 0))
+                color = next(self._colors_gen)
+                tractogram = create_streamlines(self._sft.streamlines, color=color)
                 self._3D_scene.add(tractogram)
                 self._3D_actors["tractogram"] = tractogram
             else:
                 self._state_manager.add_state(
                     ClusterState(100, np.arange(len(self._sft.streamlines)), 1000)
                 )
-                self.perform_clustering(100)
+                self.perform_clustering(value=100)
                 (
                     self._cluster_widget,
                     self._cluster_input,
@@ -304,15 +313,23 @@ class Tractome(QMainWindow):
             self._mesh_opacity_slider.valueChanged.connect(self.update_mesh_opacity)
             self._mesh_mode_group.buttonClicked.connect(self.on_mesh_mode_changed)
 
-        roi_colors = distinguishable_colormap(nb_colors=len(self.rois))
-        for idx, roi_path in enumerate(self.rois):
+        for roi_path in self.rois:
             roi_nifti, affine = read_nifti(roi_path)
 
-            roi_object = create_roi(roi_nifti, affine=affine, color=roi_colors[idx])
+            # Fail-safe if a t1 image is not provided.
+            # Use the first ROI's shape and affine as the reference for all subsequent
+            # ROIs and filtering.
+            if self._bounds is None:
+                self._bounds = roi_nifti.shape
+            if self._affine is None:
+                self._affine = affine
+
+            color = next(self._colors_gen)
+            roi_object = create_roi(roi_nifti, affine=affine, color=color)
             self._3D_scene.add(roi_object)
             self._roi_actors.append(roi_object)
 
-            roi_rgba = self._build_roi_rgba_volume(roi_nifti, roi_colors[idx])
+            roi_rgba = self._build_roi_rgba_volume(roi_nifti, color)
             roi_slice = create_image_slicer(
                 roi_rgba, affine=affine, mode="weighted_blend", depth_write=False
             )
@@ -341,18 +358,29 @@ class Tractome(QMainWindow):
                     )
                 )
 
+            self._apply_roi_filter()
+            self.perform_clustering(value=100)
         self.show_manager.start()
 
     def _create_roi_filter(self):
         rois = []
         for idx, roi_path in enumerate(self.rois):
-            if self._roi_checkboxes[idx].state == CHECKED:
+            if self._roi_checkboxes[idx].isChecked():
                 roi_nifti, _ = read_nifti(roi_path)
                 rois.append(roi_nifti)
-        self._roi_filter = calculate_filter(rois, reference_shape=self._bounds)
+        if rois:
+            self._roi_filter = calculate_filter(rois, reference_shape=self._bounds)
+            self._roi_filter, self._roi_origin = transform_roi_to_world_grid(
+                self._roi_filter, self._affine
+            )
+        else:
+            self._roi_filter = None
 
     def _apply_roi_filter(self):
         self._create_roi_filter()
+        self._roi_filtered_ids = filter_streamline_ids(
+            self._sft.streamlines, self._roi_filter, origin=self._roi_origin
+        )
 
     def _create_mesh_actor(self, mode="Normals"):
         """Create a 3D mesh actor from the loaded mesh."""
@@ -477,6 +505,7 @@ class Tractome(QMainWindow):
         """
         self._toggle_visibility(roi, state)
 
+        CHECKED = 2  # Qt.Checked
         if roi_slice is not None:
             if state == CHECKED:
                 if roi_slice not in self._2D_scene.main_scene.children:
@@ -488,6 +517,9 @@ class Tractome(QMainWindow):
             else:
                 if roi_slice in self._2D_scene.main_scene.children:
                     self._2D_scene.remove(roi_slice)
+
+        self._apply_roi_filter()
+        self.perform_clustering()
         self.show_manager.render()
 
     def _toggle_visibility(self, actor, state):
@@ -524,7 +556,7 @@ class Tractome(QMainWindow):
             self._3D_actors["mesh"].material.depth_write = True
         self.show_manager.render()
 
-    def perform_clustering(self, value):
+    def perform_clustering(self, *, value=None):
         """Perform clustering on the current data.
 
         Parameters
@@ -532,13 +564,27 @@ class Tractome(QMainWindow):
         value : int
             The number of clusters to create.
         """
+
+        if not self._state_manager.has_states():
+            logging.info("No states available for clustering.")
+            return
+
         latest_state = self._state_manager.get_latest_state()
+
+        if value is None:
+            value = latest_state.nb_clusters
+
+        streamline_ids = latest_state.streamline_ids
         self._selected_clusters.clear()
         self.collapse_streamline_bundles()
+        if self._roi_filtered_ids:
+            streamline_ids = list(
+                set(streamline_ids).intersection(set(self._roi_filtered_ids))
+            )
         self._clusters = mkbm_clustering(
             self._sft.data_per_streamline["dismatrix"],
             n_clusters=value,
-            streamline_ids=latest_state.streamline_ids,
+            streamline_ids=streamline_ids,
         )
 
         for cluster in self._cluster_reps.values():
@@ -564,7 +610,7 @@ class Tractome(QMainWindow):
             latest_state = self._state_manager.move_next()
             self._cluster_input.setMaximum(latest_state.max_clusters)
             self._cluster_input.setValue(latest_state.nb_clusters)
-            self.perform_clustering(latest_state.nb_clusters)
+            self.perform_clustering(value=latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No next state available.")
@@ -575,7 +621,7 @@ class Tractome(QMainWindow):
             latest_state = self._state_manager.move_back()
             self._cluster_input.setMaximum(latest_state.max_clusters)
             self._cluster_input.setValue(latest_state.nb_clusters)
-            self.perform_clustering(latest_state.nb_clusters)
+            self.perform_clustering(value=latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No previous state available.")
