@@ -92,7 +92,9 @@ class Tractome(QMainWindow):
         self._cluster_reps = {}
         self._streamline_bundles = []
         self._selected_clusters = set()
-        self._streamline_projections = set()
+        self._streamline_projections = []
+        self._streamline_bounds_min = None
+        self._streamline_bounds_max = None
         self._roi_actors = []
         self._roi_slice_actors = []
         self._roi_controls_widget = None
@@ -206,6 +208,7 @@ class Tractome(QMainWindow):
         """Initialize the actors for the scene."""
         if self.tractogram:
             self._sft = read_tractogram(self.tractogram, reference=self.t1)
+            self._precompute_streamline_bounds()
             if (
                 self._sft.data_per_streamline is None
                 or "dismatrix" not in self._sft.data_per_streamline
@@ -358,8 +361,9 @@ class Tractome(QMainWindow):
                     )
                 )
 
-            self._apply_roi_filter()
-            self.perform_clustering(value=100)
+            if self.tractogram:
+                self._apply_roi_filter()
+                self.perform_clustering(value=100)
         self.show_manager.start()
 
     def _create_roi_filter(self):
@@ -388,6 +392,73 @@ class Tractome(QMainWindow):
         mesh_actor = create_mesh(mesh_obj, texture=texture, mode=mode)
         self._3D_scene.add(mesh_actor)
         self._3D_actors["mesh"] = mesh_actor
+
+    def _precompute_streamline_bounds(self):
+        """Cache min/max xyz bounds per streamline for fast selection queries."""
+        if self._sft is None:
+            self._streamline_bounds_min = None
+            self._streamline_bounds_max = None
+            return
+
+        n_streamlines = len(self._sft.streamlines)
+        mins = np.zeros((n_streamlines, 3), dtype=np.float32)
+        maxs = np.zeros((n_streamlines, 3), dtype=np.float32)
+
+        for idx, line in enumerate(self._sft.streamlines):
+            pts = np.asarray(line, dtype=np.float32)
+            mins[idx] = pts.min(axis=0)
+            maxs[idx] = pts.max(axis=0)
+
+        self._streamline_bounds_min = mins
+        self._streamline_bounds_max = maxs
+
+    def _selected_streamline_ids(self):
+        """Return unique streamline ids for currently selected clusters."""
+        if not self._selected_clusters or not self._clusters:
+            return np.asarray([], dtype=np.int32)
+
+        ids = []
+        for cluster in self._selected_clusters:
+            ids.extend(self._clusters.get(cluster.rep, []))
+        if not ids:
+            return np.asarray([], dtype=np.int32)
+
+        return np.unique(np.asarray(ids, dtype=np.int32))
+
+    def _clamp_slice_values_to_selection(self, slice_values):
+        """Keep 2D slice values inside selected-streamline bounds when possible."""
+        if slice_values is None:
+            return None
+        if self._streamline_bounds_min is None or self._streamline_bounds_max is None:
+            return slice_values
+
+        selected_ids = self._selected_streamline_ids()
+        if selected_ids.size == 0:
+            return slice_values
+
+        mins = self._streamline_bounds_min[selected_ids].min(axis=0)
+        maxs = self._streamline_bounds_max[selected_ids].max(axis=0)
+        sliders = (self._x_slider, self._y_slider, self._z_slider)
+        clamped = [int(v) for v in slice_values]
+        changed = False
+
+        for axis, (slider, cur_val) in enumerate(zip(sliders, clamped)):
+            lower = max(float(slider.minimum()), float(mins[axis]))
+            upper = min(float(slider.maximum()), float(maxs[axis]))
+            if lower > upper:
+                continue
+            if cur_val < lower or cur_val > upper:
+                clamped_val = int(np.rint((lower + upper) / 2.0))
+                clamped[axis] = clamped_val
+                changed = True
+
+        if changed:
+            for slider, val in zip(sliders, clamped):
+                slider.blockSignals(True)
+                slider.setValue(int(val))
+                slider.blockSignals(False)
+
+        return tuple(clamped)
 
     def on_mesh_mode_changed(self, button):
         """Handle mesh mode radio button change."""
@@ -444,7 +515,8 @@ class Tractome(QMainWindow):
         show_slices(self._2D_actors["t1"], slices)
         for roi_slice in self._roi_slice_actors:
             show_slices(roi_slice, np.asarray(slices) + 0.1)
-        [show_slices(projection, slices) for projection in self._streamline_projections]
+        for projection in self._streamline_projections:
+            show_slices(projection, slices)
         self.show_manager.render()
 
     def _update_history_table(self):
@@ -467,18 +539,15 @@ class Tractome(QMainWindow):
             set_group_visibility(self._3D_actors["t1"], checkbox_states)
         elif self._mode == "2D":
             radio_states = self.get_current_checkbox_states()
-            self._2D_camera.show_object(self._2D_actors["t1"], (0, 0, -1))
             self._2D_camera.show_object(
-                self._2D_scene.main_scene,
+                self._2D_actors["t1"],
                 tuple(-1 * np.asarray(radio_states, dtype=int)),
             )
             set_group_visibility(self._2D_actors["t1"], radio_states)
             for roi_slice in self._roi_slice_actors:
                 set_group_visibility(roi_slice, radio_states)
-            [
+            for proj in self._streamline_projections:
                 set_group_visibility(proj, radio_states)
-                for proj in self._streamline_projections
-            ]
         self.show_manager.render()
 
     def toggle_mesh_visibility(self, state):
@@ -793,8 +862,12 @@ class Tractome(QMainWindow):
         self._streamline_bundles = []
 
     def _create_streamlines_projection(self):
-        self._2D_scene.remove(*self._streamline_projections)
+        if self._streamline_projections:
+            self._2D_scene.remove(*self._streamline_projections)
         self._streamline_projections.clear()
+        slice_values = self._clamp_slice_values_to_selection(
+            self.get_current_slider_position()
+        )
         for cluster in self._selected_clusters:
             streamlines = [
                 np.asarray(self._sft.streamlines[line])
@@ -803,10 +876,11 @@ class Tractome(QMainWindow):
             projection = create_streamlines_projection(
                 streamlines=streamlines,
                 colors=cluster.geometry.colors.data[0],
-                slice_values=self.get_current_slider_position(),
+                slice_values=slice_values,
             )
-            self._streamline_projections.add(projection)
-        self._2D_scene.add(*self._streamline_projections)
+            self._streamline_projections.append(projection)
+        if self._streamline_projections:
+            self._2D_scene.add(*self._streamline_projections)
         self._2D_actors["tractogram"] = self._streamline_projections
 
     def toggle_3D_mode(self):
