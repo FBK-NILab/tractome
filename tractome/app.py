@@ -14,7 +14,12 @@ from fury.lib import (
     PerspectiveCamera,
     TrackballController,
 )
-from tractome.compute import mkbm_clustering
+from tractome.compute import (
+    calculate_filter,
+    filter_streamline_ids,
+    mkbm_clustering,
+    transform_roi_to_world_grid,
+)
 from tractome.io import (
     read_mesh,
     read_nifti,
@@ -46,6 +51,7 @@ from tractome.viz import (
 )
 
 app = QApplication([])
+# Qt.Checked
 
 
 class Tractome(QMainWindow):
@@ -86,11 +92,18 @@ class Tractome(QMainWindow):
         self._cluster_reps = {}
         self._streamline_bundles = []
         self._selected_clusters = set()
-        self._streamline_projections = set()
+        self._streamline_projections = []
+        self._streamline_bounds_min = None
+        self._streamline_bounds_max = None
         self._roi_actors = []
         self._roi_slice_actors = []
         self._roi_controls_widget = None
         self._roi_checkboxes = []
+        self._roi_filter = None
+        self._roi_filtered_ids = None
+        self._roi_origin = (0, 0, 0)
+        self._affine = None
+        self._bounds = None
         self._mesh_mode = "Normals"
         self._state_manager = StateManager()
         self._focused_actor = None
@@ -190,23 +203,26 @@ class Tractome(QMainWindow):
         self._slice_widget = None
         self._3D_check_box_values = None
         self._2D_radio_buttons_values = None
+        self._colors_gen = distinguishable_colormap()
 
     def _init_actors(self):
         """Initialize the actors for the scene."""
         if self.tractogram:
             self._sft = read_tractogram(self.tractogram, reference=self.t1)
+            self._precompute_streamline_bounds()
             if (
                 self._sft.data_per_streamline is None
                 or "dismatrix" not in self._sft.data_per_streamline
             ):
-                tractogram = create_streamlines(self._sft.streamlines, color=(0, 1, 0))
+                color = next(self._colors_gen)
+                tractogram = create_streamlines(self._sft.streamlines, color=color)
                 self._3D_scene.add(tractogram)
                 self._3D_actors["tractogram"] = tractogram
             else:
                 self._state_manager.add_state(
                     ClusterState(100, np.arange(len(self._sft.streamlines)), 1000)
                 )
-                self.perform_clustering(100)
+                self.perform_clustering(value=100)
                 (
                     self._cluster_widget,
                     self._cluster_input,
@@ -254,6 +270,8 @@ class Tractome(QMainWindow):
 
         if self.t1:
             nifti_img, affine = read_nifti(self.t1)
+            self._bounds = nifti_img.shape
+            self._affine = affine
             image_slicer = create_image_slicer(nifti_img, affine=affine)
             self._3D_scene.add(image_slicer)
 
@@ -299,15 +317,23 @@ class Tractome(QMainWindow):
             self._mesh_opacity_slider.valueChanged.connect(self.update_mesh_opacity)
             self._mesh_mode_group.buttonClicked.connect(self.on_mesh_mode_changed)
 
-        roi_colors = distinguishable_colormap(nb_colors=len(self.rois))
-        for idx, roi_path in enumerate(self.rois):
+        for roi_path in self.rois:
             roi_nifti, affine = read_nifti(roi_path)
 
-            roi_object = create_roi(roi_nifti, affine=affine, color=roi_colors[idx])
+            # Fail-safe if a t1 image is not provided.
+            # Use the first ROI's shape and affine as the reference for all subsequent
+            # ROIs and filtering.
+            if self._bounds is None:
+                self._bounds = roi_nifti.shape
+            if self._affine is None:
+                self._affine = affine
+
+            color = next(self._colors_gen)
+            roi_object = create_roi(roi_nifti, affine=affine, color=color)
             self._3D_scene.add(roi_object)
             self._roi_actors.append(roi_object)
 
-            roi_rgba = self._build_roi_rgba_volume(roi_nifti, roi_colors[idx])
+            roi_rgba = self._build_roi_rgba_volume(roi_nifti, color)
             roi_slice = create_image_slicer(
                 roi_rgba, affine=affine, mode="weighted_blend", depth_write=False
             )
@@ -336,7 +362,30 @@ class Tractome(QMainWindow):
                     )
                 )
 
+            if self.tractogram:
+                self._apply_roi_filter()
+                self.perform_clustering(value=100)
         self.show_manager.start()
+
+    def _create_roi_filter(self):
+        rois = []
+        for idx, roi_path in enumerate(self.rois):
+            if self._roi_checkboxes[idx].isChecked():
+                roi_nifti, _ = read_nifti(roi_path)
+                rois.append(roi_nifti)
+        if rois:
+            self._roi_filter = calculate_filter(rois, reference_shape=self._bounds)
+            self._roi_filter, self._roi_origin = transform_roi_to_world_grid(
+                self._roi_filter, self._affine
+            )
+        else:
+            self._roi_filter = None
+
+    def _apply_roi_filter(self):
+        self._create_roi_filter()
+        self._roi_filtered_ids = filter_streamline_ids(
+            self._sft.streamlines, self._roi_filter, origin=self._roi_origin
+        )
 
     def _create_mesh_actor(self, mode="Normals"):
         """Create a 3D mesh actor from the loaded mesh."""
@@ -344,6 +393,73 @@ class Tractome(QMainWindow):
         mesh_actor = create_mesh(mesh_obj, texture=texture, mode=mode)
         self._3D_scene.add(mesh_actor)
         self._3D_actors["mesh"] = mesh_actor
+
+    def _precompute_streamline_bounds(self):
+        """Cache min/max xyz bounds per streamline for fast selection queries."""
+        if self._sft is None:
+            self._streamline_bounds_min = None
+            self._streamline_bounds_max = None
+            return
+
+        n_streamlines = len(self._sft.streamlines)
+        mins = np.zeros((n_streamlines, 3), dtype=np.float32)
+        maxs = np.zeros((n_streamlines, 3), dtype=np.float32)
+
+        for idx, line in enumerate(self._sft.streamlines):
+            pts = np.asarray(line, dtype=np.float32)
+            mins[idx] = pts.min(axis=0)
+            maxs[idx] = pts.max(axis=0)
+
+        self._streamline_bounds_min = mins
+        self._streamline_bounds_max = maxs
+
+    def _selected_streamline_ids(self):
+        """Return unique streamline ids for currently selected clusters."""
+        if not self._selected_clusters or not self._clusters:
+            return np.asarray([], dtype=np.int32)
+
+        ids = []
+        for cluster in self._selected_clusters:
+            ids.extend(self._clusters.get(cluster.rep, []))
+        if not ids:
+            return np.asarray([], dtype=np.int32)
+
+        return np.unique(np.asarray(ids, dtype=np.int32))
+
+    def _clamp_slice_values_to_selection(self, slice_values):
+        """Keep 2D slice values inside selected-streamline bounds when possible."""
+        if slice_values is None:
+            return None
+        if self._streamline_bounds_min is None or self._streamline_bounds_max is None:
+            return slice_values
+
+        selected_ids = self._selected_streamline_ids()
+        if selected_ids.size == 0:
+            return slice_values
+
+        mins = self._streamline_bounds_min[selected_ids].min(axis=0)
+        maxs = self._streamline_bounds_max[selected_ids].max(axis=0)
+        sliders = (self._x_slider, self._y_slider, self._z_slider)
+        clamped = [int(v) for v in slice_values]
+        changed = False
+
+        for axis, (slider, cur_val) in enumerate(zip(sliders, clamped)):
+            lower = max(float(slider.minimum()), float(mins[axis]))
+            upper = min(float(slider.maximum()), float(maxs[axis]))
+            if lower > upper:
+                continue
+            if cur_val < lower or cur_val > upper:
+                clamped_val = int(np.rint((lower + upper) / 2.0))
+                clamped[axis] = clamped_val
+                changed = True
+
+        if changed:
+            for slider, val in zip(sliders, clamped):
+                slider.blockSignals(True)
+                slider.setValue(int(val))
+                slider.blockSignals(False)
+
+        return tuple(clamped)
 
     def on_mesh_mode_changed(self, button):
         """Handle mesh mode radio button change."""
@@ -400,7 +516,8 @@ class Tractome(QMainWindow):
         show_slices(self._2D_actors["t1"], slices)
         for roi_slice in self._roi_slice_actors:
             show_slices(roi_slice, np.asarray(slices) + 0.1)
-        [show_slices(projection, slices) for projection in self._streamline_projections]
+        for projection in self._streamline_projections:
+            show_slices(projection, slices)
         self.show_manager.render()
 
     def _update_history_table(self):
@@ -423,18 +540,15 @@ class Tractome(QMainWindow):
             set_group_visibility(self._3D_actors["t1"], checkbox_states)
         elif self._mode == "2D":
             radio_states = self.get_current_checkbox_states()
-            self._2D_camera.show_object(self._2D_actors["t1"], (0, 0, -1))
             self._2D_camera.show_object(
-                self._2D_scene.main_scene,
+                self._2D_actors["t1"],
                 tuple(-1 * np.asarray(radio_states, dtype=int)),
             )
             set_group_visibility(self._2D_actors["t1"], radio_states)
             for roi_slice in self._roi_slice_actors:
                 set_group_visibility(roi_slice, radio_states)
-            [
+            for proj in self._streamline_projections:
                 set_group_visibility(proj, radio_states)
-                for proj in self._streamline_projections
-            ]
         self.show_manager.render()
 
     def toggle_mesh_visibility(self, state):
@@ -473,6 +587,9 @@ class Tractome(QMainWindow):
             else:
                 if roi_slice in self._2D_scene.main_scene.children:
                     self._2D_scene.remove(roi_slice)
+
+        self._apply_roi_filter()
+        self.perform_clustering()
         self.show_manager.render()
 
     def _toggle_visibility(self, actor, state):
@@ -509,7 +626,7 @@ class Tractome(QMainWindow):
             self._3D_actors["mesh"].material.depth_write = True
         self.show_manager.render()
 
-    def perform_clustering(self, value):
+    def perform_clustering(self, *, value=None):
         """Perform clustering on the current data.
 
         Parameters
@@ -517,13 +634,27 @@ class Tractome(QMainWindow):
         value : int
             The number of clusters to create.
         """
+
+        if not self._state_manager.has_states():
+            logging.info("No states available for clustering.")
+            return
+
         latest_state = self._state_manager.get_latest_state()
+
+        if value is None:
+            value = latest_state.nb_clusters
+
+        streamline_ids = latest_state.streamline_ids
         self._selected_clusters.clear()
         self.collapse_streamline_bundles()
+        if self._roi_filtered_ids:
+            streamline_ids = list(
+                set(streamline_ids).intersection(set(self._roi_filtered_ids))
+            )
         self._clusters = mkbm_clustering(
             self._sft.data_per_streamline["dismatrix"],
             n_clusters=value,
-            streamline_ids=latest_state.streamline_ids,
+            streamline_ids=streamline_ids,
         )
 
         for cluster in self._cluster_reps.values():
@@ -549,7 +680,7 @@ class Tractome(QMainWindow):
             latest_state = self._state_manager.move_next()
             self._cluster_input.setMaximum(latest_state.max_clusters)
             self._cluster_input.setValue(latest_state.nb_clusters)
-            self.perform_clustering(latest_state.nb_clusters)
+            self.perform_clustering(value=latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No next state available.")
@@ -560,7 +691,7 @@ class Tractome(QMainWindow):
             latest_state = self._state_manager.move_back()
             self._cluster_input.setMaximum(latest_state.max_clusters)
             self._cluster_input.setValue(latest_state.nb_clusters)
-            self.perform_clustering(latest_state.nb_clusters)
+            self.perform_clustering(value=latest_state.nb_clusters)
             self._update_history_table()
         else:
             logging.warning("No previous state available.")
@@ -732,8 +863,12 @@ class Tractome(QMainWindow):
         self._streamline_bundles = []
 
     def _create_streamlines_projection(self):
-        self._2D_scene.remove(*self._streamline_projections)
+        if self._streamline_projections:
+            self._2D_scene.remove(*self._streamline_projections)
         self._streamline_projections.clear()
+        slice_values = self._clamp_slice_values_to_selection(
+            self.get_current_slider_position()
+        )
         for cluster in self._selected_clusters:
             streamlines = [
                 np.asarray(self._sft.streamlines[line])
@@ -742,10 +877,11 @@ class Tractome(QMainWindow):
             projection = create_streamlines_projection(
                 streamlines=streamlines,
                 colors=cluster.geometry.colors.data[0],
-                slice_values=self.get_current_slider_position(),
+                slice_values=slice_values,
             )
-            self._streamline_projections.add(projection)
-        self._2D_scene.add(*self._streamline_projections)
+            self._streamline_projections.append(projection)
+        if self._streamline_projections:
+            self._2D_scene.add(*self._streamline_projections)
         self._2D_actors["tractogram"] = self._streamline_projections
 
     def toggle_3D_mode(self):

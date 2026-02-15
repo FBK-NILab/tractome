@@ -1,9 +1,10 @@
 import logging
 import os
 
-from dipy.io.image import load_nifti
+from dipy.io.image import load_nifti, save_nifti
 from dipy.io.stateful_tractogram import Space, StatefulTractogram
 from dipy.io.streamline import load_tractogram, save_tractogram as dipy_save_tractogram
+import numpy as np
 import trimesh
 
 
@@ -160,3 +161,23 @@ def save_tractogram(sft, file_path):
 
     dipy_save_tractogram(sft, validated_path, bbox_valid_check=False)
     logging.info("Tractogram saved successfully.")
+
+
+def save_roi(fpath, roi, affine):
+    """Save an ROI as a NIfTI file with uint8 dtype.
+
+    Parameters
+    ----------
+    fpath : str
+        Destination path.
+    roi : ndarray
+        ROI volume data.
+    affine : ndarray
+        Voxel-to-world affine matrix.
+    """
+    validated_path = os.path.expanduser(fpath)
+    logging.info(f"Saving ROI to {validated_path} ...")
+
+    roi_uint8 = np.asarray(roi, dtype=np.uint8)
+    save_nifti(validated_path, roi_uint8, affine, dtype=np.uint8)
+    logging.info("ROI saved successfully.")

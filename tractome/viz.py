@@ -68,8 +68,8 @@ def create_roi(roi_data, *, affine=None, color=(1, 0, 0)):
         roi_data, affine=affine, color=color, opacity=0.8, material="phong"
     )
     for contour in roi.children:
-        contour.material.alpha_mode = "blend"
-        contour.material.depth_write = False
+        contour.material.alpha_mode = "auto"
+        contour.material.depth_write = True
         contour.render_order = 2
     return roi
 
@@ -174,8 +174,8 @@ def create_streamlines(streamlines, color):
         outline_thickness=1,
         outline_color=(0, 0, 0),
     )
-    bundle.material.alpha_mode = "blend"
-    bundle.material.depth_write = False
+    bundle.material.alpha_mode = "auto"
+    bundle.material.depth_write = True
     bundle.render_order = 1
     return bundle
 
@@ -269,8 +269,8 @@ def create_streamtube(clusters, streamlines):
         )
         streamtube.rep = rep
         streamtube.material.opacity = 0.5
-        streamtube.material.alpha_mode = "blend"
-        streamtube.material.depth_write = False
+        streamtube.material.alpha_mode = "auto"
+        streamtube.material.depth_write = True
         streamtube.render_order = 1
         streamtube.material.uniform_buffer.update_full()
         streamtube.add_event_handler(toggle_streamtube_selection, "on_selection")
