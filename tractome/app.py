@@ -21,6 +21,7 @@ from tractome.compute import (
     transform_roi_to_world_grid,
 )
 from tractome.io import (
+    read_csv,
     read_mesh,
     read_nifti,
     read_tractogram,
@@ -44,6 +45,7 @@ from tractome.viz import (
     create_image_slicer,
     create_keystroke_card,
     create_mesh,
+    create_parcels,
     create_roi,
     create_streamlines,
     create_streamlines_projection,
@@ -56,7 +58,13 @@ app = QApplication([])
 
 class Tractome(QMainWindow):
     def __init__(
-        self, tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=None
+        self,
+        tractogram=None,
+        mesh=None,
+        mesh_texture=None,
+        t1=None,
+        roi=None,
+        parcel=None,
     ):
         """Initialize the Tractome application.
 
@@ -72,6 +80,8 @@ class Tractome(QMainWindow):
             The file path to the T1 image
         roi : str or Sequence[str], optional
             One or more file paths to ROI files.
+        parcel : str or Sequence[str], optional
+            One or more file paths to parcel files.
         """
         super().__init__()
         self.tractogram = tractogram
@@ -84,6 +94,12 @@ class Tractome(QMainWindow):
             self.rois = list(roi)
         else:
             self.rois = [roi]
+        if parcel is None:
+            self.parcels = []
+        elif isinstance(parcel, (list, tuple)):
+            self.parcels = list(parcel)
+        else:
+            self.parcels = [parcel]
         self._mode = "3D"
         self._3D_actors = {"t1": None, "tractogram": None, "mesh": None, "roi": None}
         self._2D_actors = {"t1": None, "tractogram": None, "mesh": None, "roi": []}
@@ -361,6 +377,12 @@ class Tractome(QMainWindow):
                         self.toggle_roi_visibility(actor, state, slice_actor)
                     )
                 )
+        self._parcel_actors = []
+        for parcel_path in self.parcels:
+            points, colors = read_csv(parcel_path, delimiter=" ", has_header=False)
+            parcel_actor = create_parcels(points, colors)
+            self._3D_scene.add(parcel_actor)
+            self._parcel_actors.append(parcel_actor)
 
             if self.tractogram:
                 self._apply_roi_filter()

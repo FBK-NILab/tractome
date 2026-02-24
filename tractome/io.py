@@ -1,3 +1,4 @@
+import csv
 import logging
 import os
 
@@ -116,6 +117,64 @@ def read_nifti(file_path):
     nifti_img, affine = load_nifti(validated_path)
 
     return nifti_img, affine
+
+
+def read_csv(file_path, *, delimiter=",", has_header=True, encoding="utf-8"):
+    """Read a CSV file.
+
+    Parameters
+    ----------
+    file_path : str
+        The path to the CSV file.
+    delimiter : str, optional
+        The CSV delimiter character.
+    has_header : bool, optional
+        Whether the CSV file contains a header row.
+    encoding : str, optional
+        The file encoding.
+
+    Returns
+    -------
+    list
+        A list of dictionaries if header is present, else a list of rows.
+    """
+
+    resolved_path = os.path.expanduser(file_path)
+    csv_paths = []
+    if os.path.isdir(resolved_path):
+        csv_paths = sorted(
+            os.path.join(resolved_path, name)
+            for name in os.listdir(resolved_path)
+            if os.path.isfile(os.path.join(resolved_path, name))
+            and name.lower().endswith(".csv")
+        )
+        if not csv_paths:
+            raise ValueError(f"No CSV files found in directory: {resolved_path}")
+        logging.info(f"Loading CSV files from directory {resolved_path} ...")
+    else:
+        validated_path = validate_path(resolved_path)
+        if not validated_path.lower().endswith(".csv"):
+            raise ValueError(f"File must be a CSV: {validated_path}")
+        csv_paths = [validated_path]
+        logging.info(f"Loading CSV file from {validated_path} ...")
+
+    data_chunks = []
+    for csv_path in csv_paths:
+        with open(csv_path, newline="", encoding=encoding) as csv_file:
+            if has_header:
+                rows = list(csv.DictReader(csv_file, delimiter=delimiter))
+                chunk = np.asarray([[row[key] for key in row] for row in rows])
+            else:
+                chunk = np.asarray(list(csv.reader(csv_file, delimiter=delimiter)))
+            if chunk.size == 0:
+                continue
+            data_chunks.append(chunk)
+
+    if not data_chunks:
+        return np.empty((0, 3)), np.empty((0, 0))
+
+    data = np.concatenate(data_chunks, axis=0)
+    return data[:, :3], data[:, 3:]
 
 
 def save_tractogram_from_streamlines(

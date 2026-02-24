@@ -180,6 +180,27 @@ def create_streamlines(streamlines, color):
     return bundle
 
 
+def create_parcels(pts, colors):
+    """Create point based representation of parcels
+
+    Parameters
+    ----------
+    pts : ndarray
+        The input parcel points.
+    colors : ndarray
+        The input parcel colors.
+
+    Returns
+    -------
+    Point
+        The created point-based representation of parcels.
+    """
+    colors = np.asarray(colors, dtype=np.float32) / 255.0
+    pts = np.asarray(pts, dtype=np.float32) * 10e2
+    parcels = actor.point(pts, colors=colors, size=0.5, enable_picking=False)
+    return parcels
+
+
 def _deselect_streamtube(streamtube):
     """Deselect a streamtube by setting its opacity to 0.5.
 
