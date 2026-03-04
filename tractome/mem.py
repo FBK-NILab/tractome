@@ -35,6 +35,16 @@ class StateManager:
         self._max_size = max_size
         self._current_index = -1  # -1 means no state yet
 
+    def has_states(self):
+        """Check if there are any states in the history.
+
+        Returns
+        -------
+        bool
+            True if there are states in the history, False otherwise.
+        """
+        return len(self._states) > 0
+
     def add_state(self, state):
         """Add a new state.
 

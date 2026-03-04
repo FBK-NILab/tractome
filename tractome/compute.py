@@ -4,7 +4,11 @@ import tempfile
 
 from dipy.utils.optpkg import optional_package
 import numpy as np
+from scipy.ndimage import affine_transform
 from sklearn.cluster import MiniBatchKMeans
+import wgpu
+
+from fury import actor, window
 
 ray, has_ray, _ = optional_package("ray")
 
@@ -174,3 +178,281 @@ def mkbm_clustering(dissimilarity_matrix, n_clusters, streamline_ids):
 
     clusters = dict(zip(medoids_exhs, idxs))
     return clusters
+
+
+def calculate_filter(rois, *, flip=None, reference_shape=None):
+    """Calculate a combined ROI filter using logical AND.
+
+    Parameters
+    ----------
+    rois : ndarray
+        ROI volumes to combine with shape (X, Y, Z).
+    flip : Sequence[bool] or None, optional
+        Per-ROI flag indicating whether the ROI should be inverted
+        before combination. If None, all ROIs are inverted.
+    reference_shape : tuple[int, ...] or None, optional
+        Expected ROI shape. If None, shape from the first ROI is used.
+
+    Returns
+    -------
+    ndarray
+        Boolean mask resulting from a logical AND across all ROIs
+        (after optional inversion).
+
+    Raises
+    ------
+    ValueError
+        If no ROIs are provided, if `flip` length does not match
+        `rois`, or if no ROI matches `reference_shape`.
+    """
+    if rois is None or len(rois) == 0:
+        raise ValueError("At least one ROI must be provided.")
+
+    if flip is None:
+        flip = [False] * len(rois)
+
+    if len(flip) != len(rois):
+        raise ValueError(
+            "The `flip` list must have the same length as `rois` "
+            f"({len(flip)} != {len(rois)})."
+        )
+
+    if reference_shape is None:
+        reference_shape = np.asarray(rois[0]).shape
+    else:
+        reference_shape = tuple(reference_shape)
+    combined_mask = np.ones(reference_shape, dtype=bool)
+    matched_count = 0
+
+    for idx, (roi, should_flip) in enumerate(zip(rois, flip)):
+        roi_mask = np.asarray(roi).astype(bool, copy=False)
+
+        if roi_mask.shape != reference_shape:
+            logging.warning(
+                "Skipping ROI %s due to shape mismatch: expected %s, got %s.",
+                idx,
+                reference_shape,
+                roi_mask.shape,
+            )
+            continue
+
+        if bool(should_flip):
+            roi_mask = np.logical_not(roi_mask)
+
+        combined_mask = np.logical_and(combined_mask, roi_mask)
+        matched_count += 1
+
+    if matched_count == 0:
+        raise ValueError(
+            f"No ROI matched the reference shape. Expected shape: {reference_shape}."
+        )
+
+    return combined_mask
+
+
+def create_roi_from_world(bounds, affine, center, radius, *, type="spherical"):
+    """Create a binary spherical ROI from world-space center and radius.
+
+    Parameters
+    ----------
+    bounds : tuple[int, int, int]
+        ROI output shape in voxel coordinates.
+    affine : ndarray, shape (4, 4)
+        Voxel-to-world affine transform.
+    center : Sequence[float]
+        Sphere center in world coordinates.
+    radius : float
+        Sphere radius in world units.
+    type : str, optional
+        Type of ROI to create. Currently only "spherical" is supported.
+
+    Returns
+    -------
+    tuple[ndarray, ndarray]
+        `(roi, affine)` where `roi` is a uint8 binary mask with ones inside
+        the sphere and zeros elsewhere.
+    """
+    bounds = tuple(int(v) for v in bounds)
+    if len(bounds) != 3:
+        raise ValueError(f"`bounds` must have 3 dimensions, got {bounds}.")
+
+    affine = np.asarray(affine, dtype=np.float64)
+    if affine.shape != (4, 4):
+        raise ValueError(f"`affine` must have shape (4, 4), got {affine.shape}.")
+
+    center = np.asarray(center, dtype=np.float64)
+    if center.shape != (3,):
+        raise ValueError(f"`center` must have shape (3,), got {center.shape}.")
+    if radius < 0:
+        raise ValueError("`radius` must be non-negative.")
+
+    roi = np.zeros(bounds, dtype=np.uint8)
+
+    inv_affine = np.linalg.inv(affine)
+    center_vox = (inv_affine @ np.r_[center, 1.0])[:3]
+    inv_linear = inv_affine[:3, :3]
+    voxel_radii = np.linalg.norm(inv_linear * float(radius), axis=0)
+    radius_vox = float(np.mean(voxel_radii))
+
+    grid = np.indices(bounds, dtype=np.float32)
+    dist_sq = (
+        (grid[0] - center_vox[0]) ** 2
+        + (grid[1] - center_vox[1]) ** 2
+        + (grid[2] - center_vox[2]) ** 2
+    )
+    roi[dist_sq <= (radius_vox**2)] = 1
+
+    return roi, affine
+
+
+def transform_roi_to_world_grid(roi_data, affine, *, cval=0.0, threshold=0.5):
+    """Resample ROI data to an axis-aligned world-coordinate grid.
+
+    The returned array is indexed in world space using `world_min` as origin:
+    `world_index = world_coord - world_min`.
+
+    Parameters
+    ----------
+    roi_data : ndarray
+        Input ROI volume in voxel coordinates.
+    affine : ndarray, shape (4, 4)
+        Voxel-to-world affine transform.
+    cval : float, optional
+        Constant value for out-of-bounds sampling.
+    threshold : float or None, optional
+        If not None, output is binarized with ``>= threshold``.
+
+    Returns
+    -------
+    tuple[ndarray, ndarray]
+        `(transformed_data, world_min)` where:
+        - `transformed_data` is the ROI in world-grid indexing.
+        - `world_min` is the minimum world coordinate (x, y, z) used as origin.
+
+    Raises
+    ------
+    ValueError
+        If `roi_data` is not 3D or `affine` is not 4x4.
+    """
+    roi_data = np.asarray(roi_data)
+    if roi_data.ndim != 3:
+        raise ValueError(f"`roi_data` must be a 3D array, got shape {roi_data.shape}.")
+
+    affine = np.asarray(affine, dtype=np.float64)
+    if affine.shape != (4, 4):
+        raise ValueError(f"`affine` must have shape (4, 4), got {affine.shape}.")
+
+    if np.linalg.det(affine[:3, :3]) == 0:
+        raise ValueError("`affine` is singular and cannot be inverted.")
+
+    max_idx = np.asarray(roi_data.shape, dtype=np.float64) - 1.0
+    corners_ijk = np.asarray(
+        [
+            [0.0, 0.0, 0.0],
+            [max_idx[0], 0.0, 0.0],
+            [0.0, max_idx[1], 0.0],
+            [0.0, 0.0, max_idx[2]],
+            [max_idx[0], max_idx[1], 0.0],
+            [max_idx[0], 0.0, max_idx[2]],
+            [0.0, max_idx[1], max_idx[2]],
+            [max_idx[0], max_idx[1], max_idx[2]],
+        ],
+        dtype=np.float64,
+    )
+    corners_h = np.c_[corners_ijk, np.ones(len(corners_ijk), dtype=np.float64)]
+    world_corners = (affine @ corners_h.T).T[:, :3]
+
+    world_min = np.floor(world_corners.min(axis=0)).astype(np.int32)
+    world_max = np.ceil(world_corners.max(axis=0)).astype(np.int32)
+    output_shape = tuple((world_max - world_min + 1).astype(np.int32))
+
+    inv_affine = np.linalg.inv(affine)
+    matrix = inv_affine[:3, :3]
+    offset = (inv_affine[:3, :3] @ world_min) + inv_affine[:3, 3]
+
+    transformed_data = affine_transform(
+        roi_data.astype(np.float32, copy=False),
+        matrix=matrix,
+        offset=offset,
+        output_shape=output_shape,
+        order=1,
+        mode="constant",
+        cval=float(cval),
+        prefilter=False,
+    )
+
+    if threshold is not None:
+        transformed_data = transformed_data >= threshold
+
+    return transformed_data, world_min
+
+
+def _fetch_positions_from_gpu(show_manager, geom_positions_buffer, *, sync_cpu=False):
+    """Read back geometry.positions from GPU into a NumPy array.
+
+    Notes
+    -----
+    This uses pygfx/wgpu internals (`_wgpu_object`) and requires COPY_SRC usage.
+    """
+    wgpu_buffer = getattr(geom_positions_buffer, "_wgpu_object", None)
+    if wgpu_buffer is None:
+        return None
+
+    raw = show_manager.device.queue.read_buffer(wgpu_buffer)
+    cpu_shape = np.asarray(geom_positions_buffer.data).shape
+    gpu_positions = np.frombuffer(raw, dtype=np.float32).reshape(cpu_shape).copy()
+
+    if sync_cpu and geom_positions_buffer.data is not None:
+        np.asarray(geom_positions_buffer.data)[...] = gpu_positions
+
+    return gpu_positions
+
+
+def _get_line_ids_from_positions(wobj, positions):
+    """Return kept/filtered original line ids from a flat positions buffer."""
+    positions = np.asarray(positions, dtype=np.float32).reshape(-1, 3)
+    offsets = np.asarray(wobj._line_offsets, dtype=np.int64)
+    lengths = np.asarray(wobj._line_lengths, dtype=np.int64)
+
+    kept_ids = []
+    filtered_ids = []
+    for line_id, (offset, length) in enumerate(zip(offsets, lengths)):
+        segment = positions[offset : offset + length]
+        if np.isfinite(segment).all():
+            kept_ids.append(line_id)
+        else:
+            filtered_ids.append(line_id)
+
+    return kept_ids, filtered_ids
+
+
+def filter_streamline_ids(streamlines, roi, *, origin=(0, 0, 0)):
+
+    # TODO: Remove after FURY v2.0.0a6
+    if roi is not None and roi.ndim == 3:
+        roi = np.swapaxes(roi, 0, 2)
+
+    max = np.asarray(streamlines[0], dtype=np.float32).max(axis=0)
+    min = np.asarray(streamlines[0], dtype=np.float32).min(axis=0)
+
+    scene = window.Scene()
+    filtered_streamlines = actor.streamlines(
+        streamlines, roi_mask=roi, roi_origin=origin
+    )
+    points = actor.point(
+        np.asarray([min, max], dtype=np.float32),
+        colors=np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32),
+    )
+    filtered_streamlines.geometry.positions._wgpu_usage |= wgpu.BufferUsage.COPY_SRC
+    offscreen_showm = window.ShowManager(scene=scene, window_type="offscreen")
+    scene.add(points)
+    scene.add(filtered_streamlines)
+    offscreen_showm.render()
+    offscreen_showm.window.draw()
+    filtered_positions = _fetch_positions_from_gpu(
+        offscreen_showm, filtered_streamlines.geometry.positions
+    )
+    filtered_positions = np.asarray(filtered_positions, dtype=np.float32).reshape(-1, 3)
+    kept_ids, _ = _get_line_ids_from_positions(filtered_streamlines, filtered_positions)
+    offscreen_showm.close()
+    return kept_ids
