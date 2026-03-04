@@ -1010,7 +1010,7 @@ class Tractome(QMainWindow):
         """Handle the apply clusters button or editing finished."""
         value = self._cluster_input.value()
         if 1 <= value <= self._cluster_input.maximum():
-            self.perform_clustering(value)
+            self.perform_clustering(value=value)
         else:
             self._cluster_input.setValue(self._last_clustered_value or 100)
 
