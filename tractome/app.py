@@ -672,7 +672,7 @@ class Tractome(QMainWindow):
         value : int
             The slider value (0-100).
         """
-        opacity = value / 50.0
+        opacity = value / 25.0
         self._3D_actors["parcel"].material.size = opacity
         self.show_manager.render()
 

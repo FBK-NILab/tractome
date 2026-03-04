@@ -197,7 +197,7 @@ def create_parcels(pts, colors):
     """
     colors = np.asarray(colors, dtype=np.float32) / 255.0
     pts = np.asarray(pts, dtype=np.float32) * 10e2
-    parcels = actor.point(pts, colors=colors, size=2.0, enable_picking=False)
+    parcels = actor.point(pts, colors=colors, size=4.0, enable_picking=False)
     return parcels
 
 
