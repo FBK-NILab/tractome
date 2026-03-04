@@ -615,22 +615,27 @@ def create_ui(viz_window):
     )
 
 
-def create_mesh_controls():
-    """Create mesh control widgets for opacity, visibility, and mesh mode selection.
+def create_single_actor_controls(label="Mesh Controls"):
+    """Create single actor control widgets for opacity, visibility, and mode selection.
+
+    Parameters
+    ----------
+    label : str, optional
+        The label for the control group.
 
     Returns
     -------
     tuple
         A tuple containing (widget, opacity_slider, visibility_checkbox,
-        radio_group, photogram_radio, normals_radio).
+        radio_group, photogram_radio, normals_radio) or
+        (widget, opacity_slider, visibility_checkbox) if label is not "Mesh Controls".
     """
-    mesh_widget = QGroupBox("Mesh Controls")
+    mesh_widget = QGroupBox(label)
     mesh_layout = QVBoxLayout()
     mesh_layout.setContentsMargins(10, 20, 5, 5)
     mesh_layout.setSpacing(10)
     mesh_widget.setLayout(mesh_layout)
 
-    # Slider for opacity with visibility checkbox on the right
     (
         opacity_layout,
         opacity_slider,
@@ -647,23 +652,25 @@ def create_mesh_controls():
     )
     mesh_layout.addLayout(opacity_layout)
 
-    radio_layout = QHBoxLayout()
-    radio_layout.setSpacing(10)
-    normals_radio = QRadioButton("Normals")
-    normals_radio.setChecked(True)
-    photographic_radio = QRadioButton("Photographic")
-    radio_group = QButtonGroup(mesh_widget)
-    radio_group.addButton(normals_radio)
-    radio_group.addButton(photographic_radio)
-    radio_layout.addWidget(normals_radio)
-    radio_layout.addWidget(photographic_radio)
-    mesh_layout.addLayout(radio_layout)
+    if label.lower() == "mesh controls":
+        radio_layout = QHBoxLayout()
+        radio_layout.setSpacing(10)
+        normals_radio = QRadioButton("Normals")
+        normals_radio.setChecked(True)
+        photographic_radio = QRadioButton("Photographic")
+        radio_group = QButtonGroup(mesh_widget)
+        radio_group.addButton(normals_radio)
+        radio_group.addButton(photographic_radio)
+        radio_layout.addWidget(normals_radio)
+        radio_layout.addWidget(photographic_radio)
+        mesh_layout.addLayout(radio_layout)
 
-    return (
-        mesh_widget,
-        opacity_slider,
-        visibility_checkbox,
-        radio_group,
-        normals_radio,
-        photographic_radio,
-    )
+        return (
+            mesh_widget,
+            opacity_slider,
+            visibility_checkbox,
+            radio_group,
+            normals_radio,
+            photographic_radio,
+        )
+    return mesh_widget, opacity_slider, visibility_checkbox
