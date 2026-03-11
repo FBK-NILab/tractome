@@ -26,7 +26,14 @@ from tractome.io import read_tractogram, save_tractogram
     multiple=True,
     help="Path to an ROI file. Use multiple times for multiple ROIs.",
 )
-def tractome(tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=()):
+@click.option(
+    "--parcel",
+    type=click.Path(exists=True),
+    help=("Path to a parcel CSV file."),
+)
+def tractome(
+    tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=(), parcel=None
+):
     """Run the Tractome pipeline.
 
     Parameters
@@ -41,8 +48,10 @@ def tractome(tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=()):
         Path to the T1-weighted image file
     roi : tuple[str], optional
         One or more paths to ROI files
+    parcel : str, optional
+        Path to a parcel CSV file
     """
-    Tractome(tractogram, mesh, mesh_texture, t1, roi)
+    Tractome(tractogram, mesh, mesh_texture, t1, roi, parcel)
 
 
 @click.command(name="compute_dissimilarity_matrix")

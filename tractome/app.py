@@ -21,6 +21,7 @@ from tractome.compute import (
     transform_roi_to_world_grid,
 )
 from tractome.io import (
+    read_csv,
     read_mesh,
     read_nifti,
     read_tractogram,
@@ -31,8 +32,8 @@ from tractome.ui import (
     STYLE_SHEET,
     create_cluster_selection_buttons,
     create_clusters_slider,
-    create_mesh_controls,
     create_roi_controls,
+    create_single_actor_controls,
     create_slice_sliders,
     create_ui,
     update_history_table,
@@ -44,6 +45,7 @@ from tractome.viz import (
     create_image_slicer,
     create_keystroke_card,
     create_mesh,
+    create_parcels,
     create_roi,
     create_streamlines,
     create_streamlines_projection,
@@ -56,7 +58,13 @@ app = QApplication([])
 
 class Tractome(QMainWindow):
     def __init__(
-        self, tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=None
+        self,
+        tractogram=None,
+        mesh=None,
+        mesh_texture=None,
+        t1=None,
+        roi=None,
+        parcel=None,
     ):
         """Initialize the Tractome application.
 
@@ -72,12 +80,15 @@ class Tractome(QMainWindow):
             The file path to the T1 image
         roi : str or Sequence[str], optional
             One or more file paths to ROI files.
+        parcel : str or Sequence[str], optional
+            One or more file paths to parcel files.
         """
         super().__init__()
         self.tractogram = tractogram
         self.mesh = mesh
         self.mesh_texture = mesh_texture
         self.t1 = t1
+        self.parcel = parcel
         if roi is None:
             self.rois = []
         elif isinstance(roi, (list, tuple)):
@@ -309,7 +320,7 @@ class Tractome(QMainWindow):
                 self._mesh_mode_group,
                 self._normals_radio,
                 self._photographic_radio,
-            ) = create_mesh_controls()
+            ) = create_single_actor_controls()
             self.left_panel.layout().addWidget(self._mesh_controls_widget)
             self._mesh_visibility_checkbox.stateChanged.connect(
                 self.toggle_mesh_visibility
@@ -361,10 +372,27 @@ class Tractome(QMainWindow):
                         self.toggle_roi_visibility(actor, state, slice_actor)
                     )
                 )
-
             if self.tractogram:
                 self._apply_roi_filter()
                 self.perform_clustering(value=100)
+
+        if self.parcel:
+            points, colors = read_csv(self.parcel, delimiter=" ", has_header=False)
+            parcel_actor = create_parcels(points, colors)
+            self._3D_scene.add(parcel_actor)
+            self._3D_actors["parcel"] = parcel_actor
+
+            (
+                self._parcel_controls_widget,
+                self._parcel_opacity_slider,
+                self._parcel_visibility_checkbox,
+            ) = create_single_actor_controls(label="Parcel Controls")
+            self.left_panel.layout().addWidget(self._parcel_controls_widget)
+            self._parcel_visibility_checkbox.stateChanged.connect(
+                self.toggle_parcel_visibility
+            )
+            self._parcel_opacity_slider.valueChanged.connect(self.update_parcel_opacity)
+
         self.show_manager.start()
 
     def _create_roi_filter(self):
@@ -551,6 +579,16 @@ class Tractome(QMainWindow):
                 set_group_visibility(proj, radio_states)
         self.show_manager.render()
 
+    def toggle_parcel_visibility(self, state):
+        """Toggle the visibility of the parcel actor in the 3D scene.
+
+        Parameters
+        ----------
+        state : int
+            The checked state of the checkbox (Qt.Checked or Qt.Unchecked).
+        """
+        self._toggle_visibility(self._3D_actors["parcel"], state)
+
     def toggle_mesh_visibility(self, state):
         """Toggle the visibility of the mesh in the 3D scene.
 
@@ -624,6 +662,18 @@ class Tractome(QMainWindow):
         else:
             self._3D_actors["mesh"].material.alpha_mode = "solid"
             self._3D_actors["mesh"].material.depth_write = True
+        self.show_manager.render()
+
+    def update_parcel_opacity(self, value):
+        """Update the opacity of the parcel actor.
+
+        Parameters
+        ----------
+        value : int
+            The slider value (0-100).
+        """
+        opacity = value / 25.0
+        self._3D_actors["parcel"].material.size = opacity
         self.show_manager.render()
 
     def perform_clustering(self, *, value=None):
@@ -940,6 +990,8 @@ class Tractome(QMainWindow):
                 self._reset_view.show()
             if hasattr(self, "_toggle_suggestion"):
                 self._toggle_suggestion.show()
+            if hasattr(self, "_parcel_controls_widget"):
+                self._parcel_controls_widget.show()
 
     def toggle_2D_mode(self):
         """Toggle to 2D mode."""
@@ -966,6 +1018,8 @@ class Tractome(QMainWindow):
                 self._reset_view.hide()
             if hasattr(self, "_toggle_suggestion"):
                 self._toggle_suggestion.hide()
+            if hasattr(self, "_parcel_controls_widget"):
+                self._parcel_controls_widget.hide()
 
             # Safely remove and delete the existing widget
             if self._slice_widget is not None:
