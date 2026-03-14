@@ -93,7 +93,7 @@ def create_mesh(mesh_obj, *, texture=None, mode="normals"):
     if mode not in ("normals", "photographic"):
         raise ValueError(f"Unknown mode: {mode}")
 
-    vertices = mesh_obj.vertices * 10
+    vertices = mesh_obj.vertices * 1
     faces = mesh_obj.faces
 
     texture_coords = None
@@ -128,7 +128,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         streamlines,
         plane=(0, 0, -1, slice_values[2]),
         colors=colors,
-        thickness=4,
+        thickness=1,
         outline_thickness=0.5,
         lift=-4.0,
     )
@@ -136,7 +136,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         streamlines,
         plane=(0, -1, 0, slice_values[1]),
         colors=colors,
-        thickness=4,
+        thickness=1,
         outline_thickness=0.5,
         lift=-4.0,
     )
@@ -144,7 +144,7 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         streamlines,
         plane=(-1, 0, 0, slice_values[0]),
         colors=colors,
-        thickness=4,
+        thickness=1,
         outline_thickness=0.5,
         lift=-4.0,
     )
@@ -170,7 +170,7 @@ def create_streamlines(streamlines, color):
     bundle = actor.streamlines(
         streamlines,
         colors=color,
-        thickness=4,
+        thickness=1,
         outline_thickness=1,
         outline_color=(0, 0, 0),
     )
@@ -196,7 +196,7 @@ def create_parcels(pts, colors):
         The created point-based representation of parcels.
     """
     colors = np.asarray(colors, dtype=np.float32) / 255.0
-    pts = np.asarray(pts, dtype=np.float32) * 10e2
+    pts = np.asarray(pts, dtype=np.float32) * 1
     parcels = actor.point(pts, colors=colors, size=4.0, enable_picking=False)
     return parcels
 
