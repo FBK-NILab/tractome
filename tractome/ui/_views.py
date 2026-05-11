@@ -556,7 +556,7 @@ class InteractionScreen(QWidget):
         if not input_manager.has_t1:
             return
         t1_volume, affine, _, _ = input_manager.get_current_t1()
-        shape_volume = t1_volume.shape
+        shape_volume = t1_volume.shape[:3]
 
         slice_axis = None
         for index, value in enumerate(state_manager.t1_slice_visibility_2d):
