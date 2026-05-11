@@ -1,4 +1,22 @@
+import numpy as np
+
 from tractome.io import read_csv, read_mesh, read_nifti, read_tractogram
+
+
+def _as_filter_volume(volume):
+    """Collapse an ROI volume to 3D so it can drive streamline filtering.
+
+    NIfTI ROIs may arrive as ``(X, Y, Z, C)`` (e.g. RGB/RGBA labelmaps)
+    or with a structured RGB dtype. The filter pipeline expects a
+    plain ``(X, Y, Z)`` mask, so trailing channels are reduced with
+    ``any``: a voxel is occupied if any channel is non-zero.
+    """
+    arr = np.asarray(volume)
+    if arr.dtype.names is not None:
+        arr = np.stack([arr[name] for name in arr.dtype.names], axis=-1)
+    if arr.ndim > 3:
+        arr = np.any(arr != 0, axis=tuple(range(3, arr.ndim)))
+    return arr
 
 
 class InputManager:
@@ -362,6 +380,7 @@ class InputManager:
 
         path = self._provided_inputs["roi"][idx]
         roi, affine = read_nifti(path)
+        roi = _as_filter_volume(roi)
         self._loaded_inputs["roi"] = (roi, affine, path, idx)
         return self._loaded_inputs["roi"]
 
@@ -390,6 +409,7 @@ class InputManager:
         if cached is not None:
             return cached
         roi, affine = read_nifti(path)
+        roi = _as_filter_volume(roi)
         loaded = (roi, affine, path, index)
         self._loaded_rois[path] = loaded
         return loaded
