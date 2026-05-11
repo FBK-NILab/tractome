@@ -290,10 +290,31 @@ class InteractionScreen(QWidget):
         self._center_section.show_manager.render()
 
     def _on_mesh_projection_changed(self, enabled):
-        """Toggle GPU projection of streamline points onto the mesh surface."""
+        """Toggle GPU projection of streamline points onto the mesh surface.
+
+        While projection is active the tractogram actors are removed from
+        the scene; they're re-added when projection is turned off.
+        """
         if not enabled:
-            visualization_manager.set_mesh_projection_visible(False)
+            old_viz = visualization_manager.mesh_projection_visualizations
+            if old_viz:
+                self.remove_visualization(old_viz, visualization_type="mesh_projection")
+            visualization_manager.clear_mesh_projection()
+            tractogram_viz = visualization_manager.tractogram_visualizations
+            if tractogram_viz:
+                self.add_visualization(tractogram_viz, visualization_type="tractogram")
             self._center_section.show_manager.render()
+            return
+
+        if not self._has_expanded_cluster():
+            self._show_projection_empty_warning()
+            # Revert the checkbox without re-triggering this handler.
+            checkbox = self._right_section.mesh_input_widget.project_checkbox
+            checkbox.blockSignals(True)
+            checkbox.setChecked(False)
+            checkbox.blockSignals(False)
+            state_manager.mesh_project = False
+            self._right_section.mesh_input_widget._projection_controls.setVisible(False)
             return
 
         # Always rebuild from current state on enable: cluster colors, ROI
@@ -304,6 +325,9 @@ class InteractionScreen(QWidget):
         if new_viz is None:
             # Missing mesh, tractogram, or device — nothing to show.
             return
+        tractogram_viz = visualization_manager.tractogram_visualizations
+        if tractogram_viz:
+            self.remove_visualization(tractogram_viz, visualization_type="tractogram")
         # add_visualization renders, which materializes the GPU buffer
         # so we can bind it as compute output on the next call.
         self.add_visualization(new_viz, visualization_type="mesh_projection")
@@ -311,6 +335,27 @@ class InteractionScreen(QWidget):
             state_manager.mesh_projection_threshold
         )
         self._center_section.show_manager.render()
+
+    def _has_expanded_cluster(self):
+        """Return True if any cluster is currently expanded."""
+        if not state_manager.has_states():
+            return False
+        tractogram_states = state_manager.get_latest_state().tractogram_states
+        if tractogram_states is None:
+            return False
+        return any(
+            cluster_data.get("expanded") for cluster_data in tractogram_states.values()
+        )
+
+    def _show_projection_empty_warning(self):
+        """Show the styled warning when no cluster is expanded for projection."""
+        box = QMessageBox(self)
+        box.setObjectName("captureWarningBox")
+        box.setIcon(QMessageBox.Information)
+        box.setWindowTitle("Nothing to project")
+        box.setText("Expand at least one cluster to visualize the projection.")
+        box.setStandardButtons(QMessageBox.Ok)
+        box.exec()
 
     def _on_mesh_projection_threshold_changed(self, threshold):
         """Re-dispatch the projection compute pass with a new threshold."""

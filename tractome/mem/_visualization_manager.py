@@ -299,11 +299,11 @@ class VisualizationManager:
         return self._visualizations["mesh_projection"]
 
     def _gather_streamline_points(self):
-        """Return (points, colors) for all currently-clustered streamlines.
+        """Return (points, colors) for streamlines in currently-expanded clusters.
 
-        Colors come from the cluster each streamline belongs to; a streamline
-        not present in any cluster (e.g. filtered out by an ROI) is excluded.
-        Falls back to all streamlines in white if no clustering exists yet.
+        Only expanded clusters contribute points; collapsed clusters are
+        skipped even if visible. Returns ``(None, None)`` if no cluster is
+        currently expanded.
         """
         if not input_manager.has_tractogram:
             return None, None
@@ -312,50 +312,36 @@ class VisualizationManager:
         if len(streamlines) == 0:
             return None, None
 
-        clusters_exist = (
-            state_manager.has_states()
-            and state_manager.get_latest_state().tractogram_states is not None
-        )
-
-        color_map = {}
-        if clusters_exist:
-            for (
-                state_data
-            ) in state_manager.get_latest_state().tractogram_states.values():
-                if not state_data.get("visible", True):
-                    continue
-                color = np.asarray(state_data["color"], dtype=np.float32).ravel()[:3]
-                for sid in state_data["streamline_ids"]:
-                    color_map[int(sid)] = color
-
-        if color_map:
-            sids = sorted(color_map)
-            selected = [
-                np.asarray(streamlines[sid], dtype=np.float32).reshape(-1, 3)
-                for sid in sids
-            ]
-            lengths = np.fromiter(
-                (len(s) for s in selected), dtype=np.int64, count=len(selected)
-            )
-            pts = np.concatenate(selected, axis=0)
-            color_arr = np.stack([color_map[sid] for sid in sids], axis=0)
-            colors = np.repeat(color_arr, lengths, axis=0)
-            return pts, colors
-
-        if clusters_exist:
-            # Clusters were built but nothing is currently visible — nothing
-            # to project. Distinguish from the pre-clustering bootstrap below.
+        if not state_manager.has_states():
+            return None, None
+        tractogram_states = state_manager.get_latest_state().tractogram_states
+        if tractogram_states is None:
             return None, None
 
-        # Pre-clustering bootstrap: project all streamlines in white. Only
-        # reached on the very first projection before any clustering has run.
-        pts = np.concatenate(
-            [np.asarray(s, dtype=np.float32).reshape(-1, 3) for s in streamlines],
-            axis=0,
+        color_map = {}
+        for state_data in tractogram_states.values():
+            if not state_data.get("expanded"):
+                continue
+            if not state_data.get("visible", True):
+                continue
+            color = np.asarray(state_data["color"], dtype=np.float32).ravel()[:3]
+            for sid in state_data["streamline_ids"]:
+                color_map[int(sid)] = color
+
+        if not color_map:
+            return None, None
+
+        sids = sorted(color_map)
+        selected = [
+            np.asarray(streamlines[sid], dtype=np.float32).reshape(-1, 3)
+            for sid in sids
+        ]
+        lengths = np.fromiter(
+            (len(s) for s in selected), dtype=np.int64, count=len(selected)
         )
-        colors = np.broadcast_to(
-            np.array([1.0, 1.0, 1.0], dtype=np.float32), pts.shape
-        ).copy()
+        pts = np.concatenate(selected, axis=0)
+        color_arr = np.stack([color_map[sid] for sid in sids], axis=0)
+        colors = np.repeat(color_arr, lengths, axis=0)
         return pts, colors
 
     def visualize_mesh_projection(self):
