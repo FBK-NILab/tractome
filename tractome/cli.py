@@ -51,7 +51,8 @@ def tractome(
     parcel : str, optional
         Path to a parcel CSV file
     """
-    Tractome(tractogram, mesh, mesh_texture, t1, roi, parcel)
+    tractome = Tractome(tractogram, mesh, mesh_texture, t1, roi, parcel)
+    tractome.start()
 
 
 @click.command(name="compute_dissimilarity_matrix")

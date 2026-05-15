@@ -9,6 +9,23 @@ import numpy as np
 import trimesh
 
 
+def get_file_extension(file_path):
+    """Get the file extension from a file path.
+
+    Parameters
+    ----------
+    file_path : str
+        The file path to extract the extension from.
+
+    Returns
+    -------
+    str
+        The file extension, including the leading dot (e.g., '.trk').
+    """
+    _, ext = os.path.splitext(file_path)
+    return ext.lower()
+
+
 def validate_path(path):
     """Validate the provided file path.
 
@@ -41,10 +58,12 @@ def read_tractogram(file_path, reference=None):
     ----------
     file_path : str
         The path to the tractogram file.
+    reference : str or Nifti1Image, optional
+        The reference image for the tractogram.
 
     Returns
     -------
-    tractogram : StatefulTractogram
+    StatefulTractogram
         The loaded tractogram.
     """
 

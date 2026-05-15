@@ -1,0 +1,849 @@
+QMainWindow {
+  background-color: #121212
+}
+
+#clusterSettingsButton,
+QPushButton {
+  	font-size: 12pt;
+    border-radius: 8px;
+	border: 2px solid #747474; 
+	color: #ffffff;
+    padding: 4px;
+	background-color: #575757;
+}
+
+QSlider {
+    min-height: 22px;
+}
+
+QSlider::groove:horizontal {
+    height: 4px;
+    background: #707070;
+    border: none;
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #707070;
+    border-radius: 2px;
+}
+
+QSlider::add-page:horizontal {
+    background: #707070;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    width: 14px;
+    margin: -5px 0;
+    background: #ffffff;
+    border: none;
+    border-radius: 7px;
+}
+
+QCheckBox {
+    spacing: 4px;
+}
+
+/* Indicator-only checkboxes (no label text) stay compact */
+QCheckBox#imageSliceCheckbox {
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    spacing: 0px;
+}
+
+/* Labeled mesh mode toggles must grow with their text */
+#meshMaterialCheckbox {
+    min-width: 0px;
+    max-width: 16777215px;
+}
+
+QCheckBox::indicator {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #d8d8d8;
+    border-radius: 4px;
+    background: transparent;
+}
+
+QCheckBox::indicator:checked {
+    background-color: transparent;
+    border-color: #d8d8d8;
+    height: 8px;
+    width: 8px;
+    padding: 2px;
+    image: url(icons/check.svg);
+}
+
+
+/* Specific Styles */
+#titleLabel {
+  font-size: 48pt;
+  font-weight: bold;
+  color: white;
+  letter-spacing: 5px;
+}
+
+#startUploadButton {
+  background: #333;
+  color: white;
+  font-size: 14pt;
+  border-radius: 5px;
+  border: 2px solid white;
+}
+
+#startScreenContainer {
+  background-color: #333;
+  border-radius: 16px;
+  border: 2px solid white;
+}
+
+#interactionCenterSection {
+  background-color: #333333;
+  border: none;
+  border-radius: 10px;
+}
+
+#interactionLeftSection,
+#interactionRightSection {
+  background-color: #121212;
+  border: none;
+  border-radius: 10px;
+}
+
+#clustersWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #2ecc71;
+    border-radius: 12px;
+}
+
+#fibersWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #e87722;
+    border-radius: 12px;
+}
+
+#fiberCaptureButton {
+    background-color: #2b2b2b;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+#fiberCaptureButton:hover {
+    border-color: #e87722;
+}
+
+#fiberCountInput:disabled {
+    color: #ffffff;
+    background-color: #1e1e1e;
+    border: 2px solid #747474;
+    font-size: 12pt;
+    border-radius: 8px;
+    padding: 2px;
+    qproperty-alignment: 'AlignCenter';
+}
+
+#fiberStepButton {
+    font-size: 4pt;
+    border-radius: 8px;
+}
+
+#fiberStepButton:disabled,
+#fiberRecoveryButton:disabled {
+    background-color: #575757;
+    color: #ffffff;
+    border: 2px solid #747474;
+}
+
+#imageTitle,
+#meshTitle,
+#parcelTitle,
+#roiTitle,
+#roiCreateTitle,
+#clustersTitle,
+#fibersTitle,
+#viewModeTitle {
+	color: #ffffff;
+	font-weight: bold;
+    font-size: 13pt;
+    letter-spacing: 1px;
+    padding-bottom: 2px;
+}
+
+#viewModeWidget {
+    background-color: transparent;
+    border: none;
+}
+
+#viewModeButton3D,
+#viewModeButton2D {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 2px solid #747474;
+    font-size: 11pt;
+    padding: 6px 12px;
+}
+
+#viewModeButton3D {
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+    border-right: 1px solid #747474;
+}
+
+#viewModeButton2D {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-left: 1px solid #747474;
+}
+
+#viewModeButton3D:checked,
+#viewModeButton2D:checked {
+    background-color: #575757;
+    border-color: #d8d8d8;
+}
+
+#imageSliceRadio::indicator {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #d8d8d8;
+    border-radius: 8px;
+    background: transparent;
+}
+
+#imageSliceRadio::indicator:checked {
+    background-color: #d8d8d8;
+    border-color: #d8d8d8;
+}
+
+#clusterCountInput {
+	color: #ffffff;
+	background-color: #1e1e1e;
+	border: 2px solid #747474;
+    font-size: 12pt;
+    border-radius: 8px;
+    padding: 2px;
+	qproperty-alignment: 'AlignCenter';
+}
+
+#clusterSettingsButton::menu-indicator {
+    image: url(icons/arrow_down.svg);
+    subcontrol-position: right center;
+    width: 12px;
+    height: 12px;
+    right: 10px;
+}
+
+#clusterSettingsMenu {
+	margin: 2px 2px;
+	border-radius: 8px;
+    background-color: #575757;
+    border: 2px solid #747474;
+    color: #ffffff;
+    padding: 4px;
+}
+
+#clusterSettingsMenu::item {
+    background-color: transparent;
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+#clusterSettingsMenu::item:selected {
+    background-color: #2ecc71;
+    color: #121212;
+}
+
+#clusterSettingsMenu::separator {
+    height: 1px;
+    background: #747474;
+    margin: 4px 8px;
+}
+
+#clusterStepButton {
+    font-size: 4pt;
+    border-radius: 8px;
+}
+
+#displayInfoWidget {
+	background: #333333;
+}
+
+#displayInfoWidget QLabel {
+	background: #333333;
+	color: #ffffff;
+	font-size: 12pt;
+}
+
+#keystrokeCard {
+    background: #333333;
+    border: none;
+    border-radius: 0px;
+}
+
+#keystrokeCard QLabel {
+    background: #333333;
+    color: #ffffff;
+}
+
+#keystrokeTitle {
+    background: #333333;
+    color: #ffffff;
+    font-size: 12pt;
+    font-weight: bold;
+}
+
+#keystrokeContent {
+    background: #333333;
+    color: #ffffff;
+    font-size: 11pt;
+}
+
+/* Image Input Widget */
+#imageInputWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #a2a2a2;
+    border-radius: 12px;
+    outline: none;
+}
+
+#t1VisibilityButton {
+    padding: 0;
+    border: none;
+}
+
+#imageSliceLabel {
+    color: #ffffff;
+    font-size: 12pt;
+    font-weight: bold;
+    min-width: 140px;
+}
+
+#imageInputDropdown {
+    color: #ffffff;
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    /* Do not add large padding-right here: it stacks with the line edit’s text
+       margins and shrinks the visible text area. Arrow spacing uses ::drop-down width. */
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 4px;
+    font-size: 11pt;
+    min-height: 1.2em;
+    outline: none;
+}
+
+#imageInputDropdownLineEdit {
+    background-color: transparent;
+    border: none;
+    color: #ffffff;
+    padding: 0px;
+    selection-background-color: #747474;
+    selection-color: #ffffff;
+}
+
+#imageInputDropdown:hover {
+    border-color: #8a8a8a;
+}
+
+#imageInputDropdown:focus {
+    border-color: #747474;
+}
+
+#imageInputDropdown::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+    background: transparent;
+}
+
+#imageInputDropdown::down-arrow {
+    image: url(icons/arrow_down.svg);
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+}
+
+#imageInputDropdown QAbstractItemView {
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    color: #ffffff;
+    selection-background-color: #2ecc71;
+    selection-color: #121212;
+    outline: none;
+    padding: 4px;
+}
+
+/* Mesh Input Widget */
+#meshInputWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #a2a2a2;
+    border-radius: 12px;
+    outline: none;
+}
+
+#meshVisibilityButton {
+    padding: 0;
+    border: none;
+}
+
+#meshRemoveButton {
+    padding: 0;
+    border: none;
+    color: #ffffff;
+    font-size: 14pt;
+    font-weight: bold;
+}
+
+#meshOpacityLabel {
+    color: #ffffff;
+    font-size: 11pt;
+}
+
+#meshOpacityTickLabel {
+    color: #aaaaaa;
+    font-size: 10pt;
+}
+
+#meshOpacitySlider::groove:horizontal {
+    background: #575757;
+    height: 6px;
+    border-radius: 3px;
+}
+
+#meshOpacitySlider::handle:horizontal {
+    background: #c0c0c0;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+
+#meshMaterialCheckbox {
+    color: #ffffff;
+    font-size: 10pt;
+}
+
+#meshInputDropdown {
+    color: #ffffff;
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 4px;
+    font-size: 11pt;
+    min-height: 1.2em;
+    outline: none;
+}
+
+#meshInputDropdownLineEdit {
+    background-color: transparent;
+    border: none;
+    color: #ffffff;
+    padding: 0px;
+    selection-background-color: #747474;
+    selection-color: #ffffff;
+}
+
+#meshInputDropdown:hover {
+    border-color: #8a8a8a;
+}
+
+#meshInputDropdown:focus {
+    border-color: #747474;
+}
+
+#meshInputDropdown::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+    background: transparent;
+}
+
+#meshInputDropdown::down-arrow {
+    image: url(icons/arrow_down.svg);
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+}
+
+#meshInputDropdown QAbstractItemView {
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    color: #ffffff;
+    selection-background-color: #2ecc71;
+    selection-color: #121212;
+    outline: none;
+    padding: 4px;
+}
+
+/* Parcel Input Widget */
+#parcelInputWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #a2a2a2;
+    border-radius: 12px;
+    outline: none;
+}
+
+#parcelVisibilityButton {
+    padding: 0;
+    border: none;
+}
+
+#parcelRemoveButton {
+    padding: 0;
+    border: none;
+    color: #ffffff;
+    font-size: 14pt;
+    font-weight: bold;
+}
+
+#parcelOpacityLabel {
+    color: #ffffff;
+    font-size: 11pt;
+}
+
+#parcelOpacityTickLabel {
+    color: #aaaaaa;
+    font-size: 10pt;
+}
+
+#parcelOpacitySlider::groove:horizontal {
+    background: #575757;
+    height: 6px;
+    border-radius: 3px;
+}
+
+#parcelOpacitySlider::handle:horizontal {
+    background: #c0c0c0;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+
+#parcelInputDropdown {
+    color: #ffffff;
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 4px;
+    font-size: 11pt;
+    min-height: 1.2em;
+    outline: none;
+}
+
+#parcelInputDropdownLineEdit {
+    background-color: transparent;
+    border: none;
+    color: #ffffff;
+    padding: 0px;
+    font-style: italic;
+    selection-background-color: #747474;
+    selection-color: #ffffff;
+}
+
+#parcelInputDropdown:hover {
+    border-color: #8a8a8a;
+}
+
+#parcelInputDropdown:focus {
+    border-color: #747474;
+}
+
+#parcelInputDropdown::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+    background: transparent;
+}
+
+#parcelInputDropdown::down-arrow {
+    image: url(icons/arrow_down.svg);
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+}
+
+#parcelInputDropdown QAbstractItemView {
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    color: #ffffff;
+    selection-background-color: #2ecc71;
+    selection-color: #121212;
+    outline: none;
+    padding: 4px;
+}
+
+/* ROI Input Widget */
+#roiInputWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #8F42ED;
+    border-radius: 12px;
+    outline: none;
+}
+
+#roiAddButton {
+    padding: 0;
+    color: #ffffff;
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    font-size: 14pt;
+    font-weight: bold;
+}
+
+#roiAddButton:hover {
+    border-color: #8a8a8a;
+}
+
+#roiOpacityLabel {
+    color: #ffffff;
+    font-size: 11pt;
+}
+
+#roiOpacityTickLabel {
+    color: #aaaaaa;
+    font-size: 10pt;
+}
+
+#roiOpacitySlider::groove:horizontal {
+    background: #575757;
+    height: 6px;
+    border-radius: 3px;
+}
+
+#roiOpacitySlider::handle:horizontal {
+    background: #c0c0c0;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+
+#roiRowLabel {
+    color: #ffffff;
+    font-size: 10pt;
+}
+
+QToolButton#roiVisibilityButton,
+QToolButton#roiApplyButton,
+QToolButton#roiNegateButton,
+QToolButton#roiRemoveButton {
+    padding: 0;
+    margin: 0;
+    color: #ffffff;
+    background-color: #575757;
+    border: 1px solid #747474;
+    border-radius: 6px;
+}
+
+QToolButton#roiVisibilityButton:hover,
+QToolButton#roiApplyButton:hover,
+QToolButton#roiNegateButton:hover,
+QToolButton#roiRemoveButton:hover {
+    border-color: #8a8a8a;
+}
+
+QToolButton#roiRemoveButton {
+    font-size: 13pt;
+    font-weight: bold;
+}
+
+/* ROI Edit / Create Widget — matches the ROI input widget border so
+   the two read as a pair, just shown in different modes. */
+#roiCreateWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #8F42ED;
+    border-radius: 12px;
+    outline: none;
+}
+
+#roiPropsTitle {
+    color: #ffffff;
+    font-size: 12pt;
+    font-weight: bold;
+    padding-top: 4px;
+    padding-bottom: 2px;
+}
+
+#roiPropKey {
+    color: #ffffff;
+    font-size: 11pt;
+}
+
+#roiPropValue {
+    color: #ffffff;
+    font-size: 11pt;
+}
+
+QPushButton[class="roiToolButton"] {
+    color: #ffffff;
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    font-size: 14pt;
+    padding: 0;
+}
+
+QPushButton[class="roiToolButton"]:hover:enabled {
+    border-color: #8a8a8a;
+}
+
+QPushButton[class="roiToolButton"]:checked {
+    background-color: #1e1e1e;
+    border-color: #ffffff;
+}
+
+QPushButton[class="roiToolButton"]:disabled {
+    color: #888888;
+    background-color: #3a3a3a;
+    border-color: #4a4a4a;
+}
+
+#roiExistingList {
+    background-color: #1e1e1e;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    color: #ffffff;
+    padding: 4px;
+    outline: none;
+}
+
+#roiExistingList::item {
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+
+#roiExistingList::item:selected {
+    background-color: #8F42ED;
+    color: #ffffff;
+}
+
+#roiExistingList::item:hover:!selected {
+    background-color: #2a2a2a;
+}
+
+/* Tracks Widget (right panel) */
+#tracksWidget {
+    background-color: #1e1e1e;
+    border: 2px solid #2e2e2e;
+    border-radius: 12px;
+    outline: none;
+}
+
+#tracksHeaderBar {
+    background-color: #e87722;
+    border-radius: 2px;
+}
+
+#tracksTitle {
+    color: #ffffff;
+    font-size: 13pt;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+#trackRow {
+    background-color: transparent;
+}
+
+#trackElbow {
+    color: #747474;
+    font-size: 14pt;
+    min-width: 12px;
+}
+
+#trackCheckbox {
+    color: #ffffff;
+    font-size: 11pt;
+    spacing: 6px;
+}
+
+QToolButton#trackSaveButton,
+QToolButton#trackRemoveButton {
+    padding: 0;
+    margin: 0;
+    color: #ffffff;
+    background-color: #575757;
+    border: 1px solid #747474;
+    border-radius: 6px;
+}
+
+QToolButton#trackSaveButton:hover,
+QToolButton#trackRemoveButton:hover {
+    border-color: #8a8a8a;
+}
+
+QToolButton#trackRemoveButton {
+    font-size: 13pt;
+    font-weight: bold;
+}
+
+#rightSectionTitle {
+    color: #ffffff;
+    font-size: 16pt;
+    font-weight: bold;
+    padding: 6px 4px 2px 4px;
+}
+
+QPushButton#trackToggleButton {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    font-size: 11pt;
+    padding: 8px 12px;
+}
+
+QPushButton#trackToggleButton:hover {
+    border-color: #8a8a8a;
+}
+
+QPushButton#trackToggleButton:pressed {
+    background-color: #2a2a2a;
+}
+
+QMessageBox {
+    background-color: #000000;
+}
+
+QMessageBox QLabel {
+    color: #ffffff;
+}
+
+QMessageBox QPushButton {
+    background-color: #000000;
+    color: #ffffff;
+    border: 1px solid #ffffff;
+    padding: 4px 16px;
+    min-width: 64px;
+}
+
+QMessageBox QPushButton:hover {
+    background-color: #222222;
+}
+
+QMessageBox QPushButton:pressed {
+    background-color: #333333;
+}

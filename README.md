@@ -40,3 +40,15 @@ For getting a complete list and details of the options available.
 ```
 tractome_compute_dis_matrix --help
 ```
+
+## Contribution
+
+Contributions are welcome. To contribute, please:
+
+1. Create a feature branch from `master`.
+2. Install development dependencies with:
+   ```
+   pip install -r requirements/dev.txt
+   ```
+3. Run formatting and checks before opening a pull request.
+4. Open a pull request with a clear description of the change.
