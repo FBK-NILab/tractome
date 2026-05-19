@@ -442,6 +442,16 @@ class InteractionScreen(QWidget):
         # a new ROI from scratch.
         self._left_section.roi_create_widget.clear_existing_selection()
         self._refresh_roi_create_existing_list()
+        QTimer.singleShot(0, self._refresh_roi_create_view)
+        QTimer.singleShot(50, self._refresh_roi_create_view)
+
+    def _refresh_roi_create_view(self):
+        """Re-frame the 2D slice after ROI-create layout changes settle."""
+        visualization_manager.toggle_t1_slice_visibility_2d(
+            *state_manager.t1_slice_visibility_2d
+        )
+        self._center_section.orient_2d_camera_to_active_slice()
+        self._center_section.show_manager.render()
 
     def _refresh_roi_create_existing_list(self):
         """Push the current set of ROIs into the create panel's list.

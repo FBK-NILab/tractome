@@ -570,11 +570,14 @@ class VisualizationManager:
                 dtype=np.int32,
             )
         if len(streamline_ids) == 0:
+            state.nb_clusters = 0
             state.tractogram_states = {}
             return
+        nb_clusters = min(max(1, int(state.nb_clusters)), len(streamline_ids))
+        state.nb_clusters = nb_clusters
         clusters = mkbm_clustering(
             sft.data_per_streamline["dismatrix"],
-            n_clusters=state.nb_clusters,
+            n_clusters=nb_clusters,
             streamline_ids=streamline_ids,
         )
         min_size = min(len(streamline_ids) for streamline_ids in clusters.values())
