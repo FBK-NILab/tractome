@@ -1046,10 +1046,10 @@ class VisualizationManager:
 
         if input_manager.has_t1:
             t1_volume, reference_affine, _, _ = input_manager.get_current_t1()
-            reference_shape = t1_volume.shape
+            reference_shape = t1_volume.shape[:3]
         else:
             _, reference_affine, _, _ = input_manager.get_roi_at(first_applied_index)
-            reference_shape = (positive_volumes or negative_volumes)[0].shape
+            reference_shape = (positive_volumes or negative_volumes)[0].shape[:3]
 
         if positive_volumes:
             try:
@@ -1075,8 +1075,12 @@ class VisualizationManager:
             matched = 0
             for volume in negative_volumes:
                 volume_mask = np.asarray(volume).astype(bool, copy=False)
-                if volume_mask.shape != reference_shape:
+                if volume_mask.shape[:3] != reference_shape:
                     continue
+                if volume_mask.ndim > 3:
+                    volume_mask = np.any(
+                        volume_mask, axis=tuple(range(3, volume_mask.ndim))
+                    )
                 negative_mask |= volume_mask
                 matched += 1
             if matched:
