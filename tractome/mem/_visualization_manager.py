@@ -297,12 +297,13 @@ class VisualizationManager:
     def mesh_projection_visualizations(self):
         return self._visualizations["mesh_projection"]
 
-    def _gather_streamline_points(self):
-        """Return (points, colors) for streamlines in currently-expanded clusters.
+    def _gather_streamline_points(self, streamline_colors=None):
+        """Return (points, colors) for streamlines to project.
 
-        Only expanded clusters contribute points; collapsed clusters are
-        skipped even if visible. Returns ``(None, None)`` if no cluster is
-        currently expanded.
+        When ``streamline_colors`` is provided, it maps streamline IDs to RGB
+        colors and is used as the projection source. Otherwise only expanded
+        clusters contribute points; collapsed clusters are skipped even if
+        visible.
         """
         if not input_manager.has_tractogram:
             return None, None
@@ -311,21 +312,27 @@ class VisualizationManager:
         if len(streamlines) == 0:
             return None, None
 
-        if not state_manager.has_states():
-            return None, None
-        tractogram_states = state_manager.get_latest_state().tractogram_states
-        if tractogram_states is None:
-            return None, None
-
         color_map = {}
-        for state_data in tractogram_states.values():
-            if not state_data.get("expanded"):
-                continue
-            if not state_data.get("visible", True):
-                continue
-            color = np.asarray(state_data["color"], dtype=np.float32).ravel()[:3]
-            for sid in state_data["streamline_ids"]:
-                color_map[int(sid)] = color
+        if streamline_colors is not None:
+            color_map = {
+                int(sid): np.asarray(color, dtype=np.float32).ravel()[:3]
+                for sid, color in streamline_colors.items()
+            }
+        else:
+            if not state_manager.has_states():
+                return None, None
+            tractogram_states = state_manager.get_latest_state().tractogram_states
+            if tractogram_states is None:
+                return None, None
+
+            for state_data in tractogram_states.values():
+                if not state_data.get("expanded"):
+                    continue
+                if not state_data.get("visible", True):
+                    continue
+                color = np.asarray(state_data["color"], dtype=np.float32).ravel()[:3]
+                for sid in state_data["streamline_ids"]:
+                    color_map[int(sid)] = color
 
         if not color_map:
             return None, None
@@ -343,7 +350,7 @@ class VisualizationManager:
         colors = np.repeat(color_arr, lengths, axis=0)
         return pts, colors
 
-    def visualize_mesh_projection(self):
+    def visualize_mesh_projection(self, streamline_colors=None):
         """Build the projected-points actor and seed the GPU projection state.
 
         Returns a single-element list with the actor, or None if prerequisites
@@ -357,7 +364,7 @@ class VisualizationManager:
         if not input_manager.has_mesh or not input_manager.has_tractogram:
             self._visualizations["mesh_projection"] = None
             return None
-        pts, colors = self._gather_streamline_points()
+        pts, colors = self._gather_streamline_points(streamline_colors)
         if pts is None:
             self._visualizations["mesh_projection"] = None
             return None
@@ -426,7 +433,7 @@ class VisualizationManager:
         self._visualizations["mesh_projection"] = None
         self._mesh_projection_bound = False
 
-    def rebuild_mesh_projection(self):
+    def rebuild_mesh_projection(self, streamline_colors=None):
         """Build a replacement projection actor from the current state.
 
         Returns ``(old_viz, new_viz)`` — both lists or ``None`` — so the caller
@@ -437,7 +444,7 @@ class VisualizationManager:
         old_viz = self._visualizations["mesh_projection"]
         self._visualizations["mesh_projection"] = None
         self._mesh_projection_bound = False
-        new_viz = self.visualize_mesh_projection()
+        new_viz = self.visualize_mesh_projection(streamline_colors)
         return old_viz, new_viz
 
     @property
