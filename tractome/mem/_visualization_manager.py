@@ -6,7 +6,6 @@ import numpy as np
 from fury import actor as _fury_actor, distinguishable_colormap
 from fury.actor import set_group_visibility, show_slices
 from tractome.compute import (
-    calculate_filter,
     compute_dissimilarity,
     filter_streamline_ids,
     mkbm_clustering,
@@ -984,10 +983,10 @@ class VisualizationManager:
     def apply_roi_filter(self):
         """Filter the tractogram streamlines using positive and negated ROIs.
 
-        Positive ROIs (the default) are AND-combined and the streamlines
-        that pass through the resulting mask are kept. Negated ROIs are
-        OR-combined and any streamline touching that combined mask is then
-        subtracted from the kept set. When every applied ROI is negated,
+        Positive ROIs (the default) are AND-combined at the streamline-id
+        level: a streamline must touch every positive ROI to be kept. Negated
+        ROIs are OR-combined and any streamline touching that combined mask is
+        then subtracted from the kept set. When every applied ROI is negated,
         the kept set starts as all streamlines before the subtraction.
 
         The cluster state is invalidated so the next call to
@@ -1049,21 +1048,25 @@ class VisualizationManager:
             reference_shape = (positive_volumes or negative_volumes)[0].shape
 
         if positive_volumes:
-            try:
-                positive_mask = calculate_filter(
-                    positive_volumes, reference_shape=reference_shape
+            kept_ids = None
+            matched = 0
+            for volume in positive_volumes:
+                volume_mask = np.asarray(volume).astype(bool, copy=False)
+                if volume_mask.shape != reference_shape:
+                    continue
+                world_mask, origin = transform_roi_to_world_grid(
+                    volume_mask, reference_affine
                 )
-            except ValueError:
+                roi_ids = {
+                    int(i)
+                    for i in filter_streamline_ids(
+                        sft.streamlines, world_mask, origin=origin
+                    )
+                }
+                kept_ids = roi_ids if kept_ids is None else kept_ids & roi_ids
+                matched += 1
+            if matched == 0:
                 return False
-            world_mask, origin = transform_roi_to_world_grid(
-                positive_mask, reference_affine
-            )
-            kept_ids = {
-                int(i)
-                for i in filter_streamline_ids(
-                    sft.streamlines, world_mask, origin=origin
-                )
-            }
         else:
             kept_ids = set(range(len(sft.streamlines)))
 
