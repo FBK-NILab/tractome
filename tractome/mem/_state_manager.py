@@ -7,7 +7,21 @@ import numpy as np
 
 @dataclass
 class ClusterState:
-    """A class to represent the state of the application."""
+    """Represent one clustering state.
+
+    Attributes
+    ----------
+    nb_clusters : int
+        Number of clusters used for this state.
+    streamline_ids : ndarray
+        Streamline ids represented by this state.
+    max_clusters : int
+        Maximum number of clusters allowed for this state.
+    tractogram_states : dict or None, optional
+        Per-cluster visualization and selection state.
+    filtered_streamline_ids : ndarray or None, optional
+        Streamline ids that pass the active ROI filter.
+    """
 
     nb_clusters: int
     streamline_ids: np.ndarray
@@ -22,7 +36,20 @@ class StateManager:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
-        """Create a new instance of the StateManager if one does not exist."""
+        """Create the singleton ``StateManager`` instance.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments passed during construction.
+        **kwargs : dict
+            Keyword arguments passed during construction.
+
+        Returns
+        -------
+        StateManager
+            The singleton state manager instance.
+        """
         if not cls._instance:
             cls._instance = super(StateManager, cls).__new__(cls)
         return cls._instance
@@ -100,8 +127,7 @@ class StateManager:
         return self._current_index > 0
 
     def move_back(self):
-        """
-        Move the pointer to the previous state (do not remove).
+        """Move the pointer to the previous state without removing states.
 
         Returns
         -------
@@ -124,8 +150,7 @@ class StateManager:
         return self._current_index < len(self._states) - 1
 
     def move_next(self):
-        """
-        Move the pointer to the next state.
+        """Move the pointer to the next state.
 
         Returns
         -------
@@ -209,8 +234,6 @@ class StateManager:
         ----------
         cluster_id : int
             The ID of the cluster.
-        value : bool, optional
-            The value to set the selection state to.
         """
         latest_state = self.get_latest_state()
         if latest_state.tractogram_states is not None:
@@ -224,6 +247,15 @@ class StateManager:
             logging.warning("No states available.")
 
     def _toggle_cluster_selection(self, state_data, *, value=None):
+        """Set or invert a cluster entry's selection flag.
+
+        Parameters
+        ----------
+        state_data : dict
+            Per-cluster state dictionary to update.
+        value : bool or None, optional
+            Explicit value to set. If None, the current value is inverted.
+        """
         if value is not None:
             state_data["selected"] = value
         else:

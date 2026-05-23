@@ -296,14 +296,27 @@ class VisualizationManager:
 
     @property
     def mesh_projection_visualizations(self):
+        """Return the mesh projection visualization list.
+
+        Returns
+        -------
+        list or None
+            Mesh projection actors, or None when no projection exists.
+        """
         return self._visualizations["mesh_projection"]
 
     def _gather_streamline_points(self):
-        """Return (points, colors) for streamlines in currently-expanded clusters.
+        """Return points and colors for streamlines in expanded clusters.
 
         Only expanded clusters contribute points; collapsed clusters are
-        skipped even if visible. Returns ``(None, None)`` if no cluster is
-        currently expanded.
+        skipped even if visible.
+
+        Returns
+        -------
+        points : ndarray or None
+            Concatenated streamline points, or None if no cluster is expanded.
+        colors : ndarray or None
+            Per-point RGB colors, or None if no cluster is expanded.
         """
         if not input_manager.has_tractogram:
             return None, None
@@ -347,11 +360,15 @@ class VisualizationManager:
     def visualize_mesh_projection(self):
         """Build the projected-points actor and seed the GPU projection state.
 
-        Returns a single-element list with the actor, or None if prerequisites
-        (mesh, tractogram, registered wgpu device) are missing. The caller is
-        expected to add the actor to the scene and trigger a render BEFORE
-        calling :meth:`update_mesh_projection`, so the actor's GPU position
-        buffer is materialized and can be bound as compute output.
+        The caller is expected to add the actor to the scene and trigger a
+        render BEFORE calling :meth:`update_mesh_projection`, so the actor's
+        GPU position buffer is materialized and can be bound as compute output.
+
+        Returns
+        -------
+        list or None
+            A single-element list with the actor, or None if prerequisites
+            are missing.
         """
         if self._wgpu_device is None:
             return None
@@ -392,6 +409,11 @@ class VisualizationManager:
         Safe to call any time after :meth:`visualize_mesh_projection` — the
         GPU buffer is materialized eagerly and the CPU<->GPU sync state is
         adjusted to keep the compute output authoritative.
+
+        Parameters
+        ----------
+        threshold : float or None, optional
+            Maximum projection distance. If None, uses the value from state.
         """
         if self._mesh_projection is None:
             return
@@ -417,6 +439,13 @@ class VisualizationManager:
                 positions._chunk_mask[:] = False
 
     def set_mesh_projection_visible(self, visible):
+        """Set mesh projection actor visibility.
+
+        Parameters
+        ----------
+        visible : bool
+            Whether the projection actor should be visible.
+        """
         viz = self._visualizations["mesh_projection"]
         if not viz:
             return
@@ -430,10 +459,15 @@ class VisualizationManager:
     def rebuild_mesh_projection(self):
         """Build a replacement projection actor from the current state.
 
-        Returns ``(old_viz, new_viz)`` — both lists or ``None`` — so the caller
-        (which owns the scene) can remove the old actor and add the new one.
         Internal projection bookkeeping is reset; the caller must call
         :meth:`update_mesh_projection` after adding ``new_viz`` to the scene.
+
+        Returns
+        -------
+        old_viz : list or None
+            Previously active projection actors.
+        new_viz : list or None
+            Newly built projection actors.
         """
         old_viz = self._visualizations["mesh_projection"]
         self._visualizations["mesh_projection"] = None
@@ -595,14 +629,46 @@ class VisualizationManager:
             )
 
     def _create_cluster_rep_actor(self, cluster_id, line, color, radius):
-        """Create a representative actor for a cluster."""
+        """Create a representative actor for a cluster.
+
+        Parameters
+        ----------
+        cluster_id : int
+            Cluster representative streamline id.
+        line : ndarray
+            Representative streamline coordinates.
+        color : tuple or ndarray
+            RGB color for the cluster.
+        radius : float
+            Streamtube radius.
+
+        Returns
+        -------
+        Streamtube
+            Representative streamtube actor.
+        """
         rep_actor = create_streamtube(line, color, radius)
         rep_actor.rep = cluster_id
         rep_actor.add_event_handler(self._toggle_cluster_selection, "on_selection")
         return rep_actor
 
     def _create_cluster_lines_actor(self, cluster_id, streamlines, color):
-        """Create a lines actor for a cluster."""
+        """Create a lines actor for a cluster.
+
+        Parameters
+        ----------
+        cluster_id : int
+            Cluster representative streamline id.
+        streamlines : sequence of ndarray
+            Streamlines belonging to the cluster.
+        color : tuple or ndarray
+            RGB color for the cluster.
+
+        Returns
+        -------
+        Line
+            Streamlines actor for the expanded cluster.
+        """
         lines_actor = create_streamlines(streamlines, color)
         lines_actor.rep = cluster_id
         return lines_actor
@@ -788,7 +854,13 @@ class VisualizationManager:
         state_manager.parcel_visible = parcel[0].visible
 
     def set_parcel_size(self, value):
-        """Set parcel point size from a 0–100 slider (legacy mapping: value/25)."""
+        """Set parcel point size from a slider value.
+
+        Parameters
+        ----------
+        value : int
+            Slider value in the range 0-100. The legacy mapping uses ``value / 25``.
+        """
         parcel = self._visualizations["parcel"]
         if not parcel:
             return

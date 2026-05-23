@@ -207,7 +207,13 @@ class ImageInputWidget(QFrame):
         self.t1_changed.emit()
 
     def _on_selection_changed(self, index):
-        """Switch current image to the selected dropdown entry."""
+        """Switch current image to the selected dropdown entry.
+
+        Parameters
+        ----------
+        index : int
+            Selected dropdown index.
+        """
         if index < 0:
             return
 
@@ -307,7 +313,13 @@ class ImageInputWidget(QFrame):
         )
 
     def _on_slice_changed(self, axis):
-        """Update axis label/state and propagate current slice tuple."""
+        """Update axis label/state and propagate current slice tuple.
+
+        Parameters
+        ----------
+        axis : {'x', 'y', 'z'}
+            Axis whose slider changed.
+        """
         axis_index = {"x": 0, "y": 1, "z": 2}[axis]
         value = self._slice_sliders[axis].value()
         self._slice_labels[axis].setText(f"{axis.upper()} slice: {value}")
@@ -315,7 +327,15 @@ class ImageInputWidget(QFrame):
         self.emit_current_slices()
 
     def _on_slice_toggled(self, axis, checked):
-        """Enable axis slider and update per-slice visibility (3D mode)."""
+        """Enable axis slider and update per-slice visibility in 3D mode.
+
+        Parameters
+        ----------
+        axis : {'x', 'y', 'z'}
+            Axis whose checkbox changed.
+        checked : bool
+            Whether the slice should be visible.
+        """
         if self._slice_control_mode != "checkbox":
             return
         self._slice_sliders[axis].setEnabled(checked)
@@ -329,7 +349,15 @@ class ImageInputWidget(QFrame):
         self.t1_visibility_changed.emit()
 
     def _on_slice_radio_toggled(self, axis, checked):
-        """Show only the selected axis on the 2D scene (radio mode)."""
+        """Show only the selected axis on the 2D scene.
+
+        Parameters
+        ----------
+        axis : {'x', 'y', 'z'}
+            Axis whose radio button changed.
+        checked : bool
+            Whether the axis was selected.
+        """
         if self._slice_control_mode != "radio" or not checked:
             return
         for current_axis in ("x", "y", "z"):
@@ -366,7 +394,13 @@ class ImageInputWidget(QFrame):
         self.sync_t1_slice_controls()
 
     def _set_current_path(self, current_path):
-        """Apply current T1 path in the combo selection."""
+        """Apply current T1 path in the combo selection.
+
+        Parameters
+        ----------
+        current_path : str or None
+            T1 path to select, or None to clear the selection.
+        """
         self.image_dropdown.blockSignals(True)
         try:
             if not current_path:
@@ -554,20 +588,24 @@ class MeshInputWidget(QFrame):
         self._sync_material_checkboxes_from_state()
 
     def _scroll_mesh_dropdown_to_start(self):
+        """Scroll the editable mesh dropdown so the basename start is visible."""
         le = self.mesh_dropdown.lineEdit()
         if le is not None:
             le.setCursorPosition(0)
             le.deselect()
 
     def _schedule_mesh_dropdown_scroll(self):
+        """Schedule mesh dropdown text scrolling after Qt updates layout."""
         QTimer.singleShot(0, self._scroll_mesh_dropdown_to_start)
 
     def _on_mesh_visibility_clicked(self):
+        """Toggle mesh scene visibility and emit the visibility signal."""
         visualization_manager.toggle_mesh_visibility()
         self._sync_mesh_visibility_appearance()
         self.mesh_visibility_changed.emit()
 
     def _sync_mesh_visibility_appearance(self):
+        """Synchronize mesh controls with the current mesh visibility state."""
         has_mesh = input_manager.has_mesh
         self.mesh_visibility_button.setVisible(has_mesh)
         self.mesh_remove_button.setEnabled(has_mesh)
@@ -580,9 +618,11 @@ class MeshInputWidget(QFrame):
             self.mesh_visibility_effect.setOpacity(0.42)
 
     def _update_mesh_controls_visibility(self):
+        """Show mesh controls only when at least one mesh is loaded."""
         self._mesh_controls.setVisible(input_manager.has_mesh)
 
     def _sync_material_checkboxes_from_state(self):
+        """Synchronize mesh material and projection controls from state."""
         self.photographic_checkbox.blockSignals(True)
         self.project_checkbox.blockSignals(True)
         self.projection_threshold_slider.blockSignals(True)
@@ -597,30 +637,60 @@ class MeshInputWidget(QFrame):
         self.projection_threshold_slider.blockSignals(False)
 
     def _on_photographic_toggled(self, checked):
+        """Update the mesh material mode.
+
+        Parameters
+        ----------
+        checked : bool
+            Whether photographic mesh rendering is enabled.
+        """
         state_manager.mesh_photographic = bool(checked)
         self.mesh_material_changed.emit()
 
     def _on_project_toggled(self, checked):
+        """Update mesh projection mode.
+
+        Parameters
+        ----------
+        checked : bool
+            Whether mesh projection is enabled.
+        """
         state_manager.mesh_project = bool(checked)
         self._projection_controls.setVisible(bool(checked))
         self.mesh_projection_changed.emit(bool(checked))
 
     def _on_projection_threshold_changed(self, slider_value):
+        """Update the mesh projection threshold from the slider.
+
+        Parameters
+        ----------
+        slider_value : int
+            Threshold slider value in tenths of a millimeter.
+        """
         threshold = float(slider_value) / 10.0
         state_manager.mesh_projection_threshold = threshold
         self.projection_value_label.setText(f"{threshold:.1f}")
         self._projection_threshold_debounce.start()
 
     def _emit_projection_threshold(self):
+        """Emit the debounced projection threshold signal."""
         self.mesh_projection_threshold_changed.emit(
             float(state_manager.mesh_projection_threshold)
         )
 
     def _on_opacity_changed(self, value):
+        """Update mesh opacity from the slider.
+
+        Parameters
+        ----------
+        value : int
+            Slider value in the range 0-100.
+        """
         state_manager.mesh_opacity = value
         self.mesh_opacity_changed.emit(value)
 
     def _on_mesh_upload_clicked(self):
+        """Prompt for mesh and texture files, then add the pair."""
         mesh_path = open_file_dialog(
             parent=self,
             title="Select a mesh file",
@@ -643,12 +713,20 @@ class MeshInputWidget(QFrame):
         self.mesh_changed.emit()
 
     def _on_mesh_dropdown_changed(self, index):
+        """Switch the active mesh pair from the dropdown selection.
+
+        Parameters
+        ----------
+        index : int
+            Selected dropdown index.
+        """
         if index < 0 or not input_manager.has_mesh:
             return
         input_manager.set_current_mesh_pair(index)
         self.mesh_changed.emit()
 
     def _on_remove_mesh_clicked(self):
+        """Remove the currently selected mesh pair."""
         if not input_manager.has_mesh:
             return
         idx = input_manager.current_mesh_index
@@ -659,6 +737,7 @@ class MeshInputWidget(QFrame):
         self.mesh_changed.emit()
 
     def refresh_mesh_lists(self):
+        """Synchronize mesh dropdown contents with the input manager."""
         mesh_paths = input_manager.provided_mesh_paths
         tex_paths = input_manager.provided_mesh_texture_paths
 
@@ -686,6 +765,13 @@ class MeshInputWidget(QFrame):
         self.opacity_slider.blockSignals(False)
 
     def _set_mesh_current_path(self, current_mesh_path):
+        """Select the dropdown item matching the current mesh path.
+
+        Parameters
+        ----------
+        current_mesh_path : str or None
+            Mesh path to select, or None to clear the selection.
+        """
         self.mesh_dropdown.blockSignals(True)
         try:
             if not current_mesh_path:
@@ -819,20 +905,24 @@ class ParcelInputWidget(QFrame):
         self._sync_parcel_visibility_appearance()
 
     def _scroll_parcel_dropdown_to_start(self):
+        """Scroll the editable parcel dropdown so the basename start is visible."""
         le = self.parcel_dropdown.lineEdit()
         if le is not None:
             le.setCursorPosition(0)
             le.deselect()
 
     def _schedule_parcel_dropdown_scroll(self):
+        """Schedule parcel dropdown text scrolling after Qt updates layout."""
         QTimer.singleShot(0, self._scroll_parcel_dropdown_to_start)
 
     def _on_parcel_visibility_clicked(self):
+        """Toggle parcel scene visibility and emit the visibility signal."""
         visualization_manager.toggle_parcel_visibility()
         self._sync_parcel_visibility_appearance()
         self.parcel_visibility_changed.emit()
 
     def _sync_parcel_visibility_appearance(self):
+        """Synchronize parcel controls with the current visibility state."""
         has_parcel = input_manager.has_parcel
         self.parcel_visibility_button.setVisible(has_parcel)
         self.parcel_remove_button.setEnabled(has_parcel)
@@ -845,13 +935,22 @@ class ParcelInputWidget(QFrame):
             self.parcel_visibility_effect.setOpacity(0.42)
 
     def _update_parcel_controls_visibility(self):
+        """Show parcel controls only when at least one parcel is loaded."""
         self._parcel_controls.setVisible(input_manager.has_parcel)
 
     def _on_size_changed(self, value):
+        """Update parcel point size from the slider.
+
+        Parameters
+        ----------
+        value : int
+            Slider value in the range 0-100.
+        """
         state_manager.parcel_size = value
         self.parcel_size_changed.emit(value)
 
     def _on_parcel_upload_clicked(self):
+        """Prompt for a parcel file and add it to the input manager."""
         file_path = open_file_dialog(
             parent=self,
             title="Select a parcel file",
@@ -867,12 +966,20 @@ class ParcelInputWidget(QFrame):
         self.parcel_changed.emit()
 
     def _on_parcel_dropdown_changed(self, index):
+        """Switch the active parcel from the dropdown selection.
+
+        Parameters
+        ----------
+        index : int
+            Selected dropdown index.
+        """
         if index < 0 or not input_manager.has_parcel:
             return
         input_manager.set_current_parcel(index)
         self.parcel_changed.emit()
 
     def _on_remove_parcel_clicked(self):
+        """Remove the currently selected parcel file."""
         if not input_manager.has_parcel:
             return
         idx = input_manager.current_parcel_index
@@ -883,6 +990,7 @@ class ParcelInputWidget(QFrame):
         self.parcel_changed.emit()
 
     def refresh_parcel_lists(self):
+        """Synchronize parcel dropdown contents with the input manager."""
         parcel_paths = input_manager.provided_parcel_paths
 
         try:
@@ -909,6 +1017,13 @@ class ParcelInputWidget(QFrame):
         self.opacity_slider.blockSignals(False)
 
     def _set_parcel_current_path(self, current_path):
+        """Select the dropdown item matching the current parcel path.
+
+        Parameters
+        ----------
+        current_path : str or None
+            Parcel path to select, or None to clear the selection.
+        """
         self.parcel_dropdown.blockSignals(True)
         try:
             if not current_path:
@@ -1409,6 +1524,13 @@ class TracksWidget(QFrame):
         self._build_row(index)
 
     def _build_row(self, index):
+        """Build and append a row for a captured track.
+
+        Parameters
+        ----------
+        index : int
+            Index of the track metadata to render.
+        """
         track = self._tracks[index]
         row_widget = QWidget()
         row_widget.setObjectName("trackRow")
@@ -1461,12 +1583,33 @@ class TracksWidget(QFrame):
         )
 
     def _row_index(self, row_widget):
+        """Return the current index of a track row widget.
+
+        Parameters
+        ----------
+        row_widget : QWidget
+            Row widget to look up.
+
+        Returns
+        -------
+        int
+            Row index, or -1 if the row is absent.
+        """
         for idx, row in enumerate(self._row_widgets):
             if row["widget"] is row_widget:
                 return idx
         return -1
 
     def _on_visibility_toggled(self, row_widget, checked):
+        """Update a track row's visibility state.
+
+        Parameters
+        ----------
+        row_widget : QWidget
+            Row widget whose checkbox changed.
+        checked : bool
+            New checkbox state.
+        """
         index = self._row_index(row_widget)
         if index < 0:
             return
@@ -1474,17 +1617,37 @@ class TracksWidget(QFrame):
         self.track_visibility_changed.emit()
 
     def _emit_save(self, row_widget):
+        """Emit a save request for a track row.
+
+        Parameters
+        ----------
+        row_widget : QWidget
+            Row widget whose save button was clicked.
+        """
         index = self._row_index(row_widget)
         if index >= 0:
             self.track_save_requested.emit(index)
 
     def _emit_remove(self, row_widget):
+        """Emit a remove request for a track row.
+
+        Parameters
+        ----------
+        row_widget : QWidget
+            Row widget whose remove button was clicked.
+        """
         index = self._row_index(row_widget)
         if index >= 0:
             self.track_remove_requested.emit(index)
 
     def remove_track(self, index):
-        """Remove the track at ``index`` and its row widget."""
+        """Remove a track and its row widget.
+
+        Parameters
+        ----------
+        index : int
+            Track index to remove.
+        """
         if index < 0 or index >= len(self._tracks):
             return
         was_visible = self._tracks[index]["visible"]
@@ -1496,17 +1659,40 @@ class TracksWidget(QFrame):
             self.track_visibility_changed.emit()
 
     def get_track(self, index):
-        """Return the track dict for ``index`` or None when out of range."""
+        """Return a captured track by index.
+
+        Parameters
+        ----------
+        index : int
+            Track index to retrieve.
+
+        Returns
+        -------
+        dict or None
+            Track metadata, or None when ``index`` is out of range.
+        """
         if 0 <= index < len(self._tracks):
             return self._tracks[index]
         return None
 
     def iter_tracks(self):
-        """Iterate captured-track dicts in display order."""
+        """Iterate captured-track dictionaries in display order.
+
+        Returns
+        -------
+        iterator
+            Iterator over track metadata dictionaries.
+        """
         return iter(self._tracks)
 
     def active_streamline_ids(self):
-        """Return the union of streamline IDs across all checked tracks."""
+        """Return the union of streamline ids across all checked tracks.
+
+        Returns
+        -------
+        set[int]
+            Streamline ids from visible tracks.
+        """
         ids = set()
         for track in self._tracks:
             if track["visible"]:
@@ -1514,7 +1700,13 @@ class TracksWidget(QFrame):
         return ids
 
     def has_active_track(self):
-        """Whether at least one track checkbox is currently enabled."""
+        """Return whether at least one track checkbox is enabled.
+
+        Returns
+        -------
+        bool
+            True if any track is visible, False otherwise.
+        """
         return any(track["visible"] for track in self._tracks)
 
 

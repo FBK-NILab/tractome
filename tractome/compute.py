@@ -14,14 +14,31 @@ ray, has_ray, _ = optional_package("ray")
 
 
 def furthest_first_traversal(S, k, distance, permutation=True):
-    """This is the farthest first traversal (fft) algorithm which is
-    known to be a good sub-optimal solution to the k-center problem.
+    """Select prototypes with farthest-first traversal.
+
+    This is a good sub-optimal solution to the k-center problem.
 
     See for example:
     Hochbaum, Dorit S. and Shmoys, David B., A Best Possible Heuristic
     for the k-Center Problem, Mathematics of Operations Research, 1985.
 
     or: http://en.wikipedia.org/wiki/Metric_k-center
+
+    Parameters
+    ----------
+    S : ndarray
+        Input samples to select from.
+    k : int
+        Number of samples to select.
+    distance : callable
+        Function that computes pairwise distances between samples.
+    permutation : bool, optional
+        If True, permute ``S`` before selecting prototypes.
+
+    Returns
+    -------
+    ndarray
+        Indices of the selected samples in the original input order.
     """
     # do an initial permutation of S, just to be sure that objects in
     # S have no special order. Note that this permutation does not
@@ -39,7 +56,9 @@ def furthest_first_traversal(S, k, distance, permutation=True):
 
 
 def subset_furthest_first(S, k, distance, permutation=True, c=2.0):
-    """Stochastic scalable version of the fft algorithm based in a
+    """Select prototypes from a random subset with farthest-first traversal.
+
+    This is a stochastic scalable version of the FFT algorithm based on a
     random subset of a specific size.
 
     See: E. Olivetti, T.B. Nguyen, E. Garyfallidis, The Approximation
@@ -51,6 +70,24 @@ def subset_furthest_first(S, k, distance, permutation=True, c=2.0):
     D. Turnbull and C. Elkan, Fast Recognition of Musical Genres
     Using RBF Networks, IEEE Trans Knowl Data Eng, vol. 2005, no. 4,
     pp. 580-584, 17.
+
+    Parameters
+    ----------
+    S : ndarray
+        Input samples to select from.
+    k : int
+        Number of samples to select.
+    distance : callable
+        Function that computes pairwise distances between samples.
+    permutation : bool, optional
+        If True, sample from a random permutation of ``S``.
+    c : float, optional
+        Multiplier used to determine the random subset size.
+
+    Returns
+    -------
+    ndarray
+        Indices of the selected samples in the original input order.
     """
     size = int(max(1, np.ceil(c * k * np.log(k))))
     if permutation:
@@ -70,8 +107,34 @@ def compute_dissimilarity(
     size_limit=5000000,
     n_jobs=6,
 ):
-    """Compute dissimilarity matrix given data, distance,
-    prototype_policy and number of prototypes.
+    """Compute a dissimilarity matrix from selected prototypes.
+
+    Parameters
+    ----------
+    data : ndarray
+        Input streamlines or feature objects.
+    distance : callable
+        Distance function used to compare ``data`` against prototypes.
+    prototype_policy : {'random', 'fft', 'sff'}
+        Strategy used to select prototypes.
+    num_prototypes : int
+        Number of prototypes to select.
+    verbose : bool, optional
+        If True, emit additional log messages.
+    size_limit : int, optional
+        Maximum number of samples used for the dissimilarity computation.
+    n_jobs : int, optional
+        Number of Ray workers to use when Ray is available.
+
+    Returns
+    -------
+    ndarray or list
+        Distances from each sample to the selected prototypes.
+
+    Raises
+    ------
+    Exception
+        If ``prototype_policy`` is unknown.
     """
     logging.info("Computing dissimilarity matrix.")
     data_original = data
@@ -185,11 +248,11 @@ def calculate_filter(rois, *, flip=None, reference_shape=None):
 
     Parameters
     ----------
-    rois : ndarray
-        ROI volumes to combine with shape (X, Y, Z).
+    rois : sequence of ndarray
+        ROI volumes to combine with shape ``(X, Y, Z)``.
     flip : Sequence[bool] or None, optional
         Per-ROI flag indicating whether the ROI should be inverted
-        before combination. If None, all ROIs are inverted.
+        before combination. If None, no ROIs are inverted.
     reference_shape : tuple[int, ...] or None, optional
         Expected ROI shape. If None, shape from the first ROI is used.
 
@@ -264,13 +327,18 @@ def create_roi_from_world(bounds, affine, center, radius, *, type="spherical"):
     radius : float
         Sphere radius in world units.
     type : str, optional
-        Type of ROI to create. Currently only "spherical" is supported.
+        Type of ROI to create. Currently only ``"spherical"`` is supported.
 
     Returns
     -------
     tuple[ndarray, ndarray]
         `(roi, affine)` where `roi` is a uint8 binary mask with ones inside
         the sphere and zeros elsewhere.
+
+    Raises
+    ------
+    ValueError
+        If ``bounds``, ``affine``, ``center``, or ``radius`` is invalid.
     """
     bounds = tuple(int(v) for v in bounds)
     if len(bounds) != 3:
@@ -390,6 +458,20 @@ def transform_roi_to_world_grid(roi_data, affine, *, cval=0.0, threshold=0.5):
 def _fetch_positions_from_gpu(show_manager, geom_positions_buffer, *, sync_cpu=False):
     """Read back geometry.positions from GPU into a NumPy array.
 
+    Parameters
+    ----------
+    show_manager : fury.window.ShowManager
+        Show manager whose device owns the GPU buffer.
+    geom_positions_buffer : object
+        Geometry positions buffer with an attached ``_wgpu_object``.
+    sync_cpu : bool, optional
+        If True, copy the read-back positions into the CPU-side buffer data.
+
+    Returns
+    -------
+    ndarray or None
+        GPU positions as a NumPy array, or None if no GPU buffer exists.
+
     Notes
     -----
     This uses pygfx/wgpu internals (`_wgpu_object`) and requires COPY_SRC usage.
@@ -409,7 +491,22 @@ def _fetch_positions_from_gpu(show_manager, geom_positions_buffer, *, sync_cpu=F
 
 
 def _get_line_ids_from_positions(wobj, positions):
-    """Return kept/filtered original line ids from a flat positions buffer."""
+    """Return kept and filtered line ids from a positions buffer.
+
+    Parameters
+    ----------
+    wobj : object
+        Streamlines actor with ``_line_offsets`` and ``_line_lengths`` metadata.
+    positions : ndarray
+        Flat position buffer read back from the actor.
+
+    Returns
+    -------
+    kept_ids : list[int]
+        Line ids whose positions are finite.
+    filtered_ids : list[int]
+        Line ids whose positions contain non-finite values.
+    """
     positions = np.asarray(positions, dtype=np.float32).reshape(-1, 3)
     offsets = np.asarray(wobj._line_offsets, dtype=np.int64)
     lengths = np.asarray(wobj._line_lengths, dtype=np.int64)
@@ -427,6 +524,22 @@ def _get_line_ids_from_positions(wobj, positions):
 
 
 def filter_streamline_ids(streamlines, roi, *, origin=(0, 0, 0)):
+    """Return streamlines that pass through an ROI mask.
+
+    Parameters
+    ----------
+    streamlines : sequence of ndarray
+        Streamlines to filter.
+    roi : ndarray
+        Binary ROI mask in world-grid coordinates.
+    origin : tuple of int, optional
+        Origin of ``roi`` in world-grid coordinates.
+
+    Returns
+    -------
+    list[int]
+        Indices of streamlines that intersect the ROI mask.
+    """
     max = np.asarray(streamlines[0], dtype=np.float32).max(axis=0)
     min = np.asarray(streamlines[0], dtype=np.float32).min(axis=0)
 

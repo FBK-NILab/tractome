@@ -326,7 +326,13 @@ class ClustersWidget(QFrame):
         self.settings_menu.setMinimumWidth(self.btn_settings.width())
 
     def _apply_clusters(self, *, only_cluster=True):
-        """Apply the clusters."""
+        """Apply the requested cluster count.
+
+        Parameters
+        ----------
+        only_cluster : bool, optional
+            If True, clear cached tractogram states before re-clustering.
+        """
         value = self.count_input.value()
         if 1 <= value <= self.count_input.maximum():
             self._remove_tractogram_visualizations()
@@ -370,7 +376,13 @@ class ClustersWidget(QFrame):
             self._apply_clusters(only_cluster=False)
 
     def _on_cluster_menu_action(self, action_name):
-        """Handle cluster settings menu actions."""
+        """Handle cluster settings menu actions.
+
+        Parameters
+        ----------
+        action_name : str
+            Text label of the selected cluster menu action.
+        """
         if action_name == "All":
             visualization_manager.select_all_clusters()
         elif action_name == "None":
@@ -573,6 +585,16 @@ class RoiCreateWidget(QFrame):
 
         ``color`` is an RGB triple in [0, 1]. Used to mirror the swatch
         shown in the Properties pane on each list row.
+
+        Parameters
+        ----------
+        color : sequence of float
+            RGB color with values in the range [0, 1].
+
+        Returns
+        -------
+        QIcon
+            Filled circular icon tinted with ``color``.
         """
         pixmap = QPixmap(14, 14)
         pixmap.fill(Qt.transparent)
@@ -630,7 +652,13 @@ class RoiCreateWidget(QFrame):
         self._existing_empty_label.setVisible(self._existing_list.count() == 0)
 
     def selected_roi_name(self):
-        """Return the name of the currently-selected ROI, or None."""
+        """Return the currently selected ROI name.
+
+        Returns
+        -------
+        str or None
+            Selected ROI name, or None if no row is selected.
+        """
         item = self._existing_list.currentItem()
         if item is None or not item.isSelected():
             return None
@@ -674,6 +702,19 @@ class RoiCreateWidget(QFrame):
         All arguments are optional; pass only the fields that
         actually changed. ``position`` is expected to be an iterable
         of three voxel indices; ``color`` is an RGB triple in [0, 1].
+
+        Parameters
+        ----------
+        name : str or None, optional
+            ROI display name.
+        visibility : bool or None, optional
+            ROI visibility state.
+        type_ : str or None, optional
+            ROI shape/type label.
+        position : sequence of float or None, optional
+            ROI position in voxel coordinates.
+        color : sequence of float or None, optional
+            RGB color with values in the range [0, 1].
         """
         if name is not None:
             self._name_value.setText(str(name))
@@ -736,7 +777,13 @@ class LeftSectionWidget(QFrame):
         self._track_isolation_active = False
 
     def set_track_isolation_active(self, active):
-        """Hide cluster/ROI panels while a captured track is isolated."""
+        """Hide cluster/ROI panels while a captured track is isolated.
+
+        Parameters
+        ----------
+        active : bool
+            Whether track isolation is active.
+        """
         self._track_isolation_active = bool(active)
         self.update_controls_for_visualization()
 
