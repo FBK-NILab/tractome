@@ -6,7 +6,6 @@ import numpy as np
 from fury import actor as _fury_actor, distinguishable_colormap
 from fury.actor import set_group_visibility, show_slices
 from tractome.compute import (
-    calculate_filter,
     compute_dissimilarity,
     filter_streamline_ids,
     mkbm_clustering,
@@ -305,11 +304,19 @@ class VisualizationManager:
         """
         return self._visualizations["mesh_projection"]
 
-    def _gather_streamline_points(self):
+    def _gather_streamline_points(self, streamline_colors=None):
         """Return points and colors for streamlines in expanded clusters.
 
         Only expanded clusters contribute points; collapsed clusters are
         skipped even if visible.
+
+        Parameters
+        ----------
+        streamline_colors : dict or None
+            Optional mapping of streamline ID to RGB color. If None, colors
+            are taken from the cluster states of the latest state_manager
+            entry. This argument is intended for temporary overrides when you
+            want to visualize a tractogram capture or view.
 
         Returns
         -------
@@ -325,21 +332,27 @@ class VisualizationManager:
         if len(streamlines) == 0:
             return None, None
 
-        if not state_manager.has_states():
-            return None, None
-        tractogram_states = state_manager.get_latest_state().tractogram_states
-        if tractogram_states is None:
-            return None, None
-
         color_map = {}
-        for state_data in tractogram_states.values():
-            if not state_data.get("expanded"):
-                continue
-            if not state_data.get("visible", True):
-                continue
-            color = np.asarray(state_data["color"], dtype=np.float32).ravel()[:3]
-            for sid in state_data["streamline_ids"]:
-                color_map[int(sid)] = color
+        if streamline_colors is not None:
+            color_map = {
+                int(sid): np.asarray(color, dtype=np.float32).ravel()[:3]
+                for sid, color in streamline_colors.items()
+            }
+        else:
+            if not state_manager.has_states():
+                return None, None
+            tractogram_states = state_manager.get_latest_state().tractogram_states
+            if tractogram_states is None:
+                return None, None
+
+            for state_data in tractogram_states.values():
+                if not state_data.get("expanded"):
+                    continue
+                if not state_data.get("visible", True):
+                    continue
+                color = np.asarray(state_data["color"], dtype=np.float32).ravel()[:3]
+                for sid in state_data["streamline_ids"]:
+                    color_map[int(sid)] = color
 
         if not color_map:
             return None, None
@@ -357,7 +370,7 @@ class VisualizationManager:
         colors = np.repeat(color_arr, lengths, axis=0)
         return pts, colors
 
-    def visualize_mesh_projection(self):
+    def visualize_mesh_projection(self, streamline_colors=None):
         """Build the projected-points actor and seed the GPU projection state.
 
         The caller is expected to add the actor to the scene and trigger a
@@ -375,7 +388,7 @@ class VisualizationManager:
         if not input_manager.has_mesh or not input_manager.has_tractogram:
             self._visualizations["mesh_projection"] = None
             return None
-        pts, colors = self._gather_streamline_points()
+        pts, colors = self._gather_streamline_points(streamline_colors)
         if pts is None:
             self._visualizations["mesh_projection"] = None
             return None
@@ -456,7 +469,7 @@ class VisualizationManager:
         self._visualizations["mesh_projection"] = None
         self._mesh_projection_bound = False
 
-    def rebuild_mesh_projection(self):
+    def rebuild_mesh_projection(self, streamline_colors=None):
         """Build a replacement projection actor from the current state.
 
         Internal projection bookkeeping is reset; the caller must call
@@ -472,7 +485,7 @@ class VisualizationManager:
         old_viz = self._visualizations["mesh_projection"]
         self._visualizations["mesh_projection"] = None
         self._mesh_projection_bound = False
-        new_viz = self.visualize_mesh_projection()
+        new_viz = self.visualize_mesh_projection(streamline_colors)
         return old_viz, new_viz
 
     @property
@@ -604,11 +617,14 @@ class VisualizationManager:
                 dtype=np.int32,
             )
         if len(streamline_ids) == 0:
+            state.nb_clusters = 0
             state.tractogram_states = {}
             return
+        nb_clusters = min(max(1, int(state.nb_clusters)), len(streamline_ids))
+        state.nb_clusters = nb_clusters
         clusters = mkbm_clustering(
             sft.data_per_streamline["dismatrix"],
-            n_clusters=state.nb_clusters,
+            n_clusters=nb_clusters,
             streamline_ids=streamline_ids,
         )
         min_size = min(len(streamline_ids) for streamline_ids in clusters.values())
@@ -1056,10 +1072,10 @@ class VisualizationManager:
     def apply_roi_filter(self):
         """Filter the tractogram streamlines using positive and negated ROIs.
 
-        Positive ROIs (the default) are AND-combined and the streamlines
-        that pass through the resulting mask are kept. Negated ROIs are
-        OR-combined and any streamline touching that combined mask is then
-        subtracted from the kept set. When every applied ROI is negated,
+        Positive ROIs (the default) are AND-combined at the streamline-id
+        level: a streamline must touch every positive ROI to be kept. Negated
+        ROIs are OR-combined and any streamline touching that combined mask is
+        then subtracted from the kept set. When every applied ROI is negated,
         the kept set starts as all streamlines before the subtraction.
 
         The cluster state is invalidated so the next call to
@@ -1115,27 +1131,31 @@ class VisualizationManager:
 
         if input_manager.has_t1:
             t1_volume, reference_affine, _, _ = input_manager.get_current_t1()
-            reference_shape = t1_volume.shape
+            reference_shape = t1_volume.shape[:3]
         else:
             _, reference_affine, _, _ = input_manager.get_roi_at(first_applied_index)
-            reference_shape = (positive_volumes or negative_volumes)[0].shape
+            reference_shape = (positive_volumes or negative_volumes)[0].shape[:3]
 
         if positive_volumes:
-            try:
-                positive_mask = calculate_filter(
-                    positive_volumes, reference_shape=reference_shape
+            kept_ids = None
+            matched = 0
+            for volume in positive_volumes:
+                volume_mask = np.asarray(volume).astype(bool, copy=False)
+                if volume_mask.shape != reference_shape:
+                    continue
+                world_mask, origin = transform_roi_to_world_grid(
+                    volume_mask, reference_affine
                 )
-            except ValueError:
+                roi_ids = {
+                    int(i)
+                    for i in filter_streamline_ids(
+                        sft.streamlines, world_mask, origin=origin
+                    )
+                }
+                kept_ids = roi_ids if kept_ids is None else kept_ids & roi_ids
+                matched += 1
+            if matched == 0:
                 return False
-            world_mask, origin = transform_roi_to_world_grid(
-                positive_mask, reference_affine
-            )
-            kept_ids = {
-                int(i)
-                for i in filter_streamline_ids(
-                    sft.streamlines, world_mask, origin=origin
-                )
-            }
         else:
             kept_ids = set(range(len(sft.streamlines)))
 
@@ -1144,8 +1164,12 @@ class VisualizationManager:
             matched = 0
             for volume in negative_volumes:
                 volume_mask = np.asarray(volume).astype(bool, copy=False)
-                if volume_mask.shape != reference_shape:
+                if volume_mask.shape[:3] != reference_shape:
                     continue
+                if volume_mask.ndim > 3:
+                    volume_mask = np.any(
+                        volume_mask, axis=tuple(range(3, volume_mask.ndim))
+                    )
                 negative_mask |= volume_mask
                 matched += 1
             if matched:

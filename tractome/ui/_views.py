@@ -300,7 +300,9 @@ class InteractionScreen(QWidget):
         """
         if not state_manager.mesh_project:
             return
-        old_viz, new_viz = visualization_manager.rebuild_mesh_projection()
+        old_viz, new_viz = visualization_manager.rebuild_mesh_projection(
+            self._active_track_projection_source()
+        )
         if old_viz:
             self.remove_visualization(old_viz, visualization_type="mesh_projection")
         if new_viz is None:
@@ -330,10 +332,11 @@ class InteractionScreen(QWidget):
             tractogram_viz = visualization_manager.tractogram_visualizations
             if tractogram_viz:
                 self.add_visualization(tractogram_viz, visualization_type="tractogram")
+            self._apply_track_isolation()
             self._center_section.show_manager.render()
             return
 
-        if not self._has_expanded_cluster():
+        if not self._has_projectable_streamlines():
             self._show_projection_empty_warning()
             # Revert the checkbox without re-triggering this handler.
             checkbox = self._right_section.mesh_input_widget.project_checkbox
@@ -346,7 +349,9 @@ class InteractionScreen(QWidget):
 
         # Always rebuild from current state on enable: cluster colors, ROI
         # filter, or visibility may have changed while Project was off.
-        old_viz, new_viz = visualization_manager.rebuild_mesh_projection()
+        old_viz, new_viz = visualization_manager.rebuild_mesh_projection(
+            self._active_track_projection_source()
+        )
         if old_viz:
             self.remove_visualization(old_viz, visualization_type="mesh_projection")
         if new_viz is None:
@@ -358,6 +363,7 @@ class InteractionScreen(QWidget):
         # add_visualization renders, which materializes the GPU buffer
         # so we can bind it as compute output on the next call.
         self.add_visualization(new_viz, visualization_type="mesh_projection")
+        self._apply_track_isolation()
         visualization_manager.update_mesh_projection(
             state_manager.mesh_projection_threshold
         )
@@ -374,13 +380,33 @@ class InteractionScreen(QWidget):
             cluster_data.get("expanded") for cluster_data in tractogram_states.values()
         )
 
+    def _active_track_projection_source(self):
+        """Return streamline colors for checked captured tracks, or None."""
+        streamline_colors = {}
+        for track in self._right_section.tracks_widget.iter_tracks():
+            if not track["visible"]:
+                continue
+            color = track["color"]
+            for sid in track["streamline_ids"]:
+                streamline_colors[int(sid)] = color
+        return streamline_colors or None
+
+    def _has_projectable_streamlines(self):
+        """Return True if projection has a cluster or captured-track source."""
+        return (
+            self._active_track_projection_source() is not None
+            or self._has_expanded_cluster()
+        )
+
     def _show_projection_empty_warning(self):
-        """Show the styled warning when no cluster is expanded for projection."""
+        """Show the styled warning when no streamlines can be projected."""
         box = QMessageBox(self)
         box.setObjectName("captureWarningBox")
         box.setIcon(QMessageBox.Information)
         box.setWindowTitle("Nothing to project")
-        box.setText("Expand at least one cluster to visualize the projection.")
+        box.setText(
+            "Expand a cluster or select a captured track to visualize the projection."
+        )
         box.setStandardButtons(QMessageBox.Ok)
         box.exec()
 
@@ -487,6 +513,16 @@ class InteractionScreen(QWidget):
         # a new ROI from scratch.
         self._left_section.roi_create_widget.clear_existing_selection()
         self._refresh_roi_create_existing_list()
+        QTimer.singleShot(0, self._refresh_roi_create_view)
+        QTimer.singleShot(50, self._refresh_roi_create_view)
+
+    def _refresh_roi_create_view(self):
+        """Re-frame the 2D slice after ROI-create layout changes settle."""
+        visualization_manager.toggle_t1_slice_visibility_2d(
+            *state_manager.t1_slice_visibility_2d
+        )
+        self._center_section.orient_2d_camera_to_active_slice()
+        self._center_section.show_manager.render()
 
     def _refresh_roi_create_existing_list(self):
         """Push the current set of ROIs into the create panel's list.
@@ -744,7 +780,30 @@ class InteractionScreen(QWidget):
         self._left_section.set_track_isolation_active(is_active)
         self._center_section.set_track_isolation_active(is_active)
         self._right_section.btn_toggle_shortcuts.setDisabled(is_active)
+        if state_manager.mesh_project and not self._has_projectable_streamlines():
+            self._disable_mesh_projection()
+            self._center_section.show_manager.render()
+            return
+        self._refresh_mesh_projection_if_active()
         self._center_section.show_manager.render()
+
+    def _disable_mesh_projection(self):
+        """Turn off projection and restore the interactive tractogram."""
+        checkbox = self._right_section.mesh_input_widget.project_checkbox
+        checkbox.blockSignals(True)
+        checkbox.setChecked(False)
+        checkbox.blockSignals(False)
+        state_manager.mesh_project = False
+        self._right_section.mesh_input_widget._projection_controls.setVisible(False)
+
+        old_viz = visualization_manager.mesh_projection_visualizations
+        if old_viz:
+            self.remove_visualization(old_viz, visualization_type="mesh_projection")
+        visualization_manager.clear_mesh_projection()
+
+        tractogram_viz = visualization_manager.tractogram_visualizations
+        if tractogram_viz:
+            self.add_visualization(tractogram_viz, visualization_type="tractogram")
 
     def _apply_track_isolation(self):
         """Swap between cluster view and uniform-color tract view actors.
@@ -778,9 +837,10 @@ class InteractionScreen(QWidget):
                     if actor is None:
                         continue
                     track["actor"] = actor
+                    actor.visible = not state_manager.mesh_project
                     scene.add(actor)
                 else:
-                    actor.visible = True
+                    actor.visible = not state_manager.mesh_project
             elif actor is not None:
                 actor.visible = False
 

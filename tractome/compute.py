@@ -281,16 +281,16 @@ def calculate_filter(rois, *, flip=None, reference_shape=None):
         )
 
     if reference_shape is None:
-        reference_shape = np.asarray(rois[0]).shape
+        reference_shape = np.asarray(rois[0]).shape[:3]
     else:
-        reference_shape = tuple(reference_shape)
+        reference_shape = tuple(reference_shape)[:3]
     combined_mask = np.ones(reference_shape, dtype=bool)
     matched_count = 0
 
     for idx, (roi, should_flip) in enumerate(zip(rois, flip)):
         roi_mask = np.asarray(roi).astype(bool, copy=False)
 
-        if roi_mask.shape != reference_shape:
+        if roi_mask.shape[:3] != reference_shape:
             logging.warning(
                 "Skipping ROI %s due to shape mismatch: expected %s, got %s.",
                 idx,
@@ -298,6 +298,8 @@ def calculate_filter(rois, *, flip=None, reference_shape=None):
                 roi_mask.shape,
             )
             continue
+        if roi_mask.ndim > 3:
+            roi_mask = np.any(roi_mask, axis=tuple(range(3, roi_mask.ndim)))
 
         if bool(should_flip):
             roi_mask = np.logical_not(roi_mask)
