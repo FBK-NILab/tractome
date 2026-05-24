@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStackedWidget
 
 from tractome.io import get_file_extension
 from tractome.mem import input_manager, state_manager, visualization_manager
@@ -112,11 +112,15 @@ class Tractome(QMainWindow):
 
         self._stack = QStackedWidget()
         self.setCentralWidget(self._stack)
+        self._retired_interaction_screens = []
 
         self._start_screen = StartScreen(on_uploading_done=self._completed_start_screen)
         self._stack.addWidget(self._start_screen)
 
         self._interaction_screen = InteractionScreen()
+        self._interaction_screen.change_tractogram_requested.connect(
+            self._confirm_change_tractogram
+        )
         self._stack.addWidget(self._interaction_screen)
 
         if input_manager.has_input:
@@ -167,6 +171,35 @@ class Tractome(QMainWindow):
                 self._interaction_screen.add_visualization(
                     tractogram_visualization, visualization_type="tractogram"
                 )
+
+    def _confirm_change_tractogram(self):
+        """Ask before resetting the app to choose a different tractogram."""
+        result = QMessageBox.question(
+            self,
+            "Change tractogram",
+            "Changing the tractogram will reset the application. Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if result == QMessageBox.Yes:
+            self._reset_to_start_screen()
+
+    def _reset_to_start_screen(self):
+        """Reset managers and return to the tractogram upload screen."""
+        input_manager.reset()
+        state_manager.reset()
+        visualization_manager.reset()
+
+        old_interaction_screen = self._interaction_screen
+        self._stack.removeWidget(old_interaction_screen)
+        self._retired_interaction_screens.append(old_interaction_screen)
+
+        self._interaction_screen = InteractionScreen()
+        self._interaction_screen.change_tractogram_requested.connect(
+            self._confirm_change_tractogram
+        )
+        self._stack.addWidget(self._interaction_screen)
+        self._stack.setCurrentWidget(self._start_screen)
 
     def start(self):
         """Show the main window and start the FURY/Qt loop."""

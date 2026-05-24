@@ -100,6 +100,19 @@ QCheckBox::indicator:checked {
   border: 2px solid white;
 }
 
+#changeTractogramButton {
+    background-color: #333333;
+    color: #ffffff;
+    border: 2px solid #d8d8d8;
+    border-radius: 8px;
+    font-size: 11pt;
+    padding: 8px;
+}
+
+#changeTractogramButton:hover {
+    background-color: #444444;
+}
+
 #interactionCenterSection {
   background-color: #333333;
   border: none;

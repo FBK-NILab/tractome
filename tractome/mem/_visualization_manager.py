@@ -72,6 +72,10 @@ class VisualizationManager:
         self._mesh_projection_bound = False
         self._mesh_projection_n_points = 0
 
+    def reset(self):
+        """Forget all cached actors, ROI styling, and GPU projection state."""
+        self.__init__()
+
     def visualize_t1(self):
         """Visualize the T1 image.
 

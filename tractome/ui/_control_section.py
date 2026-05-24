@@ -869,6 +869,8 @@ class RoiCreateWidget(QFrame):
 class LeftSectionWidget(QFrame):
     """The Sidebar container that holds the control modules."""
 
+    change_tractogram_requested = Signal()
+
     def __init__(self, *, parent=None):
         super().__init__(parent)
         self.setObjectName("interactionLeftSection")
@@ -894,6 +896,17 @@ class LeftSectionWidget(QFrame):
         self.main_layout.addWidget(self.roi_create_widget)
 
         self.main_layout.addStretch()
+
+        self.change_tractogram_button = QPushButton("Change tractogram")
+        self.change_tractogram_button.setObjectName("changeTractogramButton")
+        self.change_tractogram_button.setCursor(Qt.PointingHandCursor)
+        self.change_tractogram_button.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Fixed
+        )
+        self.change_tractogram_button.clicked.connect(
+            self.change_tractogram_requested.emit
+        )
+        self.main_layout.addWidget(self.change_tractogram_button)
 
         self._track_isolation_active = False
 

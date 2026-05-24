@@ -93,6 +93,10 @@ class InputManager:
         self._loaded_rois = {}
         self._created_roi_counters = {}
 
+    def reset(self):
+        """Clear all input paths, selections, and cached loaded data."""
+        self.__init__()
+
     def add_tractogram(self, tractogram):
         """Add a tractogram path and make it the current tractogram.
 

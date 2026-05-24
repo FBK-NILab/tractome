@@ -1,4 +1,4 @@
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
@@ -97,6 +97,8 @@ class StartScreen(QWidget):
 class InteractionScreen(QWidget):
     """Interaction screen of the app."""
 
+    change_tractogram_requested = Signal()
+
     def __init__(self):
         """Initialize the interaction screen."""
         super().__init__()
@@ -108,6 +110,9 @@ class InteractionScreen(QWidget):
         self._left_section = LeftSectionWidget(parent=self)
         self._center_section = CenterSectionWidget()
         self._right_section = RightSectionWidget()
+        self._left_section.change_tractogram_requested.connect(
+            self.change_tractogram_requested.emit
+        )
 
         # Per-track color generator: each captured view gets the next
         # distinguishable color so neighbouring tracks don't collide.
