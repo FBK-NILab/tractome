@@ -109,13 +109,7 @@ class ViewModeWidget(QFrame):
 
 
 class FibersWidget(QFrame):
-    """Placeholder Fibers panel.
-
-    Mirrors the layout of :class:`ClustersWidget` but with the count
-    input, step arrows and Recovery button disabled — only the
-    capture button is interactive today. Logic for the disabled
-    controls will be wired up in follow-up work.
-    """
+    """Fibers panel with the active capture control."""
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -141,12 +135,18 @@ class FibersWidget(QFrame):
 
         capture_row = QHBoxLayout()
         capture_row.setContentsMargins(0, 0, 0, 0)
-        capture_row.setSpacing(0)
+        capture_row.setSpacing(8)
         capture_row.addWidget(self.btn_capture)
+        self.capture_label = QLabel("Capture fibers")
+        self.capture_label.setObjectName("fiberCaptureLabel")
+        capture_row.addWidget(self.capture_label)
         capture_row.addStretch()
         self.main_layout.addLayout(capture_row)
 
-        self.grid = QGridLayout()
+        self.disabled_controls_widget = QWidget()
+        self.disabled_controls_widget.setVisible(False)
+
+        self.grid = QGridLayout(self.disabled_controls_widget)
         self.grid.setSpacing(6)
         self.grid.setContentsMargins(0, 0, 0, 0)
 
@@ -191,7 +191,7 @@ class FibersWidget(QFrame):
         self.grid.setColumnStretch(1, 0)
         self.grid.setColumnStretch(2, 1)
 
-        self.main_layout.addLayout(self.grid)
+        self.main_layout.addWidget(self.disabled_controls_widget)
 
 
 class ClustersWidget(QFrame):
@@ -420,21 +420,21 @@ class ClustersWidget(QFrame):
 class RoiCreateWidget(QFrame):
     """ROI EDIT panel shown while drawing in 2D mode.
 
-    Layout matches the design mock: a title, a four-button toolbar
-    (square / circle / brush / eraser), and a read-only Properties
+    Layout matches the design mock: a title, a toolbar
+    (square / circle / finish), and a read-only Properties
     panel listing the active ROI's name, visibility, type, voxel
     position and color swatch.
 
-    Only the circle tool is wired up today (sphere ROI); the other
-    three are placeholders disabled at the UI level so the design
-    fits while the rasterizers for those modes are added later.
+    Square and circle draw rectangle/sphere ROIs. The check button
+    exits drawing and returns to normal 2D interactions.
 
     A single ROI is drawn per session — re-dragging overwrites the
-    same draft. Switching to 3D commits and runs the streamline
-    filter; there is no explicit Save button.
+    same draft. Hitting the check button commits and runs the
+    streamline filter.
     """
 
     shape_changed = Signal(str)
+    finish_requested = Signal()
     edit_requested = Signal(str)
     roi_visibility_changed = Signal(str)
     roi_remove_requested = Signal(str)
@@ -464,12 +464,11 @@ class RoiCreateWidget(QFrame):
             self._sync_existing_row_label(row)
 
     def _build_toolbar(self):
-        """Toolbar of 4 icon buttons.
+        """Toolbar of ROI shape buttons plus a finish button.
 
         ``square_roi`` and ``sphere_roi`` are wired to the rectangle
-        and sphere rasterizers respectively. ``edit_roi`` (brush) and
-        ``erase_roi`` are placeholders for future tools and stay
-        disabled at the UI level.
+        and sphere rasterizers respectively. ``check`` exits ROI edit
+        mode and restores normal 2D interactions.
         """
         toolbar_row = QHBoxLayout()
         toolbar_row.setSpacing(8)
@@ -480,8 +479,6 @@ class RoiCreateWidget(QFrame):
         tools = [
             ("rectangle", "square_roi.svg", "rectangle", "Rectangle", True),
             ("circle", "sphere_roi.svg", "sphere", "Sphere", True),
-            ("brush", "edit_roi.svg", None, "Brush (coming soon)", False),
-            ("eraser", "erase_roi.svg", None, "Eraser (coming soon)", False),
         ]
         self._tool_buttons = {}
         self._tool_shape = {}
@@ -502,6 +499,17 @@ class RoiCreateWidget(QFrame):
             self._tool_buttons[key] = btn
             self._tool_shape[key] = shape
             toolbar_row.addWidget(btn)
+
+        self._finish_button = QPushButton()
+        self._finish_button.setObjectName("roiTool_finish")
+        self._finish_button.setProperty("class", "roiToolButton")
+        self._finish_button.setIcon(QIcon(str(ICONS_PATH / "check.svg")))
+        self._finish_button.setIconSize(QSize(20, 20))
+        self._finish_button.setFixedSize(44, 44)
+        self._finish_button.setCursor(Qt.PointingHandCursor)
+        self._finish_button.setToolTip("Finish ROI editing")
+        self._finish_button.clicked.connect(self.finish_requested.emit)
+        toolbar_row.addWidget(self._finish_button)
         toolbar_row.addStretch()
         self.main_layout.addLayout(toolbar_row)
 
@@ -805,8 +813,7 @@ class RoiCreateWidget(QFrame):
         """Return the active drawing shape name.
 
         Reads from whichever toolbar button is currently checked.
-        Square = rectangle, Circle = sphere; brush and eraser have
-        no rasterizer yet and fall through to the default sphere.
+        Square = rectangle, Circle = sphere.
         """
         for key, btn in self._tool_buttons.items():
             if btn.isChecked():

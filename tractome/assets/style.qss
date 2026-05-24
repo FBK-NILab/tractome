@@ -149,6 +149,12 @@ QCheckBox::indicator:checked {
     border-color: #e87722;
 }
 
+#fiberCaptureLabel {
+    color: #ffffff;
+    font-size: 12pt;
+    font-weight: bold;
+}
+
 #fiberCountInput:disabled {
     color: #ffffff;
     background-color: #1e1e1e;

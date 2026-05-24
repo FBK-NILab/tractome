@@ -164,6 +164,9 @@ class InteractionScreen(QWidget):
         self._left_section.roi_create_widget.shape_changed.connect(
             self._on_roi_create_shape_changed
         )
+        self._left_section.roi_create_widget.finish_requested.connect(
+            self._on_roi_create_finish_requested
+        )
         self._left_section.roi_create_widget.edit_requested.connect(
             self._on_roi_create_edit_requested
         )
@@ -565,6 +568,10 @@ class InteractionScreen(QWidget):
         clears the existing-ROIs selection.
         """
         self._center_section.set_roi_create_shape(shape)
+
+    def _on_roi_create_finish_requested(self):
+        """Exit ROI editing and return to normal 2D mode."""
+        self._commit_roi_create_session()
 
     def _on_roi_create_edit_requested(self, name):
         """Make the selected existing ROI the active edit target.
