@@ -1,10 +1,14 @@
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStackedWidget
 
 from tractome.io import get_file_extension
 from tractome.mem import input_manager, state_manager, visualization_manager
 from tractome.ui import InteractionScreen, StartScreen, load_style_sheet
+from tractome.ui.utils import ASSETS_PATH
 
 app = QApplication.instance() or QApplication([])
+APP_ICON_PATH = ASSETS_PATH / "images" / "logo.png"
+app.setWindowIcon(QIcon(str(APP_ICON_PATH)))
 
 
 class Tractome(QMainWindow):
@@ -106,6 +110,7 @@ class Tractome(QMainWindow):
     def _initialize_window(self):
         """Initialize the window"""
         self.setWindowTitle("Tractome")
+        self.setWindowIcon(QIcon(str(APP_ICON_PATH)))
         self.resize(1200, 800)
         style_sheet = load_style_sheet()
         self.setStyleSheet(style_sheet)
@@ -207,6 +212,7 @@ class Tractome(QMainWindow):
         self._interaction_screen._center_section.show_manager.start()
 
 
-if __name__ == "__main__":
-    tractome = Tractome(tractogram="computed.trx")
+def main():
+    """Entry point for the Tractome application."""
+    tractome = Tractome()
     tractome.start()
