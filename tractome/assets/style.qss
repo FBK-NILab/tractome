@@ -744,6 +744,15 @@ QPushButton[class="roiToolButton"]:disabled {
     background-color: #2a2a2a;
 }
 
+#roiExistingRow {
+    background-color: transparent;
+}
+
+#roiExistingLabel {
+    color: #ffffff;
+    font-size: 10pt;
+}
+
 /* Tracks Widget (right panel) */
 #tracksWidget {
     background-color: #1e1e1e;

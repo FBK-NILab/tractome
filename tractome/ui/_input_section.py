@@ -1100,7 +1100,11 @@ class RoiInputWidget(QFrame):
         self.opacity_label.setObjectName("roiOpacityLabel")
         opacity_header.addWidget(self.opacity_label)
         opacity_header.addStretch()
-        roi_controls_layout.addLayout(opacity_header)
+        self._opacity_controls = QWidget()
+        opacity_controls_layout = QVBoxLayout(self._opacity_controls)
+        opacity_controls_layout.setContentsMargins(0, 0, 0, 0)
+        opacity_controls_layout.setSpacing(8)
+        opacity_controls_layout.addLayout(opacity_header)
 
         opacity_slider_row = QHBoxLayout()
         self.opacity_min_label = QLabel("0")
@@ -1114,7 +1118,8 @@ class RoiInputWidget(QFrame):
         opacity_slider_row.addWidget(self.opacity_min_label)
         opacity_slider_row.addWidget(self.opacity_slider)
         opacity_slider_row.addWidget(self.opacity_max_label)
-        roi_controls_layout.addLayout(opacity_slider_row)
+        opacity_controls_layout.addLayout(opacity_slider_row)
+        roi_controls_layout.addWidget(self._opacity_controls)
 
         self._rows_container = QWidget()
         self._rows_container.setObjectName("roiRowsContainer")
@@ -1126,6 +1131,7 @@ class RoiInputWidget(QFrame):
         self.main_layout.addWidget(self._roi_controls)
 
         self._row_widgets = []
+        self._show_filter_controls = True
 
         self.upload_button.setCursor(Qt.PointingHandCursor)
         self.add_button.setCursor(Qt.PointingHandCursor)
@@ -1257,6 +1263,8 @@ class RoiInputWidget(QFrame):
         row["negate_effect"].setOpacity(
             1.0 if visualization_manager.is_roi_negated_at(index) else 0.42
         )
+        row["apply_button"].setVisible(self._show_filter_controls)
+        row["negate_button"].setVisible(self._show_filter_controls)
         width = row["label"].width()
         if width > 0:
             row["label"].setText(
@@ -1416,6 +1424,13 @@ class RoiInputWidget(QFrame):
             if row["widget"] is row_widget:
                 return idx
         return -1
+
+    def set_filter_controls_visible(self, visible):
+        """Show apply/negate ROI filter controls in 3D, hide them in 2D."""
+        self._show_filter_controls = bool(visible)
+        self._opacity_controls.setVisible(bool(visible))
+        for index in range(len(self._row_widgets)):
+            self._sync_row_appearance(index)
 
     def refresh_rois(self):
         """Synchronize the row list with input/visualization managers.

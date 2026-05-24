@@ -162,6 +162,12 @@ class InteractionScreen(QWidget):
         self._left_section.roi_create_widget.edit_requested.connect(
             self._on_roi_create_edit_requested
         )
+        self._left_section.roi_create_widget.roi_visibility_changed.connect(
+            self._on_roi_create_visibility_changed
+        )
+        self._left_section.roi_create_widget.roi_remove_requested.connect(
+            self._on_roi_create_remove_requested
+        )
         self._center_section.roi_drawn.connect(self._on_roi_drawn)
         self._draft_roi_id = None
         self._roi_shape_by_id = {}
@@ -482,6 +488,11 @@ class InteractionScreen(QWidget):
                 self.add_visualization(tractogram_vis, visualization_type="tractogram")
             self._refresh_mesh_projection_if_active()
 
+        if state_manager.view_mode == "2D":
+            self._build_2d_scene_contents()
+            self._center_section.orient_2d_camera_to_active_slice()
+            self._left_section.update_controls_for_visualization()
+
     def _on_roi_visibility_changed(self):
         """Re-render after toggling per-ROI visibility."""
         self._center_section.show_manager.render()
@@ -595,11 +606,43 @@ class InteractionScreen(QWidget):
         color = visualization_manager.get_roi_color(index)
         self._left_section.roi_create_widget.set_properties(
             name=name,
-            visibility=True,
+            visibility=visualization_manager.is_roi_visible_at(index),
             type_=type_,
             position=voxel_pos,
             color=color,
         )
+
+    def _on_roi_create_visibility_changed(self, name):
+        """Toggle an existing ROI from the ROI edit list."""
+        roi_paths = list(input_manager.provided_roi_paths)
+        if name not in roi_paths:
+            return
+        index = roi_paths.index(name)
+        visualization_manager.toggle_roi_visibility_at(index)
+        self._left_section.roi_input_widget.refresh_rois()
+        self._refresh_roi_create_existing_list()
+        if self._draft_roi_id == name:
+            self._left_section.roi_create_widget.set_properties(
+                visibility=visualization_manager.is_roi_visible_at(index)
+            )
+        self._center_section.show_manager.render()
+
+    def _on_roi_create_remove_requested(self, name):
+        """Remove an existing ROI from the ROI edit list."""
+        roi_paths = list(input_manager.provided_roi_paths)
+        if name not in roi_paths:
+            return
+        input_manager.remove_roi(roi_paths.index(name))
+        if self._draft_roi_id == name:
+            self._draft_roi_id = None
+            self._left_section.roi_create_widget.reset_properties()
+        self._on_rois_changed()
+        if state_manager.view_mode == "2D":
+            self._build_2d_scene_contents()
+            self._center_section.orient_2d_camera_to_active_slice()
+        self._refresh_roi_create_existing_list()
+        self._left_section.update_controls_for_visualization()
+        self._center_section.show_manager.render()
 
     def _commit_roi_create_session(self):
         """Finish a create-mode session: exit mode + apply filter.
@@ -715,7 +758,7 @@ class InteractionScreen(QWidget):
         color = visualization_manager.get_roi_color(roi_index)
         self._left_section.roi_create_widget.set_properties(
             name=self._draft_roi_id or "–",
-            visibility=True,
+            visibility=visualization_manager.is_roi_visible_at(roi_index),
             type_=shape.capitalize() if shape else "–",
             position=voxel_pos,
             color=color,

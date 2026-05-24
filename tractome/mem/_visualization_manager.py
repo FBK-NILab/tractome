@@ -959,18 +959,22 @@ class VisualizationManager:
         index : int
             Index of the ROI actor whose visibility should flip.
         """
-        if index < 0 or index >= len(self._visualizations["roi"]):
+        if index < 0 or index >= len(input_manager.provided_roi_paths):
             return
-        actor = self._visualizations["roi"][index]
-        actor.visible = not actor.visible
         path = input_manager.provided_roi_paths[index]
-        self._roi_visibility[path] = bool(actor.visible)
+        visible = not self._roi_visibility.get(path, True)
+        self._roi_visibility[path] = visible
+        if index < len(self._visualizations["roi"]):
+            self._visualizations["roi"][index].visible = visible
+        if index < len(self._2d_visualizations["roi"]):
+            self._2d_visualizations["roi"][index].visible = visible
 
     def is_roi_visible_at(self, index):
         """Return whether the ROI actor at ``index`` is currently shown."""
-        if index < 0 or index >= len(self._visualizations["roi"]):
+        if index < 0 or index >= len(input_manager.provided_roi_paths):
             return True
-        return bool(self._visualizations["roi"][index].visible)
+        path = input_manager.provided_roi_paths[index]
+        return bool(self._roi_visibility.get(path, True))
 
     def toggle_roi_applied_at(self, index):
         """Toggle whether the ROI at ``index`` participates in the filter.

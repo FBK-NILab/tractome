@@ -3,6 +3,7 @@ from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
+    QGraphicsOpacityEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from tractome.mem import input_manager, state_manager, visualization_manager
@@ -434,6 +436,8 @@ class RoiCreateWidget(QFrame):
 
     shape_changed = Signal(str)
     edit_requested = Signal(str)
+    roi_visibility_changed = Signal(str)
+    roi_remove_requested = Signal(str)
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -447,9 +451,17 @@ class RoiCreateWidget(QFrame):
         self.title.setObjectName("roiCreateTitle")
         self.main_layout.addWidget(self.title)
 
+        self._existing_row_widgets = []
+
         self._build_toolbar()
         self._build_properties()
         self._build_existing_list()
+
+    def resizeEvent(self, event):
+        """Re-elide Existing ROIs labels when the panel width changes."""
+        super().resizeEvent(event)
+        for row in self._existing_row_widgets:
+            self._sync_existing_row_label(row)
 
     def _build_toolbar(self):
         """Toolbar of 4 icon buttons.
@@ -579,6 +591,102 @@ class RoiCreateWidget(QFrame):
         self._existing_empty_label.setVisible(True)
         self.main_layout.addWidget(self._existing_empty_label)
 
+    def _make_existing_icon_button(self, *, object_name, icon_path=None, text=""):
+        """Create a compact button matching ROI row controls."""
+        button = QToolButton()
+        button.setObjectName(object_name)
+        if icon_path is not None:
+            button.setIcon(QIcon(icon_path))
+            button.setIconSize(QSize(16, 16))
+            button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        elif text:
+            button.setText(text)
+            button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        button.setAutoRaise(True)
+        button.setFixedSize(28, 28)
+        button.setCursor(Qt.PointingHandCursor)
+        effect = QGraphicsOpacityEffect(button)
+        button.setGraphicsEffect(effect)
+        return button, effect
+
+    def _build_existing_row(self, name, color):
+        """Build one editable Existing ROIs row with visibility/remove controls."""
+        row_widget = QWidget()
+        row_widget.setObjectName("roiExistingRow")
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(8)
+
+        def select_row(event, n=name):
+            self._select_existing_name(n)
+            event.accept()
+
+        swatch = QLabel()
+        swatch.setObjectName("roiExistingSwatch")
+        swatch.setFixedSize(14, 14)
+        r, g, b = (int(max(0.0, min(1.0, float(c))) * 255) for c in color[:3])
+        swatch.setStyleSheet(
+            f"background-color: rgb({r}, {g}, {b}); border-radius: 7px;"
+        )
+        swatch.mousePressEvent = select_row
+        row_layout.addWidget(swatch)
+
+        label = QLabel(name)
+        label.setObjectName("roiExistingLabel")
+        label.setToolTip(name)
+        label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        label.setMinimumWidth(40)
+        label.mousePressEvent = select_row
+        row_layout.addWidget(label, 1)
+
+        visibility_button, visibility_effect = self._make_existing_icon_button(
+            object_name="roiVisibilityButton",
+            icon_path=str(ICONS_PATH / "eye.svg"),
+        )
+        visibility_button.clicked.connect(
+            lambda _checked=False, n=name: self.roi_visibility_changed.emit(n)
+        )
+        row_layout.addWidget(visibility_button)
+
+        remove_button, _remove_effect = self._make_existing_icon_button(
+            object_name="roiRemoveButton",
+            text="✕",
+        )
+        remove_button.clicked.connect(
+            lambda _checked=False, n=name: self.roi_remove_requested.emit(n)
+        )
+        row_layout.addWidget(remove_button)
+
+        row_widget.mousePressEvent = select_row
+
+        return {
+            "widget": row_widget,
+            "label": label,
+            "full_name": name,
+            "visibility_effect": visibility_effect,
+        }
+
+    def _select_existing_name(self, name):
+        """Select an existing ROI row by name when its custom widget is clicked."""
+        for row in range(self._existing_list.count()):
+            item = self._existing_list.item(row)
+            if item.data(Qt.UserRole) == name:
+                self._existing_list.setCurrentItem(item)
+                item.setSelected(True)
+                break
+
+    def _sync_existing_row_label(self, row):
+        """Elide the Existing ROIs row label to fit the available width."""
+        width = row["label"].width()
+        if width > 0:
+            row["label"].setText(
+                row["label"]
+                .fontMetrics()
+                .elidedText(row["full_name"], Qt.ElideRight, width)
+            )
+        else:
+            row["label"].setText(row["full_name"])
+
     @staticmethod
     def _color_disk_icon(color):
         """Return a small filled-circle QIcon tinted with ``color``.
@@ -626,6 +734,7 @@ class RoiCreateWidget(QFrame):
         self._existing_list.blockSignals(True)
         try:
             self._existing_list.clear()
+            self._existing_row_widgets = []
             for entry in items:
                 name = str(entry.get("name", "ROI"))
                 # Use an explicit None check rather than ``or``: when
@@ -635,9 +744,21 @@ class RoiCreateWidget(QFrame):
                 color = entry.get("color")
                 if color is None:
                     color = (0.5, 0.5, 0.5)
-                item = QListWidgetItem(self._color_disk_icon(color), name)
+                item = QListWidgetItem()
                 item.setData(Qt.UserRole, name)
+                item.setSizeHint(QSize(0, 36))
                 self._existing_list.addItem(item)
+                row = self._build_existing_row(name, color)
+                try:
+                    index = list(input_manager.provided_roi_paths).index(name)
+                except ValueError:
+                    index = -1
+                row["visibility_effect"].setOpacity(
+                    1.0 if visualization_manager.is_roi_visible_at(index) else 0.42
+                )
+                self._existing_list.setItemWidget(item, row["widget"])
+                self._sync_existing_row_label(row)
+                self._existing_row_widgets.append(row)
 
             if previous_selected is not None:
                 for row in range(self._existing_list.count()):
@@ -793,9 +914,15 @@ class LeftSectionWidget(QFrame):
         is_create_mode = state_manager.roi_create_mode is not None
         has_tractogram_input = input_manager.has_tractogram
         isolating = self._track_isolation_active
+        show_regular_2d_rois = (
+            not is_3d and not is_create_mode and input_manager.has_roi
+        )
         self.fibers_box.setVisible(is_3d and has_tractogram_input and not isolating)
         self.clusters_box.setVisible(is_3d and has_tractogram_input and not isolating)
-        self.roi_input_widget.setVisible(is_3d and not is_create_mode and not isolating)
+        self.roi_input_widget.setVisible(
+            ((is_3d and not is_create_mode) or show_regular_2d_rois) and not isolating
+        )
+        self.roi_input_widget.set_filter_controls_visible(is_3d)
         self.roi_create_widget.setVisible(is_create_mode and not isolating)
 
         if has_tractogram_input:
