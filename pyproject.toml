@@ -61,5 +61,7 @@ requires = [
 [tool.briefcase.app.tractome.windows]
 
 [tool.briefcase.app.tractome.macOS]
+min_os_version = "14.0"
+universal_build = false
 
 [tool.briefcase.app.tractome.linux]
