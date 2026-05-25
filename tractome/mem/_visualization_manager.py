@@ -1,5 +1,6 @@
 import os
 
+from PySide6.QtWidgets import QApplication, QProgressDialog
 from dipy.tracking.distances import bundles_distances_mam
 import numpy as np
 
@@ -517,17 +518,35 @@ class VisualizationManager:
         sft, _, _, _ = input_manager.get_current_tractogram()
         is_embeddings_present = "dismatrix" in sft.data_per_streamline
         if not is_embeddings_present:
-            n_jobs = max(1, (os.cpu_count() or 1) - 2)
-            data_dissimilarity = compute_dissimilarity(
-                np.asarray(sft.streamlines, dtype=object),
-                distance=bundles_distances_mam,
-                prototype_policy="sff",
-                num_prototypes=40,
-                verbose=False,
-                size_limit=5000000,
-                n_jobs=n_jobs,
+            progress = QProgressDialog(
+                "Embeddings not found, creating embeddings...",
+                None,
+                0,
+                0,
+                QApplication.activeWindow(),
             )
-            sft.data_per_streamline["dismatrix"] = data_dissimilarity
+            progress.setWindowTitle("Creating embeddings")
+            progress.setCancelButton(None)
+            progress.setMinimumDuration(0)
+            progress.setModal(True)
+            progress.show()
+            QApplication.processEvents()
+
+            n_jobs = max(1, (os.cpu_count() or 1) - 2)
+            try:
+                data_dissimilarity = compute_dissimilarity(
+                    np.asarray(sft.streamlines, dtype=object),
+                    distance=bundles_distances_mam,
+                    prototype_policy="sff",
+                    num_prototypes=40,
+                    verbose=False,
+                    size_limit=5000000,
+                    n_jobs=n_jobs,
+                )
+                sft.data_per_streamline["dismatrix"] = data_dissimilarity
+            finally:
+                progress.close()
+                progress.deleteLater()
 
         if not state_manager.has_states():
             state_manager.add_state(

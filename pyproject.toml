@@ -45,6 +45,7 @@ author = "Tractome contributors"
 formal_name = "Tractome"
 description = "Imaging tool for brain analysis"
 icon = "tractome/assets/images/logo"
+console_app = false
 long_description = """Interactive clustering-based 3D tool for exploration and segmentation of tractography data.
 """
 sources = ["tractome"]
@@ -54,7 +55,6 @@ requires = [
   "fury>=2.0.0a6",
   "trimesh>=4.6.12",
   "scikit-learn>=1.7.1",
-  "ray>=2.47.0",
   "numba>=0.61.2",
 ]
 
