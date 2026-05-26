@@ -24,4 +24,3 @@ tractome_compute_dis_matrix = "tractome.cli:compute_dissimilarity_matrix"
 
 [tool.setuptools.packages.find]
 include = ["tractome*"]
-exclude = ["old*"]

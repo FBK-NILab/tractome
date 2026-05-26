@@ -44,6 +44,8 @@ def open_file_dialog(
 
     Parameters
     ----------
+    parent : QWidget or None, optional
+        Parent widget for the dialog.
     title : str, optional
         Title of the file dialog, by default "Select a file"
     file_filter : str, optional
@@ -69,7 +71,24 @@ def save_file_dialog(
     file_filter="All Files (*.*)",
     default_name="",
 ):
-    """Open a save dialog and return the chosen file path."""
+    """Open a save dialog and return the chosen file path.
+
+    Parameters
+    ----------
+    parent : QWidget or None, optional
+        Parent widget for the dialog.
+    title : str, optional
+        Dialog title.
+    file_filter : str, optional
+        File type filter string accepted by Qt.
+    default_name : str, optional
+        Initial filename shown in the dialog.
+
+    Returns
+    -------
+    str
+        Selected file path, or an empty string if the dialog is cancelled.
+    """
     file_path, _ = QFileDialog.getSaveFileName(parent, title, default_name, file_filter)
     if file_path:
         logging.info(f"Save target: {file_path}")

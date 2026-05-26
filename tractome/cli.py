@@ -51,7 +51,7 @@ def tractome(
     parcel : str, optional
         Path to a parcel CSV file
     """
-    tractome = Tractome(tractogram, mesh, mesh_texture, t1, roi, parcel)
+    tractome = Tractome(tractogram, t1, mesh, mesh_texture, roi, parcel)
     tractome.start()
 
 

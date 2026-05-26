@@ -28,7 +28,13 @@ class StartScreen(QWidget):
     """Start screen of the app."""
 
     def __init__(self, on_uploading_done):
-        """Initialize the start screen."""
+        """Initialize the start screen.
+
+        Parameters
+        ----------
+        on_uploading_done : callable
+            Callback invoked with the selected tractogram path.
+        """
         super().__init__()
 
         self._on_uploading_done = on_uploading_done
@@ -227,7 +233,17 @@ class InteractionScreen(QWidget):
         self._center_section.show_manager.render()
 
     def _on_t1_slices_changed(self, x, y, z):
-        """Update shown T1 slices from the input controls."""
+        """Update shown T1 slices from the input controls.
+
+        Parameters
+        ----------
+        x : int
+            X slice position.
+        y : int
+            Y slice position.
+        z : int
+            Z slice position.
+        """
         visualization_manager.show_t1_slices(x, y, z)
         self._center_section.show_manager.render()
 
@@ -253,7 +269,13 @@ class InteractionScreen(QWidget):
         self._center_section.show_manager.render()
 
     def _on_mesh_opacity_changed(self, value):
-        """Apply mesh opacity from the slider."""
+        """Apply mesh opacity from the slider.
+
+        Parameters
+        ----------
+        value : int
+            Slider value in the range 0-100.
+        """
         visualization_manager.set_mesh_opacity(value)
         self._center_section.show_manager.render()
 
@@ -296,6 +318,11 @@ class InteractionScreen(QWidget):
 
         While projection is active the tractogram actors are removed from
         the scene; they're re-added when projection is turned off.
+
+        Parameters
+        ----------
+        enabled : bool
+            Whether mesh projection should be active.
         """
         if not enabled:
             old_viz = visualization_manager.mesh_projection_visualizations
@@ -384,7 +411,13 @@ class InteractionScreen(QWidget):
         box.exec()
 
     def _on_mesh_projection_threshold_changed(self, threshold):
-        """Re-dispatch the projection compute pass with a new threshold."""
+        """Re-dispatch the projection compute pass with a new threshold.
+
+        Parameters
+        ----------
+        threshold : float
+            Maximum projection distance.
+        """
         if not state_manager.mesh_project:
             return
         if visualization_manager.mesh_projection_visualizations is None:
@@ -407,7 +440,13 @@ class InteractionScreen(QWidget):
         self._center_section.show_manager.render()
 
     def _on_parcel_size_changed(self, value):
-        """Apply parcel point size from the slider (labeled Opacity in the UI)."""
+        """Apply parcel point size from the slider.
+
+        Parameters
+        ----------
+        value : int
+            Slider value in the range 0-100. The UI labels this as opacity.
+        """
         visualization_manager.set_parcel_size(value)
         self._center_section.show_manager.render()
 
@@ -448,7 +487,13 @@ class InteractionScreen(QWidget):
         self._center_section.show_manager.render()
 
     def _on_roi_opacity_changed(self, _value):
-        """Re-render after the ROI opacity slider moves."""
+        """Re-render after the ROI opacity slider moves.
+
+        Parameters
+        ----------
+        _value : int
+            Slider value in the range 0-100.
+        """
         self._center_section.show_manager.render()
 
     def _on_roi_create_requested(self):
@@ -800,7 +845,18 @@ class InteractionScreen(QWidget):
                 actor.visible = False
 
     def _build_track_actor(self, track):
-        """Build a uniform-color streamlines actor for ``track``."""
+        """Build a uniform-color streamlines actor for a captured track.
+
+        Parameters
+        ----------
+        track : dict
+            Captured-track metadata containing streamline ids and color.
+
+        Returns
+        -------
+        Line or None
+            Streamlines actor, or None if no tractogram/streamlines are available.
+        """
         if not input_manager.has_tractogram:
             return None
         sft, _, _, _ = input_manager.get_current_tractogram()
@@ -811,7 +867,13 @@ class InteractionScreen(QWidget):
         return create_streamlines(streamlines, color)
 
     def _on_track_save_requested(self, index):
-        """Save the streamlines belonging to track ``index`` as TRX."""
+        """Save the streamlines belonging to a captured track as TRX.
+
+        Parameters
+        ----------
+        index : int
+            Index of the track to save.
+        """
         track = self._right_section.tracks_widget.get_track(index)
         if track is None or not track["streamline_ids"]:
             return
@@ -833,7 +895,13 @@ class InteractionScreen(QWidget):
         save_tractogram(new_sft, file_path)
 
     def _on_track_remove_requested(self, index):
-        """Remove a captured track and refresh the scene if it was active."""
+        """Remove a captured track and refresh the scene if it was active.
+
+        Parameters
+        ----------
+        index : int
+            Index of the track to remove.
+        """
         track = self._right_section.tracks_widget.get_track(index)
         if track is not None:
             actor = track.get("actor")

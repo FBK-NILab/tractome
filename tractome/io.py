@@ -101,8 +101,10 @@ def read_mesh(file_path, *, texture=None):
 
     Returns
     -------
-    tuple: (mesh, texture)
-        The loaded mesh and texture (if provided).
+    mesh : trimesh.Trimesh
+        The loaded mesh object.
+    texture : str or None
+        Validated texture path, or None if no texture was provided.
     """
     validated_path = validate_path(file_path)
     logging.info(f"Loading mesh from {validated_path} ...")
@@ -126,8 +128,10 @@ def read_nifti(file_path):
 
     Returns
     -------
-    tuple: (nifti_img, affine)
-        The loaded NIfTI image and its affine transformation matrix.
+    nifti_img : ndarray
+        The loaded NIfTI image data.
+    affine : ndarray
+        The affine transformation matrix.
     """
 
     validated_path = validate_path(file_path)
@@ -154,8 +158,15 @@ def read_csv(file_path, *, delimiter=",", has_header=True, encoding="utf-8"):
 
     Returns
     -------
-    list
-        A list of dictionaries if header is present, else a list of rows.
+    points : ndarray
+        First three columns from all loaded CSV rows.
+    colors : ndarray
+        Remaining columns from all loaded CSV rows.
+
+    Raises
+    ------
+    ValueError
+        If ``file_path`` is a directory with no CSV files, or a non-CSV file.
     """
 
     resolved_path = os.path.expanduser(file_path)

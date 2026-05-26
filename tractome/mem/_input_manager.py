@@ -10,6 +10,16 @@ def _as_filter_volume(volume):
     or with a structured RGB dtype. The filter pipeline expects a
     plain ``(X, Y, Z)`` mask, so trailing channels are reduced with
     ``any``: a voxel is occupied if any channel is non-zero.
+
+    Parameters
+    ----------
+    volume : ndarray
+        ROI volume loaded from disk or created in memory.
+
+    Returns
+    -------
+    ndarray
+        A 3D ROI mask suitable for filtering.
     """
     arr = np.asarray(volume)
     if arr.dtype.names is not None:
@@ -210,12 +220,12 @@ class InputManager:
         self._current_inputs["parcel"] = len(self._provided_inputs["parcel"]) - 1
 
     def get_current_tractogram(self):
-        """Return the current tractogram path.
+        """Load and return the current tractogram.
 
         Returns
         -------
-        str
-            Path to the currently selected tractogram file.
+        tuple
+            ``(sft, reference, path, index)`` for the current tractogram.
 
         Raises
         ------
@@ -241,12 +251,12 @@ class InputManager:
         return self._loaded_inputs["tractogram"]
 
     def get_current_t1(self):
-        """Return the current T1 image path.
+        """Load and return the current T1 image.
 
         Returns
         -------
-        str
-            Path to the currently selected T1 image file.
+        tuple
+            ``(nifti_img, affine, path, index)`` for the current T1 image.
 
         Raises
         ------
@@ -357,12 +367,12 @@ class InputManager:
                 self._current_inputs["mesh_texture"] = self._current_inputs["mesh"]
 
     def get_current_roi(self):
-        """Return the current ROI path.
+        """Load and return the current ROI.
 
         Returns
         -------
-        str
-            Path to the currently selected ROI file.
+        tuple
+            ``(roi_volume, affine, path, index)`` for the current ROI.
 
         Raises
         ------
@@ -442,16 +452,22 @@ class InputManager:
 
     @property
     def provided_roi_paths(self):
-        """Return paths for loaded ROI files."""
-        return list(self._provided_inputs["roi"])
-
-    def get_current_parcel(self):
-        """Return the current parcel path.
+        """Return paths or synthetic identifiers for loaded ROIs.
 
         Returns
         -------
-        str
-            Path to the currently selected parcel file.
+        list[str]
+            ROI file paths and in-memory ROI identifiers.
+        """
+        return list(self._provided_inputs["roi"])
+
+    def get_current_parcel(self):
+        """Load and return the current parcel data.
+
+        Returns
+        -------
+        tuple
+            ``(points, colors, path, index)`` for the current parcel file.
 
         Raises
         ------
@@ -558,16 +574,35 @@ class InputManager:
 
     @property
     def provided_mesh_paths(self):
-        """Return paths for loaded mesh files (paired with mesh textures)."""
+        """Return paths for loaded mesh files.
+
+        Returns
+        -------
+        list[str]
+            Mesh file paths paired with ``provided_mesh_texture_paths``.
+        """
         return list(self._provided_inputs["mesh"])
 
     @property
     def provided_mesh_texture_paths(self):
-        """Return texture paths paired with each mesh path."""
+        """Return texture paths paired with each mesh path.
+
+        Returns
+        -------
+        list[str]
+            Mesh texture file paths.
+        """
         return list(self._provided_inputs["mesh_texture"])
 
     def get_current_mesh_pair_paths(self):
         """Return (mesh_path, texture_path) for the current selection.
+
+        Returns
+        -------
+        mesh_path : str
+            Currently selected mesh path.
+        texture_path : str or None
+            Texture path paired with the selected mesh, or None.
 
         Raises
         ------
@@ -585,17 +620,35 @@ class InputManager:
 
     @property
     def current_mesh_index(self):
-        """Index of the selected mesh/texture pair, or -1 if none."""
+        """Index of the selected mesh/texture pair.
+
+        Returns
+        -------
+        int
+            Selected mesh index, or -1 if no mesh is selected.
+        """
         return self._current_inputs["mesh"]
 
     @property
     def provided_parcel_paths(self):
-        """Return paths for loaded parcel files."""
+        """Return paths for loaded parcel files.
+
+        Returns
+        -------
+        list[str]
+            Parcel file paths.
+        """
         return list(self._provided_inputs["parcel"])
 
     @property
     def current_parcel_index(self):
-        """Index of the selected parcel file, or -1 if none."""
+        """Index of the selected parcel file.
+
+        Returns
+        -------
+        int
+            Selected parcel index, or -1 if no parcel is selected.
+        """
         return self._current_inputs["parcel"]
 
     def set_current_parcel(self, index):

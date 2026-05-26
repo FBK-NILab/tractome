@@ -171,12 +171,14 @@ def create_streamlines_projection(streamlines, colors, slice_values):
 
 
 def create_streamlines(streamlines, color):
-    """Create a 3D tractogram from the provided StatefulTractogram.
+    """Create a 3D streamline actor.
 
     Parameters
     ----------
-    sft : StatefulTractogram
-        The input tractogram to be converted.
+    streamlines : sequence of ndarray
+        Streamlines to render.
+    color : tuple or ndarray
+        Color or per-streamline colors passed to FURY.
 
     Returns
     -------
@@ -197,7 +199,7 @@ def create_streamlines(streamlines, color):
 
 
 def create_parcels(pts, colors):
-    """Create point based representation of parcels
+    """Create a point-based representation of parcels.
 
     Parameters
     ----------
@@ -306,6 +308,22 @@ def _voxel_bbox_for_world_box(shape, inv_affine, world_corners):
 
     The corners are transformed to voxel space and clipped to the volume
     bounds so callers can iterate only the relevant subgrid.
+
+    Parameters
+    ----------
+    shape : tuple of int
+        Output volume shape.
+    inv_affine : ndarray
+        Inverse voxel-to-world affine matrix.
+    world_corners : ndarray
+        World-space corner coordinates with shape ``(N, 3)``.
+
+    Returns
+    -------
+    vmin : ndarray
+        Inclusive lower voxel bounds.
+    vmax : ndarray
+        Exclusive upper voxel bounds.
     """
     homogeneous = np.hstack(
         [world_corners, np.ones((world_corners.shape[0], 1), dtype=np.float64)]
@@ -447,14 +465,18 @@ def rasterize_box(shape, affine, world_corner_a, world_corner_b, axis, world_dep
 
 
 def create_image_slicer(volume, *, affine=None, mode="auto", depth_write=True):
-    """Create a 2D image from the provided NIfTI file.
+    """Create an image slicer actor from volume data.
 
     Parameters
     ----------
     volume : ndarray
         The input image data.
-    affine : ndarray
+    affine : ndarray, optional
         The affine transformation matrix.
+    mode : str, optional
+        Alpha blending mode passed to FURY.
+    depth_write : bool, optional
+        Whether the slicer material writes to the depth buffer.
 
     Returns
     -------

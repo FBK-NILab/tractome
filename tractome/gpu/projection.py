@@ -39,11 +39,16 @@ def build_uniform_grid(vertices, faces, cell_size=None):
 
     Returns
     -------
-    bbox_min : (3,) float32
-    grid_dims : (3,) uint32        cells per axis
+    bbox_min : ndarray
+        Mesh bounding-box minimum with shape ``(3,)`` and dtype ``float32``.
+    grid_dims : ndarray
+        Number of cells per axis with shape ``(3,)`` and dtype ``uint32``.
     cell_size : float
-    cell_offsets : (n_cells+1,) uint32   CSR-style offsets into tri_indices
-    tri_indices : (total,) uint32        triangle ids per cell, concatenated
+        Edge length of one grid cell.
+    cell_offsets : ndarray
+        CSR-style offsets into ``tri_indices`` with shape ``(n_cells + 1,)``.
+    tri_indices : ndarray
+        Concatenated triangle ids per cell.
     """
     vertices = np.ascontiguousarray(vertices, dtype=np.float32)
     faces = np.ascontiguousarray(faces, dtype=np.uint32).reshape(-1, 3)
@@ -125,6 +130,26 @@ def build_uniform_grid(vertices, faces, cell_size=None):
 
 
 def _pack_uniforms(bbox_min, cell_size, grid_dims, n_points, threshold):
+    """Pack projection uniforms into bytes for the WGSL shader.
+
+    Parameters
+    ----------
+    bbox_min : ndarray
+        Mesh bounding-box minimum with shape ``(3,)``.
+    cell_size : float
+        Uniform-grid cell size.
+    grid_dims : ndarray
+        Number of grid cells per axis.
+    n_points : int
+        Number of points to project.
+    threshold : float
+        Maximum projection distance.
+
+    Returns
+    -------
+    bytes
+        Packed uniform buffer contents.
+    """
     buf = np.zeros(12, dtype=np.float32)
     buf[0:3] = bbox_min
     buf[3] = cell_size
@@ -152,6 +177,13 @@ class PointProjection:
     _UNIFORM = wgpu.BufferUsage.UNIFORM | wgpu.BufferUsage.COPY_DST
 
     def __init__(self, device):
+        """Create a point projection pipeline.
+
+        Parameters
+        ----------
+        device : wgpu.GPUDevice
+            WebGPU device used to allocate buffers and dispatch compute work.
+        """
         self.device = device
 
         shader_src = _SHADER_PATH.read_text()
@@ -175,8 +207,18 @@ class PointProjection:
         self._bind_group = None
         self._bind_dirty = True
 
-    # ------------------------------------------------------------------ mesh
     def set_mesh(self, vertices, faces, cell_size=None):
+        """Upload mesh geometry and rebuild the uniform grid.
+
+        Parameters
+        ----------
+        vertices : array_like
+            Mesh vertices with shape ``(V, 3)``.
+        faces : array_like of int
+            Mesh triangle indices with shape ``(F, 3)``.
+        cell_size : float or None, optional
+            Uniform-grid cell size. If None, a size is estimated from mesh edges.
+        """
         bbox_min, grid_dims, cell_size, cell_offsets, tri_indices = build_uniform_grid(
             vertices, faces, cell_size=cell_size
         )
@@ -197,8 +239,14 @@ class PointProjection:
         self._mesh_meta = (bbox_min, cell_size, grid_dims)
         self._bind_dirty = True
 
-    # ---------------------------------------------------------------- points
     def set_points(self, points):
+        """Upload points to project.
+
+        Parameters
+        ----------
+        points : array_like
+            Point coordinates with shape ``(N, 3)``.
+        """
         pts = np.ascontiguousarray(points, dtype=np.float32).reshape(-1, 3)
         n = len(pts)
         size = max(n * 3 * 4, 4)
@@ -216,19 +264,29 @@ class PointProjection:
         self._bind_dirty = True
 
     def update_points(self, points):
-        """Fast path when count hasn't changed: just rewrite the input buffer."""
+        """Update point coordinates without rebuilding buffers when possible.
+
+        Parameters
+        ----------
+        points : array_like
+            Point coordinates with shape ``(N, 3)``.
+        """
         pts = np.ascontiguousarray(points, dtype=np.float32).reshape(-1, 3)
         if self._in_buf is None or len(pts) != self._n_points:
             self.set_points(pts)
             return
         self.device.queue.write_buffer(self._in_buf, 0, pts.tobytes())
 
-    # ---------------------------------------------------------------- output
     def bind_output_buffer(self, wgpu_buffer):
         """Use an externally-owned wgpu.Buffer as the snapped-points output.
 
         The buffer must have ``BufferUsage.STORAGE`` set and be sized for
         ``n_points * 3 * 4`` bytes.
+
+        Parameters
+        ----------
+        wgpu_buffer : wgpu.GPUBuffer
+            Buffer that receives projected point positions.
         """
         self._out_buf = wgpu_buffer
         self._external_out = True
@@ -241,6 +299,11 @@ class PointProjection:
         Must be called *before* the buffer is materialized (i.e., before the
         first render). After the first render, ``bind_output_to_actor`` can
         retrieve the live wgpu.Buffer and bind it.
+
+        Parameters
+        ----------
+        points_actor : object
+            FURY/pygfx points actor whose positions buffer will be used.
         """
         positions = points_actor.geometry.positions
         positions._wgpu_usage = (
@@ -250,7 +313,13 @@ class PointProjection:
         )
 
     def bind_output_to_actor(self, points_actor):
-        """Bind the actor's position buffer as our output, materializing if needed."""
+        """Bind an actor's position buffer as the projection output.
+
+        Parameters
+        ----------
+        points_actor : object
+            FURY/pygfx points actor whose positions buffer receives output.
+        """
         positions = points_actor.geometry.positions
         wgpu_buf = getattr(positions, "_wgpu_object", None)
         if wgpu_buf is None:
@@ -262,8 +331,14 @@ class PointProjection:
             wgpu_buf = ensure_wgpu_object(positions)
         self.bind_output_buffer(wgpu_buf)
 
-    # -------------------------------------------------------------- dispatch
     def _rebuild_bind_group(self):
+        """Recreate the compute bind group for current buffers.
+
+        Raises
+        ------
+        RuntimeError
+            If mesh or point buffers have not been initialized.
+        """
         if self._mesh_buffers is None:
             raise RuntimeError("set_mesh() must be called before dispatch().")
         if self._in_buf is None or self._out_buf is None:
@@ -318,6 +393,13 @@ class PointProjection:
         self._bind_dirty = False
 
     def dispatch(self, threshold):
+        """Run the point projection compute pass.
+
+        Parameters
+        ----------
+        threshold : float
+            Maximum projection distance accepted by the shader.
+        """
         if self._bind_dirty:
             self._rebuild_bind_group()
 
@@ -337,9 +419,14 @@ class PointProjection:
         cpass.end()
         self.device.queue.submit([encoder.finish()])
 
-    # --------------------------------------------------------------- helpers
     def read_output(self):
-        """Read the snapped points back to CPU. Useful for tests/debugging."""
+        """Read the snapped points back to CPU.
+
+        Returns
+        -------
+        ndarray or None
+            Projected points with shape ``(N, 3)``, or None if no output buffer exists.
+        """
         if self._out_buf is None:
             return None
         raw = self.device.queue.read_buffer(self._out_buf)

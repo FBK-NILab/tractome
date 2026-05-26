@@ -123,7 +123,13 @@ class CenterSectionWidget(QFrame):
         QTimer.singleShot(0, self._reposition_axes_gizmo)
 
     def _build_display_info_overlay(self, parent_layout):
-        """Create display info overlay inside the visualization area."""
+        """Create display info overlay inside the visualization area.
+
+        Parameters
+        ----------
+        parent_layout : QLayout
+            Layout that receives the overlay widget.
+        """
         self._display_info_widget = QFrame(self)
         self._display_info_widget.setObjectName("displayInfoWidget")
         self._display_info_widget.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -155,7 +161,13 @@ class CenterSectionWidget(QFrame):
         self._display_info_widget.raise_()
 
     def _build_keystroke_card(self, parent_layout):
-        """Build the keystroke card."""
+        """Build the keystroke card.
+
+        Parameters
+        ----------
+        parent_layout : QLayout
+            Layout that receives the overlay widget.
+        """
         self._keystroke_card = QFrame(self)
         self._keystroke_card.setObjectName("keystrokeCard")
         self._keystroke_card.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -233,6 +245,11 @@ class CenterSectionWidget(QFrame):
         logical pixels — when there's a single screen filling the
         window it matches ``screens[0].size`` so we use it directly
         without having to wait for ``update_viewports`` to run.
+
+        Parameters
+        ----------
+        size : tuple[int, int]
+            New canvas width and height.
         """
         anchor = getattr(self.show_manager, "_axes_helper_anchor", None)
         if anchor is None:
@@ -284,6 +301,11 @@ class CenterSectionWidget(QFrame):
         remembered and restored when isolation ends. Keystroke handling
         is also gated so cluster-mutation keys (a/n/i/d/e/c/s/h/x) do
         nothing while a captured view is shown.
+
+        Parameters
+        ----------
+        active : bool
+            Whether a captured track is isolated.
         """
         if active:
             if self._keystrokes_enabled:
@@ -310,6 +332,8 @@ class CenterSectionWidget(QFrame):
         ----------
         visualizations : list
             The visualizations to remove.
+        visualization_type : str, optional
+            Type/category of the visualization payload.
         """
         self._3D_scene.remove(*visualizations)
         if visualization_type == "tractogram":
@@ -450,6 +474,11 @@ class CenterSectionWidget(QFrame):
         Unbinds left-drag pan on the 2D controller (so the drag draws an
         ROI) while leaving wheel/right-drag zoom active, and registers
         drag handlers for drawing on the active slice plane.
+
+        Parameters
+        ----------
+        shape : str
+            Shape identifier to draw, such as ``"sphere"`` or ``"rectangle"``.
         """
         state_manager.roi_create_mode = shape
         self._roi_create_initial_pos = None
@@ -489,7 +518,13 @@ class CenterSectionWidget(QFrame):
         self.show_manager.render()
 
     def set_roi_create_shape(self, shape):
-        """Update the active shape mid-mode without re-registering handlers."""
+        """Update the active shape mid-mode without re-registering handlers.
+
+        Parameters
+        ----------
+        shape : str
+            Shape identifier to draw.
+        """
         if state_manager.roi_create_mode is None:
             return
         state_manager.roi_create_mode = shape
@@ -520,6 +555,18 @@ class CenterSectionWidget(QFrame):
         the plane. The slicer renders axis-aligned planes in world
         space, so the normal is simply the world unit axis matching
         the active slice index.
+
+        Parameters
+        ----------
+        axis : int
+            Active slice axis.
+
+        Returns
+        -------
+        plane_point : ndarray
+            Point on the active slice plane.
+        plane_normal : ndarray
+            Unit normal of the active slice plane.
         """
         plane_point = np.asarray(state_manager.t1_state, dtype=np.float64)
         normal = np.zeros(3, dtype=np.float64)
@@ -534,6 +581,20 @@ class CenterSectionWidget(QFrame):
         convention (z_ndc in [0, 1], not OpenGL's [-1, 1]). The unprojected
         near and far points define the camera ray; we then intersect that
         ray with the active slice plane in world space.
+
+        Parameters
+        ----------
+        x : float
+            Canvas x coordinate.
+        y : float
+            Canvas y coordinate.
+
+        Returns
+        -------
+        world_point : ndarray or None
+            World coordinate on the active slice, or None if conversion fails.
+        axis : int or None
+            Active slice axis, or None if conversion fails.
         """
         axis = self._active_2d_slice_axis()
         if axis is None:
@@ -586,6 +647,16 @@ class CenterSectionWidget(QFrame):
         slicer, and given a low ``render_order`` (this codebase's
         weighted_blend slicer composites cleanest when the preview
         sits below the slicer in the sort order).
+
+        Parameters
+        ----------
+        axis : int
+            Active slice axis.
+
+        Returns
+        -------
+        Actor
+            Preview disk actor.
         """
         if self._roi_create_preview is not None:
             return self._roi_create_preview
@@ -625,6 +696,13 @@ class CenterSectionWidget(QFrame):
         Offset by one world unit along the slice plane normal so the
         disk's depth differs from the slicer's depth — same-depth
         produced an invisible result on the user's setup.
+
+        Parameters
+        ----------
+        center : array_like
+            Disk center in world coordinates.
+        radius : float
+            Disk radius in world units.
         """
         preview = self._roi_create_preview
         if preview is None or radius <= 0:
@@ -643,6 +721,16 @@ class CenterSectionWidget(QFrame):
         in the local XY plane, rotated to align with the active slice
         plane, and scaled non-uniformly each drag tick to match the
         in-plane bounds of the user's drag.
+
+        Parameters
+        ----------
+        axis : int
+            Active slice axis.
+
+        Returns
+        -------
+        Actor
+            Preview rectangle actor.
         """
         if self._roi_create_preview is not None:
             return self._roi_create_preview
@@ -683,6 +771,15 @@ class CenterSectionWidget(QFrame):
 
         Sign of the mapping doesn't matter for the scale; we use the
         absolute extents along the relevant world axes.
+
+        Parameters
+        ----------
+        start : array_like
+            Drag start point in world coordinates.
+        end : array_like
+            Current drag point in world coordinates.
+        axis : int
+            Active slice axis.
         """
         preview = self._roi_create_preview
         if preview is None:
@@ -723,6 +820,11 @@ class CenterSectionWidget(QFrame):
 
         FURY synthesizes ``pointer_drag`` from ``pointer_down`` +
         ``pointer_move`` (see ShowManager._register_drag in window.py).
+
+        Parameters
+        ----------
+        event : Event
+            Pointer drag event.
         """
         if state_manager.roi_create_mode is None:
             return
@@ -764,7 +866,13 @@ class CenterSectionWidget(QFrame):
         QApplication.processEvents()
 
     def _on_roi_create_release(self, event):
-        """Finalize the in-progress ROI on pointer release."""
+        """Finalize the in-progress ROI on pointer release.
+
+        Parameters
+        ----------
+        event : Event
+            Pointer release event.
+        """
         if state_manager.roi_create_mode is None:
             return
         if not self._roi_create_dragging or self._roi_create_initial_pos is None:
