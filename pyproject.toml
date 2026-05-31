@@ -64,4 +64,7 @@ requires = [
 min_os_version = "14.0"
 universal_build = false
 
-[tool.briefcase.app.tractome.linux]
+[tool.briefcase.app.tractome.linux.flatpak]
+flatpak_sdk = "org.freedesktop.Sdk"
+flatpak_runtime = "org.freedesktop.Platform"
+flatpak_runtime_version = "24.08"
