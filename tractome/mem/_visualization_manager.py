@@ -65,6 +65,7 @@ class VisualizationManager:
         }
         self._roi_colormap = distinguishable_colormap()
         self._roi_colors = {}
+        self._mesh_colors = {}
         self._roi_visibility = {}
         self._roi_applied = {}
         self._roi_negated = {}
@@ -237,10 +238,17 @@ class VisualizationManager:
             self._visualizations["mesh"] = None
             return None
 
-        mesh_obj, texture_path, _, _ = input_manager.get_current_mesh()
+        mesh_obj, texture_path, mesh_path, _ = input_manager.get_current_mesh()
+        color = None
+        if not texture_path:
+            color = self._mesh_colors.get(mesh_path)
+            if color is None:
+                color = next(self._roi_colormap)
+                self._mesh_colors[mesh_path] = color
         mesh_actor = create_mesh(
             mesh_obj,
             texture=texture_path,
+            color=color,
             photographic=state_manager.mesh_photographic,
         )
         mesh_actor.visible = state_manager.mesh_visible

@@ -447,7 +447,7 @@ class MeshInputWidget(QFrame):
         self.mesh_upload_button.setObjectName("uploadButton")
         self.mesh_upload_button.setFixedSize(std_h, std_h)
         self.mesh_upload_button.setToolTip(
-            "Select mesh (.obj), then texture image (.jpg / .png)"
+            "Select mesh (.obj), then an optional texture image (.jpg / .png)"
         )
         self.mesh_row.addWidget(self.mesh_upload_button)
 
@@ -690,7 +690,11 @@ class MeshInputWidget(QFrame):
         self.mesh_opacity_changed.emit(value)
 
     def _on_mesh_upload_clicked(self):
-        """Prompt for mesh and texture files, then add the pair."""
+        """Prompt for a mesh and an optional texture, then add the pair.
+
+        The texture is optional: cancelling the texture dialog adds the mesh
+        without a texture, in which case it is rendered with a solid colour.
+        """
         mesh_path = open_file_dialog(
             parent=self,
             title="Select a mesh file",
@@ -700,15 +704,13 @@ class MeshInputWidget(QFrame):
             return
         texture_path = open_file_dialog(
             parent=self,
-            title="Select a texture image",
+            title="Select a texture image (optional)",
             file_filter=(
                 "Images (*.jpg *.jpeg *.png);; JPEG (*.jpg *.jpeg);; "
                 "PNG (*.png);; All Files (*.*)"
             ),
         )
-        if not texture_path:
-            return
-        input_manager.add_mesh(mesh_path, texture_path)
+        input_manager.add_mesh(mesh_path, texture_path or None)
         self.refresh_mesh_lists()
         self.mesh_changed.emit()
 

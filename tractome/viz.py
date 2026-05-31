@@ -75,7 +75,7 @@ def create_roi(roi_data, *, affine=None, color=(1, 0, 0)):
     return roi
 
 
-def create_mesh(mesh_obj, *, texture=None, photographic=True):
+def create_mesh(mesh_obj, *, texture=None, color=None, photographic=True):
     """Create a 3D mesh from the provided mesh object.
 
     Parameters
@@ -83,7 +83,10 @@ def create_mesh(mesh_obj, *, texture=None, photographic=True):
     mesh_obj : trimesh.Trimesh
         The input mesh object to be converted.
     texture : str or None, optional
-        Path to the texture image for the mesh.
+        Path to the texture image for the mesh. Ignored when ``color`` is given.
+    color : tuple or None, optional
+        RGB tuple in [0, 1] used to colour the whole mesh when no texture is
+        applied.
     photographic : bool, optional
         When True (default) use basic shading suitable for textured photographic
         rendering; when False use phong shading with vertex normals.
@@ -97,7 +100,7 @@ def create_mesh(mesh_obj, *, texture=None, photographic=True):
     faces = mesh_obj.faces
 
     texture_coords = None
-    if texture and hasattr(mesh_obj.visual, "uv"):
+    if texture and color is None and hasattr(mesh_obj.visual, "uv"):
         uvs = np.asarray(mesh_obj.visual.uv, dtype=np.float32).copy()
         logging.info("Flipping texture coordinates vertically (top-left image origin).")
         uvs[:, 1] = 1.0 - uvs[:, 1]
@@ -107,11 +110,19 @@ def create_mesh(mesh_obj, *, texture=None, photographic=True):
     if hasattr(mesh_obj, "vertex_normals"):
         normals = mesh_obj.vertex_normals
 
+    # A solid-coloured mesh (no texture) needs phong shading to convey 3D form;
+    # the photographic/basic material only makes sense for textured meshes.
+    if color is not None:
+        material = "phong"
+    else:
+        material = "basic" if photographic else "phong"
+
     mesh = actor.surface(
         vertices,
         faces,
-        material="basic" if photographic else "phong",
-        texture=texture,
+        material=material,
+        colors=color,
+        texture=None if color is not None else texture,
         texture_coords=texture_coords,
         normals=normals,
     )
