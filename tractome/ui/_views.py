@@ -347,7 +347,11 @@ class InteractionScreen(QWidget):
             if tractogram_viz:
                 self.add_visualization(tractogram_viz, visualization_type="tractogram")
             self._apply_track_isolation()
+            self._sync_keystroke_lock()
             self._center_section.show_manager.render()
+            # Re-raise overlays above the freshly drawn canvas so the restored
+            # keystroke card repaints now instead of on the next input event.
+            self._center_section.refresh_overlays()
             return
 
         if not self._has_projectable_streamlines():
@@ -359,6 +363,7 @@ class InteractionScreen(QWidget):
             checkbox.blockSignals(False)
             state_manager.mesh_project = False
             self._right_section.mesh_input_widget._projection_controls.setVisible(False)
+            self._sync_keystroke_lock()
             return
 
         # Always rebuild from current state on enable: cluster colors, ROI
@@ -371,6 +376,11 @@ class InteractionScreen(QWidget):
         if new_viz is None:
             # Missing mesh, tractogram, or device — nothing to show.
             return
+        # Lock keystrokes/card BEFORE detaching the tractogram: removing a
+        # "tractogram" visualization hides the keystroke card as a side effect,
+        # so the lock must snapshot the card's real pre-projection visibility
+        # here to restore it correctly when projection is turned off.
+        self._sync_keystroke_lock()
         tractogram_viz = visualization_manager.tractogram_visualizations
         if tractogram_viz:
             self.remove_visualization(tractogram_viz, visualization_type="tractogram")
@@ -828,13 +838,26 @@ class InteractionScreen(QWidget):
         box.setStandardButtons(QMessageBox.Ok)
         box.exec()
 
+    def _sync_keystroke_lock(self):
+        """Gate keystrokes, the keystroke card, and the shortcut toggle.
+
+        They are disabled while a captured track is isolated or while mesh
+        projection is active, so projection mirrors the capture-view lock.
+        Driven off the combined state so turning one off does not unlock
+        while the other is still on.
+        """
+        locked = self._right_section.tracks_widget.has_active_track() or bool(
+            state_manager.mesh_project
+        )
+        self._center_section.set_track_isolation_active(locked)
+        self._right_section.btn_toggle_shortcuts.setDisabled(locked)
+
     def _on_track_visibility_changed(self):
         """Apply or release the captured-track isolation in the scene."""
         self._apply_track_isolation()
         is_active = self._right_section.tracks_widget.has_active_track()
         self._left_section.set_track_isolation_active(is_active)
-        self._center_section.set_track_isolation_active(is_active)
-        self._right_section.btn_toggle_shortcuts.setDisabled(is_active)
+        self._sync_keystroke_lock()
         if state_manager.mesh_project and not self._has_projectable_streamlines():
             self._disable_mesh_projection()
             self._center_section.show_manager.render()
