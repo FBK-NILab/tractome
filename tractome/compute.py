@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import tempfile
@@ -175,6 +176,7 @@ def compute_dissimilarity(
 
         if not ray.is_initialized():
             ray.init(
+                include_dashboard=False,
                 _system_config={
                     "object_spilling_config": json.dumps(
                         {
@@ -182,7 +184,7 @@ def compute_dissimilarity(
                             "params": {"directory_path": tmp_dir.name},
                         }
                     )
-                }
+                },
             )
 
         func = ray.remote(distance)
@@ -191,6 +193,23 @@ def compute_dissimilarity(
         data_dissimilarity = []
         for i in range(len(func_refs)):
             data_dissimilarity.extend(ray.get(func_refs[i]))
+
+    elif n_jobs > 1:
+        logging.info(
+            "Threaded computation of the dissimilarity matrix: %s workers." % n_jobs
+        )
+        tmp = np.linspace(0, data.shape[0], n_jobs).astype(np.int32)
+        chunks = [(start, end) for start, end in zip(tmp[:-1], tmp[1:]) if start < end]
+
+        with ThreadPoolExecutor(max_workers=len(chunks)) as executor:
+            chunk_results = executor.map(
+                lambda chunk: distance(data[chunk[0] : chunk[1]], prototype),
+                chunks,
+            )
+
+        data_dissimilarity = []
+        for chunk_result in chunk_results:
+            data_dissimilarity.extend(chunk_result)
 
     else:
         data_dissimilarity = distance(data, prototype)

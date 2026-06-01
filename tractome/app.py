@@ -1,10 +1,14 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStackedWidget
 
 from tractome.io import get_file_extension
 from tractome.mem import input_manager, state_manager, visualization_manager
 from tractome.ui import InteractionScreen, StartScreen, load_style_sheet
+from tractome.ui.utils import ASSETS_PATH
 
 app = QApplication.instance() or QApplication([])
+APP_ICON_PATH = ASSETS_PATH / "images" / "logo.png"
+app.setWindowIcon(QIcon(str(APP_ICON_PATH)))
 
 
 class Tractome(QMainWindow):
@@ -106,17 +110,22 @@ class Tractome(QMainWindow):
     def _initialize_window(self):
         """Initialize the window"""
         self.setWindowTitle("Tractome")
+        self.setWindowIcon(QIcon(str(APP_ICON_PATH)))
         self.resize(1200, 800)
         style_sheet = load_style_sheet()
         self.setStyleSheet(style_sheet)
 
         self._stack = QStackedWidget()
         self.setCentralWidget(self._stack)
+        self._retired_interaction_screens = []
 
         self._start_screen = StartScreen(on_uploading_done=self._completed_start_screen)
         self._stack.addWidget(self._start_screen)
 
         self._interaction_screen = InteractionScreen()
+        self._interaction_screen.change_tractogram_requested.connect(
+            self._confirm_change_tractogram
+        )
         self._stack.addWidget(self._interaction_screen)
 
         if input_manager.has_input:
@@ -168,12 +177,42 @@ class Tractome(QMainWindow):
                     tractogram_visualization, visualization_type="tractogram"
                 )
 
+    def _confirm_change_tractogram(self):
+        """Ask before resetting the app to choose a different tractogram."""
+        result = QMessageBox.question(
+            self,
+            "Change tractogram",
+            "Changing the tractogram will reset the application. Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if result == QMessageBox.Yes:
+            self._reset_to_start_screen()
+
+    def _reset_to_start_screen(self):
+        """Reset managers and return to the tractogram upload screen."""
+        input_manager.reset()
+        state_manager.reset()
+        visualization_manager.reset()
+
+        old_interaction_screen = self._interaction_screen
+        self._stack.removeWidget(old_interaction_screen)
+        self._retired_interaction_screens.append(old_interaction_screen)
+
+        self._interaction_screen = InteractionScreen()
+        self._interaction_screen.change_tractogram_requested.connect(
+            self._confirm_change_tractogram
+        )
+        self._stack.addWidget(self._interaction_screen)
+        self._stack.setCurrentWidget(self._start_screen)
+
     def start(self):
         """Show the main window and start the FURY/Qt loop."""
         self.show()
         self._interaction_screen._center_section.show_manager.start()
 
 
-if __name__ == "__main__":
-    tractome = Tractome(tractogram="computed.trx")
+def main():
+    """Entry point for the Tractome application."""
+    tractome = Tractome()
     tractome.start()

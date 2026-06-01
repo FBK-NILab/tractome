@@ -1,4 +1,4 @@
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
@@ -97,6 +97,8 @@ class StartScreen(QWidget):
 class InteractionScreen(QWidget):
     """Interaction screen of the app."""
 
+    change_tractogram_requested = Signal()
+
     def __init__(self):
         """Initialize the interaction screen."""
         super().__init__()
@@ -108,6 +110,9 @@ class InteractionScreen(QWidget):
         self._left_section = LeftSectionWidget(parent=self)
         self._center_section = CenterSectionWidget()
         self._right_section = RightSectionWidget()
+        self._left_section.change_tractogram_requested.connect(
+            self.change_tractogram_requested.emit
+        )
 
         # Per-track color generator: each captured view gets the next
         # distinguishable color so neighbouring tracks don't collide.
@@ -159,8 +164,17 @@ class InteractionScreen(QWidget):
         self._left_section.roi_create_widget.shape_changed.connect(
             self._on_roi_create_shape_changed
         )
+        self._left_section.roi_create_widget.finish_requested.connect(
+            self._on_roi_create_finish_requested
+        )
         self._left_section.roi_create_widget.edit_requested.connect(
             self._on_roi_create_edit_requested
+        )
+        self._left_section.roi_create_widget.roi_visibility_changed.connect(
+            self._on_roi_create_visibility_changed
+        )
+        self._left_section.roi_create_widget.roi_remove_requested.connect(
+            self._on_roi_create_remove_requested
         )
         self._center_section.roi_drawn.connect(self._on_roi_drawn)
         self._draft_roi_id = None
@@ -333,7 +347,11 @@ class InteractionScreen(QWidget):
             if tractogram_viz:
                 self.add_visualization(tractogram_viz, visualization_type="tractogram")
             self._apply_track_isolation()
+            self._sync_keystroke_lock()
             self._center_section.show_manager.render()
+            # Re-raise overlays above the freshly drawn canvas so the restored
+            # keystroke card repaints now instead of on the next input event.
+            self._center_section.refresh_overlays()
             return
 
         if not self._has_projectable_streamlines():
@@ -345,6 +363,7 @@ class InteractionScreen(QWidget):
             checkbox.blockSignals(False)
             state_manager.mesh_project = False
             self._right_section.mesh_input_widget._projection_controls.setVisible(False)
+            self._sync_keystroke_lock()
             return
 
         # Always rebuild from current state on enable: cluster colors, ROI
@@ -357,6 +376,11 @@ class InteractionScreen(QWidget):
         if new_viz is None:
             # Missing mesh, tractogram, or device — nothing to show.
             return
+        # Lock keystrokes/card BEFORE detaching the tractogram: removing a
+        # "tractogram" visualization hides the keystroke card as a side effect,
+        # so the lock must snapshot the card's real pre-projection visibility
+        # here to restore it correctly when projection is turned off.
+        self._sync_keystroke_lock()
         tractogram_viz = visualization_manager.tractogram_visualizations
         if tractogram_viz:
             self.remove_visualization(tractogram_viz, visualization_type="tractogram")
@@ -482,6 +506,11 @@ class InteractionScreen(QWidget):
                 self.add_visualization(tractogram_vis, visualization_type="tractogram")
             self._refresh_mesh_projection_if_active()
 
+        if state_manager.view_mode == "2D":
+            self._build_2d_scene_contents()
+            self._center_section.orient_2d_camera_to_active_slice()
+            self._left_section.update_controls_for_visualization()
+
     def _on_roi_visibility_changed(self):
         """Re-render after toggling per-ROI visibility."""
         self._center_section.show_manager.render()
@@ -550,6 +579,10 @@ class InteractionScreen(QWidget):
         """
         self._center_section.set_roi_create_shape(shape)
 
+    def _on_roi_create_finish_requested(self):
+        """Exit ROI editing and return to normal 2D mode."""
+        self._commit_roi_create_session()
+
     def _on_roi_create_edit_requested(self, name):
         """Make the selected existing ROI the active edit target.
 
@@ -595,11 +628,43 @@ class InteractionScreen(QWidget):
         color = visualization_manager.get_roi_color(index)
         self._left_section.roi_create_widget.set_properties(
             name=name,
-            visibility=True,
+            visibility=visualization_manager.is_roi_visible_at(index),
             type_=type_,
             position=voxel_pos,
             color=color,
         )
+
+    def _on_roi_create_visibility_changed(self, name):
+        """Toggle an existing ROI from the ROI edit list."""
+        roi_paths = list(input_manager.provided_roi_paths)
+        if name not in roi_paths:
+            return
+        index = roi_paths.index(name)
+        visualization_manager.toggle_roi_visibility_at(index)
+        self._left_section.roi_input_widget.refresh_rois()
+        self._refresh_roi_create_existing_list()
+        if self._draft_roi_id == name:
+            self._left_section.roi_create_widget.set_properties(
+                visibility=visualization_manager.is_roi_visible_at(index)
+            )
+        self._center_section.show_manager.render()
+
+    def _on_roi_create_remove_requested(self, name):
+        """Remove an existing ROI from the ROI edit list."""
+        roi_paths = list(input_manager.provided_roi_paths)
+        if name not in roi_paths:
+            return
+        input_manager.remove_roi(roi_paths.index(name))
+        if self._draft_roi_id == name:
+            self._draft_roi_id = None
+            self._left_section.roi_create_widget.reset_properties()
+        self._on_rois_changed()
+        if state_manager.view_mode == "2D":
+            self._build_2d_scene_contents()
+            self._center_section.orient_2d_camera_to_active_slice()
+        self._refresh_roi_create_existing_list()
+        self._left_section.update_controls_for_visualization()
+        self._center_section.show_manager.render()
 
     def _commit_roi_create_session(self):
         """Finish a create-mode session: exit mode + apply filter.
@@ -715,7 +780,7 @@ class InteractionScreen(QWidget):
         color = visualization_manager.get_roi_color(roi_index)
         self._left_section.roi_create_widget.set_properties(
             name=self._draft_roi_id or "–",
-            visibility=True,
+            visibility=visualization_manager.is_roi_visible_at(roi_index),
             type_=shape.capitalize() if shape else "–",
             position=voxel_pos,
             color=color,
@@ -773,13 +838,26 @@ class InteractionScreen(QWidget):
         box.setStandardButtons(QMessageBox.Ok)
         box.exec()
 
+    def _sync_keystroke_lock(self):
+        """Gate keystrokes, the keystroke card, and the shortcut toggle.
+
+        They are disabled while a captured track is isolated or while mesh
+        projection is active, so projection mirrors the capture-view lock.
+        Driven off the combined state so turning one off does not unlock
+        while the other is still on.
+        """
+        locked = self._right_section.tracks_widget.has_active_track() or bool(
+            state_manager.mesh_project
+        )
+        self._center_section.set_track_isolation_active(locked)
+        self._right_section.btn_toggle_shortcuts.setDisabled(locked)
+
     def _on_track_visibility_changed(self):
         """Apply or release the captured-track isolation in the scene."""
         self._apply_track_isolation()
         is_active = self._right_section.tracks_widget.has_active_track()
         self._left_section.set_track_isolation_active(is_active)
-        self._center_section.set_track_isolation_active(is_active)
-        self._right_section.btn_toggle_shortcuts.setDisabled(is_active)
+        self._sync_keystroke_lock()
         if state_manager.mesh_project and not self._has_projectable_streamlines():
             self._disable_mesh_projection()
             self._center_section.show_manager.render()

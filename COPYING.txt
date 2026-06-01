@@ -1,6 +1,6 @@
 New BSD License
 
-Copyright (c) 2012-2014, Emanuele Olivetti and Eleftherios Garyfallidis
+Copyright (c) 2012-2026, Tractome Developers.
 
 All rights reserved.
 

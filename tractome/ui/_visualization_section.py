@@ -433,6 +433,16 @@ class CenterSectionWidget(QFrame):
         up = (0.0, 1.0, 0.0) if active_axis == 2 else (0.0, 0.0, 1.0)
         self._2D_camera.show_object(t1_actor, view_direction, up=up)
 
+    def refresh_overlays(self):
+        """Public hook to re-raise/repaint the overlays after a render.
+
+        Callers that issue a ``render()`` themselves must invoke this
+        afterwards so the keystroke card and display-info overlay paint
+        above the freshly drawn canvas instead of waiting for the next
+        input event to force a repaint.
+        """
+        self._refresh_overlays()
+
     def _refresh_overlays(self):
         """Force the Qt overlays to fully repaint after a scene update.
 

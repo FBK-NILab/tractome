@@ -79,6 +79,11 @@ class StateManager:
         self.roi_opacity = 80
         self.roi_create_mode = None  # None | "sphere" | "rectangle"
 
+    def reset(self):
+        """Return application state to its initial defaults."""
+        max_size = self._max_size
+        self.__init__(max_size=max_size)
+
     def has_states(self):
         """Check if there are any states in the history.
 

@@ -100,6 +100,19 @@ QCheckBox::indicator:checked {
   border: 2px solid white;
 }
 
+#changeTractogramButton {
+    background-color: #333333;
+    color: #ffffff;
+    border: 2px solid #d8d8d8;
+    border-radius: 8px;
+    font-size: 11pt;
+    padding: 8px;
+}
+
+#changeTractogramButton:hover {
+    background-color: #444444;
+}
+
 #interactionCenterSection {
   background-color: #333333;
   border: none;
@@ -134,6 +147,12 @@ QCheckBox::indicator:checked {
 
 #fiberCaptureButton:hover {
     border-color: #e87722;
+}
+
+#fiberCaptureLabel {
+    color: #ffffff;
+    font-size: 12pt;
+    font-weight: bold;
 }
 
 #fiberCountInput:disabled {
@@ -742,6 +761,15 @@ QPushButton[class="roiToolButton"]:disabled {
 
 #roiExistingList::item:hover:!selected {
     background-color: #2a2a2a;
+}
+
+#roiExistingRow {
+    background-color: transparent;
+}
+
+#roiExistingLabel {
+    color: #ffffff;
+    font-size: 10pt;
 }
 
 /* Tracks Widget (right panel) */

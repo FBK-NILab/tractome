@@ -3,6 +3,7 @@ from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
+    QGraphicsOpacityEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from tractome.mem import input_manager, state_manager, visualization_manager
@@ -107,13 +109,7 @@ class ViewModeWidget(QFrame):
 
 
 class FibersWidget(QFrame):
-    """Placeholder Fibers panel.
-
-    Mirrors the layout of :class:`ClustersWidget` but with the count
-    input, step arrows and Recovery button disabled — only the
-    capture button is interactive today. Logic for the disabled
-    controls will be wired up in follow-up work.
-    """
+    """Fibers panel with the active capture control."""
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -139,12 +135,18 @@ class FibersWidget(QFrame):
 
         capture_row = QHBoxLayout()
         capture_row.setContentsMargins(0, 0, 0, 0)
-        capture_row.setSpacing(0)
+        capture_row.setSpacing(8)
         capture_row.addWidget(self.btn_capture)
+        self.capture_label = QLabel("Capture fibers")
+        self.capture_label.setObjectName("fiberCaptureLabel")
+        capture_row.addWidget(self.capture_label)
         capture_row.addStretch()
         self.main_layout.addLayout(capture_row)
 
-        self.grid = QGridLayout()
+        self.disabled_controls_widget = QWidget()
+        self.disabled_controls_widget.setVisible(False)
+
+        self.grid = QGridLayout(self.disabled_controls_widget)
         self.grid.setSpacing(6)
         self.grid.setContentsMargins(0, 0, 0, 0)
 
@@ -189,7 +191,7 @@ class FibersWidget(QFrame):
         self.grid.setColumnStretch(1, 0)
         self.grid.setColumnStretch(2, 1)
 
-        self.main_layout.addLayout(self.grid)
+        self.main_layout.addWidget(self.disabled_controls_widget)
 
 
 class ClustersWidget(QFrame):
@@ -418,22 +420,24 @@ class ClustersWidget(QFrame):
 class RoiCreateWidget(QFrame):
     """ROI EDIT panel shown while drawing in 2D mode.
 
-    Layout matches the design mock: a title, a four-button toolbar
-    (square / circle / brush / eraser), and a read-only Properties
+    Layout matches the design mock: a title, a toolbar
+    (square / circle / finish), and a read-only Properties
     panel listing the active ROI's name, visibility, type, voxel
     position and color swatch.
 
-    Only the circle tool is wired up today (sphere ROI); the other
-    three are placeholders disabled at the UI level so the design
-    fits while the rasterizers for those modes are added later.
+    Square and circle draw rectangle/sphere ROIs. The check button
+    exits drawing and returns to normal 2D interactions.
 
     A single ROI is drawn per session — re-dragging overwrites the
-    same draft. Switching to 3D commits and runs the streamline
-    filter; there is no explicit Save button.
+    same draft. Hitting the check button commits and runs the
+    streamline filter.
     """
 
     shape_changed = Signal(str)
+    finish_requested = Signal()
     edit_requested = Signal(str)
+    roi_visibility_changed = Signal(str)
+    roi_remove_requested = Signal(str)
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -447,17 +451,24 @@ class RoiCreateWidget(QFrame):
         self.title.setObjectName("roiCreateTitle")
         self.main_layout.addWidget(self.title)
 
+        self._existing_row_widgets = []
+
         self._build_toolbar()
         self._build_properties()
         self._build_existing_list()
 
+    def resizeEvent(self, event):
+        """Re-elide Existing ROIs labels when the panel width changes."""
+        super().resizeEvent(event)
+        for row in self._existing_row_widgets:
+            self._sync_existing_row_label(row)
+
     def _build_toolbar(self):
-        """Toolbar of 4 icon buttons.
+        """Toolbar of ROI shape buttons plus a finish button.
 
         ``square_roi`` and ``sphere_roi`` are wired to the rectangle
-        and sphere rasterizers respectively. ``edit_roi`` (brush) and
-        ``erase_roi`` are placeholders for future tools and stay
-        disabled at the UI level.
+        and sphere rasterizers respectively. ``check`` exits ROI edit
+        mode and restores normal 2D interactions.
         """
         toolbar_row = QHBoxLayout()
         toolbar_row.setSpacing(8)
@@ -468,8 +479,6 @@ class RoiCreateWidget(QFrame):
         tools = [
             ("rectangle", "square_roi.svg", "rectangle", "Rectangle", True),
             ("circle", "sphere_roi.svg", "sphere", "Sphere", True),
-            ("brush", "edit_roi.svg", None, "Brush (coming soon)", False),
-            ("eraser", "erase_roi.svg", None, "Eraser (coming soon)", False),
         ]
         self._tool_buttons = {}
         self._tool_shape = {}
@@ -490,6 +499,17 @@ class RoiCreateWidget(QFrame):
             self._tool_buttons[key] = btn
             self._tool_shape[key] = shape
             toolbar_row.addWidget(btn)
+
+        self._finish_button = QPushButton()
+        self._finish_button.setObjectName("roiTool_finish")
+        self._finish_button.setProperty("class", "roiToolButton")
+        self._finish_button.setIcon(QIcon(str(ICONS_PATH / "check.svg")))
+        self._finish_button.setIconSize(QSize(20, 20))
+        self._finish_button.setFixedSize(44, 44)
+        self._finish_button.setCursor(Qt.PointingHandCursor)
+        self._finish_button.setToolTip("Finish ROI editing")
+        self._finish_button.clicked.connect(self.finish_requested.emit)
+        toolbar_row.addWidget(self._finish_button)
         toolbar_row.addStretch()
         self.main_layout.addLayout(toolbar_row)
 
@@ -579,6 +599,102 @@ class RoiCreateWidget(QFrame):
         self._existing_empty_label.setVisible(True)
         self.main_layout.addWidget(self._existing_empty_label)
 
+    def _make_existing_icon_button(self, *, object_name, icon_path=None, text=""):
+        """Create a compact button matching ROI row controls."""
+        button = QToolButton()
+        button.setObjectName(object_name)
+        if icon_path is not None:
+            button.setIcon(QIcon(icon_path))
+            button.setIconSize(QSize(16, 16))
+            button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        elif text:
+            button.setText(text)
+            button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        button.setAutoRaise(True)
+        button.setFixedSize(28, 28)
+        button.setCursor(Qt.PointingHandCursor)
+        effect = QGraphicsOpacityEffect(button)
+        button.setGraphicsEffect(effect)
+        return button, effect
+
+    def _build_existing_row(self, name, color):
+        """Build one editable Existing ROIs row with visibility/remove controls."""
+        row_widget = QWidget()
+        row_widget.setObjectName("roiExistingRow")
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(8)
+
+        def select_row(event, n=name):
+            self._select_existing_name(n)
+            event.accept()
+
+        swatch = QLabel()
+        swatch.setObjectName("roiExistingSwatch")
+        swatch.setFixedSize(14, 14)
+        r, g, b = (int(max(0.0, min(1.0, float(c))) * 255) for c in color[:3])
+        swatch.setStyleSheet(
+            f"background-color: rgb({r}, {g}, {b}); border-radius: 7px;"
+        )
+        swatch.mousePressEvent = select_row
+        row_layout.addWidget(swatch)
+
+        label = QLabel(name)
+        label.setObjectName("roiExistingLabel")
+        label.setToolTip(name)
+        label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        label.setMinimumWidth(40)
+        label.mousePressEvent = select_row
+        row_layout.addWidget(label, 1)
+
+        visibility_button, visibility_effect = self._make_existing_icon_button(
+            object_name="roiVisibilityButton",
+            icon_path=str(ICONS_PATH / "eye.svg"),
+        )
+        visibility_button.clicked.connect(
+            lambda _checked=False, n=name: self.roi_visibility_changed.emit(n)
+        )
+        row_layout.addWidget(visibility_button)
+
+        remove_button, _remove_effect = self._make_existing_icon_button(
+            object_name="roiRemoveButton",
+            text="✕",
+        )
+        remove_button.clicked.connect(
+            lambda _checked=False, n=name: self.roi_remove_requested.emit(n)
+        )
+        row_layout.addWidget(remove_button)
+
+        row_widget.mousePressEvent = select_row
+
+        return {
+            "widget": row_widget,
+            "label": label,
+            "full_name": name,
+            "visibility_effect": visibility_effect,
+        }
+
+    def _select_existing_name(self, name):
+        """Select an existing ROI row by name when its custom widget is clicked."""
+        for row in range(self._existing_list.count()):
+            item = self._existing_list.item(row)
+            if item.data(Qt.UserRole) == name:
+                self._existing_list.setCurrentItem(item)
+                item.setSelected(True)
+                break
+
+    def _sync_existing_row_label(self, row):
+        """Elide the Existing ROIs row label to fit the available width."""
+        width = row["label"].width()
+        if width > 0:
+            row["label"].setText(
+                row["label"]
+                .fontMetrics()
+                .elidedText(row["full_name"], Qt.ElideRight, width)
+            )
+        else:
+            row["label"].setText(row["full_name"])
+
     @staticmethod
     def _color_disk_icon(color):
         """Return a small filled-circle QIcon tinted with ``color``.
@@ -626,6 +742,7 @@ class RoiCreateWidget(QFrame):
         self._existing_list.blockSignals(True)
         try:
             self._existing_list.clear()
+            self._existing_row_widgets = []
             for entry in items:
                 name = str(entry.get("name", "ROI"))
                 # Use an explicit None check rather than ``or``: when
@@ -635,9 +752,21 @@ class RoiCreateWidget(QFrame):
                 color = entry.get("color")
                 if color is None:
                     color = (0.5, 0.5, 0.5)
-                item = QListWidgetItem(self._color_disk_icon(color), name)
+                item = QListWidgetItem()
                 item.setData(Qt.UserRole, name)
+                item.setSizeHint(QSize(0, 36))
                 self._existing_list.addItem(item)
+                row = self._build_existing_row(name, color)
+                try:
+                    index = list(input_manager.provided_roi_paths).index(name)
+                except ValueError:
+                    index = -1
+                row["visibility_effect"].setOpacity(
+                    1.0 if visualization_manager.is_roi_visible_at(index) else 0.42
+                )
+                self._existing_list.setItemWidget(item, row["widget"])
+                self._sync_existing_row_label(row)
+                self._existing_row_widgets.append(row)
 
             if previous_selected is not None:
                 for row in range(self._existing_list.count()):
@@ -684,8 +813,7 @@ class RoiCreateWidget(QFrame):
         """Return the active drawing shape name.
 
         Reads from whichever toolbar button is currently checked.
-        Square = rectangle, Circle = sphere; brush and eraser have
-        no rasterizer yet and fall through to the default sphere.
+        Square = rectangle, Circle = sphere.
         """
         for key, btn in self._tool_buttons.items():
             if btn.isChecked():
@@ -748,6 +876,8 @@ class RoiCreateWidget(QFrame):
 class LeftSectionWidget(QFrame):
     """The Sidebar container that holds the control modules."""
 
+    change_tractogram_requested = Signal()
+
     def __init__(self, *, parent=None):
         super().__init__(parent)
         self.setObjectName("interactionLeftSection")
@@ -774,6 +904,17 @@ class LeftSectionWidget(QFrame):
 
         self.main_layout.addStretch()
 
+        self.change_tractogram_button = QPushButton("Change tractogram")
+        self.change_tractogram_button.setObjectName("changeTractogramButton")
+        self.change_tractogram_button.setCursor(Qt.PointingHandCursor)
+        self.change_tractogram_button.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Fixed
+        )
+        self.change_tractogram_button.clicked.connect(
+            self.change_tractogram_requested.emit
+        )
+        self.main_layout.addWidget(self.change_tractogram_button)
+
         self._track_isolation_active = False
 
     def set_track_isolation_active(self, active):
@@ -793,9 +934,15 @@ class LeftSectionWidget(QFrame):
         is_create_mode = state_manager.roi_create_mode is not None
         has_tractogram_input = input_manager.has_tractogram
         isolating = self._track_isolation_active
+        show_regular_2d_rois = (
+            not is_3d and not is_create_mode and input_manager.has_roi
+        )
         self.fibers_box.setVisible(is_3d and has_tractogram_input and not isolating)
         self.clusters_box.setVisible(is_3d and has_tractogram_input and not isolating)
-        self.roi_input_widget.setVisible(is_3d and not is_create_mode and not isolating)
+        self.roi_input_widget.setVisible(
+            ((is_3d and not is_create_mode) or show_regular_2d_rois) and not isolating
+        )
+        self.roi_input_widget.set_filter_controls_visible(is_3d)
         self.roi_create_widget.setVisible(is_create_mode and not isolating)
 
         if has_tractogram_input:

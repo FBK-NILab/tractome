@@ -41,6 +41,25 @@ For getting a complete list and details of the options available.
 tractome_compute_dis_matrix --help
 ```
 
+## Binary Packaging
+
+Tractome uses Briefcase to create platform-native application bundles and installers.
+Briefcase bundles a Python runtime and the runtime dependencies declared in
+`pyproject.toml` under `[tool.briefcase.app.tractome]`.
+
+Use Python 3.12 for packaging:
+
+```
+python -m pip install briefcase
+briefcase dev
+briefcase create
+briefcase build
+briefcase package
+```
+
+Run the packaging commands on each target operating system. Briefcase uses the
+current platform to create the matching installer format.
+
 ## Contribution
 
 Contributions are welcome. To contribute, please:

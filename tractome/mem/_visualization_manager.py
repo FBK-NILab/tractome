@@ -1,5 +1,6 @@
 import os
 
+from PySide6.QtWidgets import QApplication, QProgressDialog
 from dipy.tracking.distances import bundles_distances_mam
 import numpy as np
 
@@ -64,6 +65,7 @@ class VisualizationManager:
         }
         self._roi_colormap = distinguishable_colormap()
         self._roi_colors = {}
+        self._mesh_colors = {}
         self._roi_visibility = {}
         self._roi_applied = {}
         self._roi_negated = {}
@@ -71,6 +73,10 @@ class VisualizationManager:
         self._mesh_projection = None
         self._mesh_projection_bound = False
         self._mesh_projection_n_points = 0
+
+    def reset(self):
+        """Forget all cached actors, ROI styling, and GPU projection state."""
+        self.__init__()
 
     def visualize_t1(self):
         """Visualize the T1 image.
@@ -232,10 +238,17 @@ class VisualizationManager:
             self._visualizations["mesh"] = None
             return None
 
-        mesh_obj, texture_path, _, _ = input_manager.get_current_mesh()
+        mesh_obj, texture_path, mesh_path, _ = input_manager.get_current_mesh()
+        color = None
+        if not texture_path:
+            color = self._mesh_colors.get(mesh_path)
+            if color is None:
+                color = next(self._roi_colormap)
+                self._mesh_colors[mesh_path] = color
         mesh_actor = create_mesh(
             mesh_obj,
             texture=texture_path,
+            color=color,
             photographic=state_manager.mesh_photographic,
         )
         mesh_actor.visible = state_manager.mesh_visible
@@ -513,17 +526,35 @@ class VisualizationManager:
         sft, _, _, _ = input_manager.get_current_tractogram()
         is_embeddings_present = "dismatrix" in sft.data_per_streamline
         if not is_embeddings_present:
-            n_jobs = max(1, (os.cpu_count() or 1) - 2)
-            data_dissimilarity = compute_dissimilarity(
-                np.asarray(sft.streamlines, dtype=object),
-                distance=bundles_distances_mam,
-                prototype_policy="sff",
-                num_prototypes=40,
-                verbose=False,
-                size_limit=5000000,
-                n_jobs=n_jobs,
+            progress = QProgressDialog(
+                "Embeddings not found, creating embeddings...",
+                None,
+                0,
+                0,
+                QApplication.activeWindow(),
             )
-            sft.data_per_streamline["dismatrix"] = data_dissimilarity
+            progress.setWindowTitle("Creating embeddings")
+            progress.setCancelButton(None)
+            progress.setMinimumDuration(0)
+            progress.setModal(True)
+            progress.show()
+            QApplication.processEvents()
+
+            n_jobs = max(1, (os.cpu_count() or 1) - 2)
+            try:
+                data_dissimilarity = compute_dissimilarity(
+                    np.asarray(sft.streamlines, dtype=object),
+                    distance=bundles_distances_mam,
+                    prototype_policy="sff",
+                    num_prototypes=40,
+                    verbose=False,
+                    size_limit=5000000,
+                    n_jobs=n_jobs,
+                )
+                sft.data_per_streamline["dismatrix"] = data_dissimilarity
+            finally:
+                progress.close()
+                progress.deleteLater()
 
         if not state_manager.has_states():
             state_manager.add_state(
@@ -959,18 +990,22 @@ class VisualizationManager:
         index : int
             Index of the ROI actor whose visibility should flip.
         """
-        if index < 0 or index >= len(self._visualizations["roi"]):
+        if index < 0 or index >= len(input_manager.provided_roi_paths):
             return
-        actor = self._visualizations["roi"][index]
-        actor.visible = not actor.visible
         path = input_manager.provided_roi_paths[index]
-        self._roi_visibility[path] = bool(actor.visible)
+        visible = not self._roi_visibility.get(path, True)
+        self._roi_visibility[path] = visible
+        if index < len(self._visualizations["roi"]):
+            self._visualizations["roi"][index].visible = visible
+        if index < len(self._2d_visualizations["roi"]):
+            self._2d_visualizations["roi"][index].visible = visible
 
     def is_roi_visible_at(self, index):
         """Return whether the ROI actor at ``index`` is currently shown."""
-        if index < 0 or index >= len(self._visualizations["roi"]):
+        if index < 0 or index >= len(input_manager.provided_roi_paths):
             return True
-        return bool(self._visualizations["roi"][index].visible)
+        path = input_manager.provided_roi_paths[index]
+        return bool(self._roi_visibility.get(path, True))
 
     def toggle_roi_applied_at(self, index):
         """Toggle whether the ROI at ``index`` participates in the filter.
