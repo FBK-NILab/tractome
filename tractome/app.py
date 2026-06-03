@@ -68,7 +68,7 @@ class Tractome(QMainWindow):
             input_manager.add_tractogram(tractogram)
         if t1 is not None:
             input_manager.add_t1(t1)
-        if mesh is not None and mesh_texture is not None:
+        if mesh is not None:
             input_manager.add_mesh(mesh, mesh_texture)
         if roi is not None:
             for roi_path in roi:
