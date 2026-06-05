@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dipy.tracking.distances import bundles_distances_mam
@@ -660,6 +661,9 @@ class VisualizationManager:
         for state_data in latest_state.tractogram_states.values():
             if state_data["selected"]:
                 streamline_ids.extend(state_data["streamline_ids"])
+        if len(streamline_ids) == 0:
+            logging.warning("No clusters selected to delete.")
+            return
         streamline_ids = np.unique(streamline_ids)
         nb_clusters = min(latest_state.nb_clusters, len(streamline_ids))
         state_manager.add_state(
