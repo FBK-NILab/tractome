@@ -124,11 +124,16 @@ class Tractome(QMainWindow):
 
     def _visualize_inputs(self):
         """Visualize the inputs in the interaction screen."""
+        image_input_widget = self._interaction_screen._right_section.image_input_widget
         t1_visualization = visualization_manager.visualize_t1()
         if t1_visualization is not None:
             self._interaction_screen.add_visualization(
                 t1_visualization, visualization_type="t1"
             )
+            image_input_widget.refresh_images()
+            image_input_widget.configure_t1_slice_controls()
+            image_input_widget.sync_t1_visibility_button()
+            image_input_widget.emit_current_slices()
         tractogram_visualization = visualization_manager.visualize_tractogram()
         if tractogram_visualization is not None:
             self._interaction_screen.add_visualization(
