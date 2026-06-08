@@ -41,6 +41,7 @@ class CenterSectionWidget(QFrame):
         self._3D_camera.add(DirectionalLight())
         self._3D_scene.add(self._3D_camera)
         self._3D_controller = TrackballController(self._3D_camera)
+        self._camera_framed = False
 
         self._2D_scene = window.Scene(background=(0.2, 0.2, 0.2))
         self._2D_scene.add(DirectionalLight())
@@ -120,6 +121,7 @@ class CenterSectionWidget(QFrame):
         # The wgpu canvas reports its own resize before Qt's
         # CenterSectionWidget.resizeEvent fires, so listen on both.
         self.show_manager.resize_callback(self._on_canvas_resize)
+        self._install_3d_view_preserving_resize()
         QTimer.singleShot(0, self._reposition_axes_gizmo)
 
     def _build_display_info_overlay(self, parent_layout):
@@ -205,6 +207,10 @@ class CenterSectionWidget(QFrame):
             Type/category of the visualization payload.
         """
         self._3D_scene.add(*visualizations)
+        # Frame once on first content; reframe on T1 so the pivot is the volume centre.
+        if not self._camera_framed or visualization_type == "t1":
+            window.update_camera(self._3D_camera, None, self._3D_scene)
+            self._camera_framed = True
         if visualization_type == "tractogram":
             self._update_display_info()
             self._keystroke_card.setVisible(True)
@@ -244,6 +250,18 @@ class CenterSectionWidget(QFrame):
         margin = self._axes_gizmo_margin
         anchor.local.position = [max(int(width) - margin, margin), margin, 0.5]
         self.show_manager.render()
+
+    def _install_3d_view_preserving_resize(self):
+        """Snapshot/restore the 3D camera around FURY's reframing ``_resize``."""
+        original_resize = self.show_manager._resize
+
+        def resize(size):
+            state = self._3D_camera.get_state() if self._camera_framed else None
+            original_resize(size)
+            if state is not None:
+                self._3D_camera.set_state(state)
+
+        self.show_manager._resize = resize
 
     def _reposition_axes_gizmo(self):
         """Move the axes-gizmo anchor to the bottom-right of the viewport.
