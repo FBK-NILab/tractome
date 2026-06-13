@@ -54,18 +54,30 @@
 <h2>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
 
+<p>Tractome ships as a native installer for each major platform. Download the package for your operating system from the <a href="https://github.com/FBK-NILab/tractome/releases/latest">latest release</a>.</p>
+
 <ul>
-<li>Unzip the source archive.</li>
-<li>Navigate to the source directory:<br><code>cd tractome</code></li>
-<li>Install dependencies:<br><code>pip install -r requirements.txt</code></li>
-<li>Install Tractome:<br><code>pip install .</code></li>
+<li><strong>Windows</strong> &mdash; download the <code class="no-copy">.msi</code> installer and run it, then launch <strong>Tractome</strong> from the Start menu.</li>
+<li><strong>macOS</strong> &mdash; download the <code class="no-copy">.dmg</code>, open it, and drag <strong>Tractome</strong> into your <code class="no-copy">Applications</code> folder.</li>
+<li><strong>Linux</strong> &mdash; download the <code class="no-copy">.flatpak</code> bundle (named <code class="no-copy">Tractome-&lt;version&gt;.flatpak</code>, e.g. <code class="no-copy">Tractome-2.0.0.dev0.flatpak</code>) and install it for your user with:<br><code>flatpak install --user Tractome-&lt;version&gt;.flatpak</code><br>then launch it by pressing the <strong>Super</strong> (Windows) key and searching for <strong>Tractome</strong>, or run it from a terminal with:<br><code>flatpak run org.tractome.tractome</code></li>
 </ul>
+
+<p>If <code class="no-copy">flatpak</code> is not already installed on your Linux system, install it with your distribution's package manager:</p>
+
+<ul>
+<li><strong>Ubuntu / Debian</strong> &mdash; <code>sudo apt install flatpak</code></li>
+<li><strong>Fedora</strong> &mdash; <code>sudo dnf install flatpak</code></li>
+<li><strong>Arch Linux</strong> &mdash; <code>sudo pacman -S flatpak</code></li>
+<li><strong>openSUSE</strong> &mdash; <code>sudo zypper install flatpak</code></li>
+</ul>
+
+<p>For other distributions and detailed setup instructions, see the <a href="https://flatpak.org/setup/">official Flatpak setup guide</a>. You may need to restart your session after installing Flatpak for the first time.</p>
 
 <h2>
 <a id="dependencies" class="anchor" href="#dependencies" aria-hidden="true"><span class="octicon octicon-link"></span></a>Dependencies</h2>
 
 <ul>
-<li>fury&gt;=2.0.0a3 : <a href="https://fury.gl/">https://fury.gl/</a> , provides high-level WGPU Actors for scientific visualisation.</li>
+<li>fury&gt;=2.0.0a7 : <a href="https://fury.gl/">https://fury.gl/</a> , provides high-level WGPU Actors for scientific visualisation.</li>
 <li>dipy&gt;=1.11.0 : <a href="http://www.dipy.org">http://www.dipy.org</a> , provides tools for dMRI data analysis.</li>
 <li>click&gt;=8.1.8 : <a href="https://click.palletsprojects.com/">https://click.palletsprojects.com/</a> , for creating command-line interfaces.</li>
 <li>PySide6&gt;=6.9.0 : <a href="https://www.qt.io/qt-for-python">https://www.qt.io/qt-for-python</a> , Python bindings for the Qt libraries.</li>
@@ -94,11 +106,11 @@
 <h2>
   <a id="to-run-tractome" class="anchor" href="#to-run-tractome" aria-hidden="true"><span class="octicon octicon-link"></span></a>To Run Tractome</h2>
   
-  <pre><code>tractome --tractogram TRACTOGRAM_PATH --t1 YOUR_T1_IMAGE_PATH --mesh YOUR_MESH_PATH --mesh_texture YOUR_MESH_TEXTURE_PATH</code></pre>
+  <!-- <pre><code>tractome --tractogram TRACTOGRAM_PATH --t1 YOUR_T1_IMAGE_PATH --mesh YOUR_MESH_PATH --mesh_texture YOUR_MESH_TEXTURE_PATH</code></pre> -->
   
   <p> 
-    This command will launch the Tractome application with the specified paths for the tractogram, T1 image, mesh, and mesh texture.
     To interact with the application, use the mouse to rotate, zoom, and pan the 3D view. You can select clusters by clicking on them, and use the provided controls to re-cluster or segment the tractography data as needed.
+    The supported modalities include <strong>NIfTI (.nii, .nii.gz)</strong>, <strong>Tractography (.trx, .trk, .tck)</strong>, <strong>Mesh (.obj) along with texture</strong> and <strong>Parcels (.csv)</strong>.
   </p>
   <p>
     There is a provision for 2D view of the T1 image and the selected clusters. 2D view provides the slice view of the T1 image along with the selected clusters overlaid on it. You can navigate through different slices using the slider provided in the interface. This feature helps in better understanding the spatial relationship between the tractography data and the anatomical structures in the T1 image.

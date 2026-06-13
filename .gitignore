@@ -1,0 +1,10 @@
+*.pyc
+*.trk
+*.trx
+*.egg-info
+.vscode/
+__pycache__/
+.claude
+build/
+dist/
+logs/

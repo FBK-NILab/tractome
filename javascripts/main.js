@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         copiedIcon = "Copied!";
     }
 
-    const codeElements = document.querySelectorAll("code");
+    const codeElements = document.querySelectorAll("code:not(.no-copy)");
 
     codeElements.forEach(function (codeElement) {
         const parent = codeElement.parentElement;
