@@ -915,6 +915,20 @@ class LeftSectionWidget(QFrame):
         )
         self.main_layout.addWidget(self.change_tractogram_button)
 
+        self.credit_label = QLabel(
+            "Made with ❤️ by "
+            '<a href="https://nilab.fbk.eu/" style="color: white;">NiLab</a>'
+            "<br>in collaboration with "
+            '<a href="https://grg.luddy.indiana.edu/" style="color: white;">GRG</a>.'
+        )
+        self.credit_label.setObjectName("creditLabel")
+        self.credit_label.setStyleSheet("color: white;")
+        self.credit_label.setAlignment(Qt.AlignCenter)
+        self.credit_label.setWordWrap(True)
+        self.credit_label.setTextFormat(Qt.RichText)
+        self.credit_label.setOpenExternalLinks(True)
+        self.main_layout.addWidget(self.credit_label)
+
         self._track_isolation_active = False
 
     def set_track_isolation_active(self, active):
