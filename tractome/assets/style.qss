@@ -468,15 +468,6 @@ QCheckBox::indicator:checked {
     outline: none;
 }
 
-#meshInputDropdownLineEdit {
-    background-color: transparent;
-    border: none;
-    color: #ffffff;
-    padding: 0px;
-    selection-background-color: #747474;
-    selection-color: #ffffff;
-}
-
 #meshInputDropdown:hover {
     border-color: #8a8a8a;
 }
@@ -566,18 +557,9 @@ QCheckBox::indicator:checked {
     padding-left: 8px;
     padding-right: 4px;
     font-size: 11pt;
+    font-style: italic;
     min-height: 1.2em;
     outline: none;
-}
-
-#parcelInputDropdownLineEdit {
-    background-color: transparent;
-    border: none;
-    color: #ffffff;
-    padding: 0px;
-    font-style: italic;
-    selection-background-color: #747474;
-    selection-color: #ffffff;
 }
 
 #parcelInputDropdown:hover {
