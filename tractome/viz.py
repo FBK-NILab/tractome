@@ -199,8 +199,9 @@ def create_streamlines(streamlines, color):
     bundle = actor.streamlines(
         streamlines,
         colors=color,
-        thickness=1,
-        outline_thickness=1,
+        thickness=0.05,
+        opacity=0.4,
+        outline_thickness=0,
         outline_color=(0, 0, 0),
     )
     bundle.material.alpha_mode = "auto"
