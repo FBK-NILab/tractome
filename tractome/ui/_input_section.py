@@ -154,9 +154,20 @@ class ImageInputWidget(QFrame):
         """Long filenames scroll horizontally; keep the start (basename) visible."""
         le = self.image_dropdown.lineEdit()
         if le is None:
+            self._sync_image_dropdown_tooltip()
             return
         le.setCursorPosition(0)
         le.deselect()
+        self._sync_image_dropdown_tooltip()
+
+    def _sync_image_dropdown_tooltip(self):
+        """Show the current image's full path on hover, since the basename elides."""
+        path = self.image_dropdown.currentData(Qt.UserRole)
+        tooltip = str(path) if path else ""
+        self.image_dropdown.setToolTip(tooltip)
+        le = self.image_dropdown.lineEdit()
+        if le is not None:
+            le.setToolTip(tooltip)
 
     def _schedule_dropdown_text_to_start(self):
         """After layout/index updates, scroll so the start of the name is visible."""
@@ -245,6 +256,9 @@ class ImageInputWidget(QFrame):
             self.image_dropdown.clear()
             for path in options:
                 self.image_dropdown.addItem(Path(path).name, path)
+                self.image_dropdown.setItemData(
+                    self.image_dropdown.count() - 1, str(path), Qt.ToolTipRole
+                )
             self._set_current_path(current_path)
             self.image_dropdown.blockSignals(False)
         self._sync_t1_visibility_appearance()
@@ -455,11 +469,7 @@ class MeshInputWidget(QFrame):
         self.mesh_dropdown.setObjectName("meshInputDropdown")
         self.mesh_dropdown.setFixedHeight(std_h)
         self.mesh_dropdown.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.mesh_dropdown.setEditable(True)
         self.mesh_row.addWidget(self.mesh_dropdown)
-        _mle = self.mesh_dropdown.lineEdit()
-        if _mle is not None:
-            _mle.setObjectName("meshInputDropdownLineEdit")
 
         self.mesh_visibility_button = QPushButton("")
         self.mesh_visibility_button.setObjectName("meshVisibilityButton")
@@ -587,16 +597,10 @@ class MeshInputWidget(QFrame):
         self._sync_mesh_visibility_appearance()
         self._sync_material_checkboxes_from_state()
 
-    def _scroll_mesh_dropdown_to_start(self):
-        """Scroll the editable mesh dropdown so the basename start is visible."""
-        le = self.mesh_dropdown.lineEdit()
-        if le is not None:
-            le.setCursorPosition(0)
-            le.deselect()
-
-    def _schedule_mesh_dropdown_scroll(self):
-        """Schedule mesh dropdown text scrolling after Qt updates layout."""
-        QTimer.singleShot(0, self._scroll_mesh_dropdown_to_start)
+    def _sync_mesh_dropdown_tooltip(self):
+        """Show the current mesh's full path on hover, since the basename elides."""
+        path = self.mesh_dropdown.currentData(Qt.UserRole)
+        self.mesh_dropdown.setToolTip(str(path) if path else "")
 
     def _on_mesh_visibility_clicked(self):
         """Toggle mesh scene visibility and emit the visibility signal."""
@@ -726,6 +730,7 @@ class MeshInputWidget(QFrame):
             return
         input_manager.set_current_mesh_pair(index)
         self.mesh_changed.emit()
+        self._sync_mesh_dropdown_tooltip()
 
     def _on_remove_mesh_clicked(self):
         """Remove the currently selected mesh pair."""
@@ -759,6 +764,9 @@ class MeshInputWidget(QFrame):
             self.mesh_dropdown.clear()
             for mp, _tp in zip(mesh_paths, tex_paths):
                 self.mesh_dropdown.addItem(Path(mp).name, mp)
+                self.mesh_dropdown.setItemData(
+                    self.mesh_dropdown.count() - 1, str(mp), Qt.ToolTipRole
+                )
             self.mesh_dropdown.blockSignals(False)
             self._set_mesh_current_path(cur_mesh)
         self._sync_mesh_visibility_appearance()
@@ -783,7 +791,7 @@ class MeshInputWidget(QFrame):
                 self.mesh_dropdown.setCurrentIndex(idx)
         finally:
             self.mesh_dropdown.blockSignals(False)
-        self._schedule_mesh_dropdown_scroll()
+        self._sync_mesh_dropdown_tooltip()
 
     def sync_mesh_visibility_button(self):
         """Update eye icon from the current mesh visibility in the scene."""
@@ -829,11 +837,7 @@ class ParcelInputWidget(QFrame):
         self.parcel_dropdown.setObjectName("parcelInputDropdown")
         self.parcel_dropdown.setFixedHeight(std_h)
         self.parcel_dropdown.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.parcel_dropdown.setEditable(True)
         self.parcel_row.addWidget(self.parcel_dropdown)
-        _ple = self.parcel_dropdown.lineEdit()
-        if _ple is not None:
-            _ple.setObjectName("parcelInputDropdownLineEdit")
 
         self.parcel_visibility_button = QPushButton("")
         self.parcel_visibility_button.setObjectName("parcelVisibilityButton")
@@ -906,16 +910,10 @@ class ParcelInputWidget(QFrame):
         self.refresh_parcel_lists()
         self._sync_parcel_visibility_appearance()
 
-    def _scroll_parcel_dropdown_to_start(self):
-        """Scroll the editable parcel dropdown so the basename start is visible."""
-        le = self.parcel_dropdown.lineEdit()
-        if le is not None:
-            le.setCursorPosition(0)
-            le.deselect()
-
-    def _schedule_parcel_dropdown_scroll(self):
-        """Schedule parcel dropdown text scrolling after Qt updates layout."""
-        QTimer.singleShot(0, self._scroll_parcel_dropdown_to_start)
+    def _sync_parcel_dropdown_tooltip(self):
+        """Show the current parcel's full path on hover, since the basename elides."""
+        path = self.parcel_dropdown.currentData(Qt.UserRole)
+        self.parcel_dropdown.setToolTip(str(path) if path else "")
 
     def _on_parcel_visibility_clicked(self):
         """Toggle parcel scene visibility and emit the visibility signal."""
@@ -979,6 +977,7 @@ class ParcelInputWidget(QFrame):
             return
         input_manager.set_current_parcel(index)
         self.parcel_changed.emit()
+        self._sync_parcel_dropdown_tooltip()
 
     def _on_remove_parcel_clicked(self):
         """Remove the currently selected parcel file."""
@@ -1011,6 +1010,9 @@ class ParcelInputWidget(QFrame):
             self.parcel_dropdown.clear()
             for path in parcel_paths:
                 self.parcel_dropdown.addItem(Path(path).name, path)
+                self.parcel_dropdown.setItemData(
+                    self.parcel_dropdown.count() - 1, str(path), Qt.ToolTipRole
+                )
             self.parcel_dropdown.blockSignals(False)
             self._set_parcel_current_path(cur_path)
         self._sync_parcel_visibility_appearance()
@@ -1035,7 +1037,7 @@ class ParcelInputWidget(QFrame):
                 self.parcel_dropdown.setCurrentIndex(idx)
         finally:
             self.parcel_dropdown.blockSignals(False)
-        self._schedule_parcel_dropdown_scroll()
+        self._sync_parcel_dropdown_tooltip()
 
     def sync_parcel_visibility_button(self):
         """Update eye icon from the current parcel visibility in the scene."""
