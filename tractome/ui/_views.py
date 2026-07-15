@@ -968,8 +968,19 @@ class InteractionScreen(QWidget):
         if not file_path.lower().endswith(".trx"):
             file_path = f"{file_path}.trx"
         sft, _, _, _ = input_manager.get_current_tractogram()
-        selected = [sft.streamlines[i] for i in track["streamline_ids"]]
-        new_sft = StatefulTractogram(selected, sft, Space.RASMM)
+        streamline_ids = track["streamline_ids"]
+        selected = [sft.streamlines[i] for i in streamline_ids]
+        data_per_streamline = {}
+        if "dismatrix" in sft.data_per_streamline:
+            data_per_streamline["dismatrix"] = np.asarray(
+                sft.data_per_streamline["dismatrix"]
+            )[streamline_ids]
+        new_sft = StatefulTractogram(
+            selected,
+            sft,
+            Space.RASMM,
+            data_per_streamline=data_per_streamline,
+        )
         save_tractogram(new_sft, file_path)
 
     def _on_track_remove_requested(self, index):
