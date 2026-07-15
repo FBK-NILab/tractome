@@ -145,7 +145,9 @@ class CenterSectionWidget(QFrame):
         self._display_cluster_count = QLabel(
             "# of clusters: 0", self._display_info_widget
         )
-        self._display_roi_count = QLabel("# of ROI: 0", self._display_info_widget)
+        self._display_roi_count = QLabel(
+            "# of ROI filtered: 0", self._display_info_widget
+        )
         self._display_fibers_count = QLabel("# of fibers: 0", self._display_info_widget)
 
         info_layout.addWidget(self._display_cluster_count)
@@ -475,7 +477,7 @@ class CenterSectionWidget(QFrame):
             roi_count = "N/A"
 
         self._display_cluster_count.setText(f"# of clusters: {cluster_count}")
-        self._display_roi_count.setText(f"# of ROI: {roi_count}")
+        self._display_roi_count.setText(f"# of ROI filtered: {roi_count}")
         self._display_fibers_count.setText(f"# of fibers: {fibers_count}")
 
     def enter_roi_create_mode(self, shape):

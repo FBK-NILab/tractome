@@ -23,6 +23,9 @@ optional = ["tractome[parallel]", "tractome[dev]"]
 tractome = "tractome.cli:tractome"
 tractome_compute_dis_matrix = "tractome.cli:compute_dissimilarity_matrix"
 
+[tool.setuptools.packages.find]
+include = ["tractome*"]
+
 [tool.setuptools.package-data]
 tractome = [
   "assets/*.qss",

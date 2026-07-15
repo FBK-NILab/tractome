@@ -51,7 +51,7 @@ class StartScreen(QWidget):
         inner_layout.setSpacing(20)
 
         self._logo_label = QLabel()
-        logo_pixmap = QPixmap(str(IMAGES_PATH / "logo.png"))
+        logo_pixmap = QPixmap(str(IMAGES_PATH / "logo-wide.png"))
         scaled_logo = logo_pixmap.scaled(
             127, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
