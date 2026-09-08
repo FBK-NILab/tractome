@@ -476,6 +476,45 @@ def rasterize_box(shape, affine, world_corner_a, world_corner_b, axis, world_dep
     return volume
 
 
+def streamlines_to_mask(streamlines, affine, shape):
+    """Rasterize streamline points into a binary voxel mask.
+
+    Every voxel that contains at least one point of any streamline is set
+    to 1, matching the semantics of an ROI mask. Points that fall outside
+    the volume bounds are clipped rather than raising.
+
+    Parameters
+    ----------
+    streamlines : iterable of ndarray
+        Streamlines in world (RASMM) coordinates; each item is an
+        ``(N, 3)`` array of points.
+    affine : ndarray
+        4x4 voxel-to-world affine (typically the reference image affine).
+    shape : tuple of int
+        Output volume shape; only the first three dimensions are used.
+
+    Returns
+    -------
+    ndarray
+        ``uint8`` binary volume with voxels touched by a streamline point
+        set to 1.
+    """
+    inv_affine = np.linalg.inv(affine)
+    shape_arr = np.asarray(shape[:3], dtype=int)
+    mask = np.zeros(tuple(shape_arr), dtype=np.uint8)
+    for streamline in streamlines:
+        pts = np.asarray(streamline, dtype=np.float64).reshape(-1, 3)
+        if pts.size == 0:
+            continue
+        homogeneous = np.hstack([pts, np.ones((pts.shape[0], 1), dtype=np.float64)])
+        voxels = np.round((inv_affine @ homogeneous.T).T[:, :3]).astype(int)
+        in_bounds = np.all((voxels >= 0) & (voxels < shape_arr), axis=1)
+        voxels = voxels[in_bounds]
+        if voxels.size:
+            mask[voxels[:, 0], voxels[:, 1], voxels[:, 2]] = 1
+    return mask
+
+
 def create_image_slicer(volume, *, affine=None, mode="auto", depth_write=True):
     """Create an image slicer actor from volume data.
 

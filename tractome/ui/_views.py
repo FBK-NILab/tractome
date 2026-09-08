@@ -1,9 +1,13 @@
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QSizePolicy,
@@ -14,14 +18,113 @@ from dipy.io.stateful_tractogram import Space, StatefulTractogram
 import numpy as np
 
 from fury import distinguishable_colormap
-from tractome.io import get_embedding_keys, save_tractogram
+from tractome.io import get_embedding_keys, save_roi, save_tractogram
 from tractome.mem import input_manager, state_manager, visualization_manager
 from tractome.ui._control_section import LeftSectionWidget
 from tractome.ui._input_section import RightSectionWidget
 from tractome.ui._paths import IMAGES_PATH
 from tractome.ui._visualization_section import CenterSectionWidget
 from tractome.ui.utils import open_file_dialog, save_file_dialog
-from tractome.viz import create_streamlines, rasterize_box, rasterize_sphere
+from tractome.viz import (
+    create_streamlines,
+    rasterize_box,
+    rasterize_sphere,
+    streamlines_to_mask,
+)
+
+
+def _strip_track_extension(path):
+    """Strip a trailing track/NIFTI extension so a stem can be re-suffixed.
+
+    Handles the double ``.nii.gz`` extension that ``os.path.splitext``
+    would only partially remove, and the ``.*`` wildcard suffix that Qt's
+    save dialog can append from an ``All Files`` filter.
+
+    Parameters
+    ----------
+    path : str
+        A file path possibly ending in ``.trx``, ``.trk``, ``.nii`` or
+        ``.nii.gz`` (case-insensitive), optionally with a trailing ``.*``.
+
+    Returns
+    -------
+    str
+        The path without its recognised extension.
+    """
+    if path.endswith(".*"):
+        path = path[:-2]
+    lowered = path.lower()
+    for extension in (".nii.gz", ".trx", ".trk", ".nii"):
+        if lowered.endswith(extension):
+            return path[: -len(extension)]
+    return path
+
+
+class SaveOptionsDialog(QDialog):
+    """Popup asking which formats to export a captured track as.
+
+    Offers a base file-name field and three independent checkboxes
+    (Trx / Trk / Nifti). Any combination may be ticked and saved in one
+    action.
+    """
+
+    def __init__(self, *, parent=None, default_name=""):
+        """Build the dialog.
+
+        Parameters
+        ----------
+        parent : QWidget or None, optional
+            Parent widget for the dialog.
+        default_name : str, optional
+            Initial base file name shown in the name field.
+        """
+        super().__init__(parent)
+        self.setObjectName("saveOptionsDialog")
+        self.setWindowTitle("Save track")
+
+        layout = QVBoxLayout(self)
+
+        self.name_edit = QLineEdit(default_name)
+        self.name_edit.setObjectName("saveOptionsNameEdit")
+        self.name_edit.setPlaceholderText("File name")
+        layout.addWidget(self.name_edit)
+
+        options_label = QLabel("Provide save options")
+        options_label.setObjectName("saveOptionsLabel")
+        layout.addWidget(options_label)
+
+        self.trx_checkbox = QCheckBox("Trx file")
+        self.trk_checkbox = QCheckBox("Trk file")
+        self.nifti_checkbox = QCheckBox("Nifti file")
+        for checkbox in (self.trx_checkbox, self.trk_checkbox, self.nifti_checkbox):
+            checkbox.setObjectName("saveOptionsCheckbox")
+            layout.addWidget(checkbox)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def selected_formats(self):
+        """Return the set of ticked formats.
+
+        Returns
+        -------
+        set[str]
+            Any of ``"trx"``, ``"trk"`` and ``"nifti"``.
+        """
+        formats = set()
+        if self.trx_checkbox.isChecked():
+            formats.add("trx")
+        if self.trk_checkbox.isChecked():
+            formats.add("trk")
+        if self.nifti_checkbox.isChecked():
+            formats.add("nifti")
+        return formats
+
+    def base_name(self):
+        """Return the trimmed base file name entered by the user."""
+        return self.name_edit.text().strip()
 
 
 class StartScreen(QWidget):
@@ -945,7 +1048,14 @@ class InteractionScreen(QWidget):
         return create_streamlines(streamlines, color)
 
     def _on_track_save_requested(self, index):
-        """Save the streamlines belonging to a captured track as TRX.
+        """Export a captured track in the user-selected formats.
+
+        Shows the save-options popup (Trx / Trk / Nifti), then writes one
+        file per ticked format to a destination chosen through the native
+        save dialog. The NIFTI export is a binary voxel mask of the
+        selected streamlines and requires a loaded reference image; when
+        none is loaded the NIFTI is skipped with a warning while the other
+        formats still save.
 
         Parameters
         ----------
@@ -957,16 +1067,31 @@ class InteractionScreen(QWidget):
             return
         if not input_manager.has_tractogram:
             return
+
+        dialog = SaveOptionsDialog(parent=self, default_name=track["name"])
+        if dialog.exec() != QDialog.Accepted:
+            return
+        formats = dialog.selected_formats()
+        if not formats:
+            return
+
+        if "nifti" in formats and not input_manager.has_t1:
+            self._show_nifti_reference_required_warning()
+            formats.discard("nifti")
+            if not formats:
+                return
+
+        base_name = dialog.base_name() or track["name"]
         file_path = save_file_dialog(
             parent=self,
-            title="Save track as TRX",
-            file_filter="TRX Files (*.trx);; All Files (*.*)",
-            default_name=f"{track['name']}.trx",
+            title="Save track",
+            file_filter="All Files (*)",
+            default_name=base_name,
         )
         if not file_path:
             return
-        if not file_path.lower().endswith(".trx"):
-            file_path = f"{file_path}.trx"
+        stem = _strip_track_extension(file_path)
+
         sft, _, _, _ = input_manager.get_current_tractogram()
         streamline_ids = track["streamline_ids"]
         selected = [sft.streamlines[i] for i in streamline_ids]
@@ -981,7 +1106,30 @@ class InteractionScreen(QWidget):
             Space.RASMM,
             data_per_streamline=data_per_streamline,
         )
-        save_tractogram(new_sft, file_path)
+        if "trx" in formats or "trk" in formats:
+            new_sft = StatefulTractogram(selected, sft, Space.RASMM)
+            if "trx" in formats:
+                save_tractogram(new_sft, f"{stem}.trx")
+            if "trk" in formats:
+                save_tractogram(new_sft, f"{stem}.trk")
+
+        if "nifti" in formats:
+            t1_volume, affine, _, _ = input_manager.get_current_t1()
+            mask = streamlines_to_mask(selected, affine, t1_volume.shape[:3])
+            save_roi(f"{stem}.nii.gz", mask, affine)
+
+    def _show_nifti_reference_required_warning(self):
+        """Warn that saving a track as NIFTI needs a reference image."""
+        box = QMessageBox(self)
+        box.setObjectName("niftiReferenceRequiredBox")
+        box.setIcon(QMessageBox.Information)
+        box.setWindowTitle("Reference image required")
+        box.setText(
+            "A reference image is required to save as NIFTI. The track will "
+            "still be saved in the other selected formats."
+        )
+        box.setStandardButtons(QMessageBox.Ok)
+        box.exec()
 
     def _on_track_remove_requested(self, index):
         """Remove a captured track and refresh the scene if it was active.

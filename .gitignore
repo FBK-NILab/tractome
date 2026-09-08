@@ -1,6 +1,7 @@
 *.pyc
 *.trk
 *.trx
+*.nii*
 *.egg-info
 .vscode/
 __pycache__/

@@ -1474,8 +1474,8 @@ class TracksWidget(QFrame):
 
     The widget shows a single ``Track Default`` header at all times.
     Each capture appends a row with a checkbox (used to isolate that
-    track in the scene), a save button (exports the streamlines as
-    TRX) and a remove button.
+    track in the scene), a save button (exports the streamlines in the
+    formats chosen from the save popup) and a remove button.
     """
 
     track_visibility_changed = Signal()
@@ -1576,7 +1576,7 @@ class TracksWidget(QFrame):
         save_button.setIconSize(QSize(14, 14))
         save_button.setFixedSize(28, 28)
         save_button.setCursor(Qt.PointingHandCursor)
-        save_button.setToolTip("Save track as TRX")
+        save_button.setToolTip("Save track")
         save_button.clicked.connect(
             lambda _checked=False, w=row_widget: self._emit_save(w)
         )

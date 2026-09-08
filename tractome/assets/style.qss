@@ -857,3 +857,25 @@ QMessageBox QPushButton:hover {
 QMessageBox QPushButton:pressed {
     background-color: #333333;
 }
+
+/* Save-options popup: force the app's dark theme so it does not fall back
+   to the native (light) style, which would hide the white checkmark. */
+#saveOptionsDialog {
+    background-color: #000000;
+}
+
+#saveOptionsDialog QLabel {
+    color: #ffffff;
+}
+
+#saveOptionsCheckbox {
+    color: #ffffff;
+}
+
+#saveOptionsNameEdit {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #575757;
+    border-radius: 4px;
+    padding: 4px;
+}
