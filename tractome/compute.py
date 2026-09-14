@@ -9,10 +9,33 @@ from dipy.utils.optpkg import optional_package
 import numpy as np
 from scipy.ndimage import affine_transform
 from sklearn.cluster import MiniBatchKMeans
+from sklearn.neighbors import NearestNeighbors
 
 from tractome.io import read_tractogram, save_tractogram
 
 ray, has_ray, _ = optional_package("ray")
+
+# --- Large-tractogram subsampling ---------------------------------------
+# Above SUBSAMPLE_THRESHOLD streamlines the interactive working set is reduced
+# to a stratified sample of the full tractogram. Strata come from a one-time
+# fine MiniBatchKMeans pass (k_s = threshold // q) over the dissimilarity
+# embedding; per stratum we always keep the medoid plus a seeded random draw of
+# members (at least KEEP_FLOOR). The full-resolution set is recoverable later.
+SUBSAMPLE_THRESHOLD = 150_000
+FINE_Q = 20  # target kept-per-stratum -> k_s = threshold // q (~7500)
+KEEP_FLOOR = 5
+SUBSAMPLE_SEED = 0
+
+# --- Fiber recovery ------------------------------------------------------
+# Recovery pulls un-shown streamlines back around a selected bundle. The fine
+# strata double as a coarse quantizer (an inverted-file index): only the strata
+# the bundle occupies, plus their RECOVERY_NPROBE nearest siblings, are searched
+# exactly, which keeps the candidate pool at a few thousand rows even on a
+# million-streamline tractogram. RECOVERY_QUERY_CAP bounds the bundle side of
+# that search so cost stays flat however large the selection grows.
+RECOVERY_NPROBE = 8
+RECOVERY_QUERY_CAP = 5000
+RECOVERY_CHUNK = 20_000
 
 
 def furthest_first_traversal(S, k, distance, permutation=True):
@@ -261,6 +284,361 @@ def mkbm_clustering(dissimilarity_matrix, n_clusters, streamline_ids):
 
     clusters = dict(zip(medoids_exhs, idxs))
     return clusters
+
+
+def fine_cluster_labels(
+    dismatrix, n_clusters, *, seed=SUBSAMPLE_SEED, batch_size=10000, n_init=3
+):
+    """Assign every streamline to a fine MiniBatchKMeans stratum.
+
+    This is the one-time fine pass used to build sampling strata (and, later,
+    the recovery index) over the *full* tractogram. Unlike :func:`mkbm_clustering`
+    it never loops per-cluster over all rows to find medoids (that is O(k*N) and
+    hangs at ``k_s=7500`` on millions of streamlines); medoids are found with a
+    single vectorized segmented arg-min.
+
+    Parameters
+    ----------
+    dismatrix : ndarray
+        Dissimilarity embedding of shape ``(N, num_prototypes)``.
+    n_clusters : int
+        Number of fine strata to create.
+    seed : int, optional
+        Seed for ``MiniBatchKMeans`` reproducibility.
+    batch_size : int, optional
+        Mini-batch size (larger than the interactive default for speed).
+    n_init : int, optional
+        Number of initializations (lower than the interactive default; this is
+        a coarse, one-time pass).
+
+    Returns
+    -------
+    labels : ndarray
+        ``int32`` array of shape ``(N,)`` mapping each streamline to a stratum.
+    medoid_ids : ndarray
+        ``int32`` array of the medoid streamline id of each non-empty stratum
+        (the member nearest its centroid). Empty strata are omitted.
+    """
+    dismatrix = np.asarray(dismatrix, dtype=np.float32)
+    n = dismatrix.shape[0]
+    n_clusters = max(1, min(int(n_clusters), n))
+
+    mbkm = MiniBatchKMeans(
+        init="random",
+        n_clusters=n_clusters,
+        batch_size=batch_size,
+        n_init=n_init,
+        max_no_improvement=5,
+        random_state=seed,
+        verbose=0,
+    )
+    labels = mbkm.fit_predict(dismatrix).astype(np.int32)
+
+    # Squared distance of every streamline to its own centroid.
+    diff = dismatrix - mbkm.cluster_centers_[labels]
+    d2 = np.einsum("ij,ij->i", diff, diff)
+
+    # Vectorized per-stratum arg-min: sort by label, then for each contiguous
+    # segment pick the row with the smallest d2.
+    order = np.argsort(labels, kind="stable")
+    sorted_labels = labels[order]
+    seg_starts = np.searchsorted(sorted_labels, np.arange(n_clusters), side="left")
+    seg_ends = np.searchsorted(sorted_labels, np.arange(n_clusters), side="right")
+
+    medoid_ids = []
+    for c in range(n_clusters):
+        start, end = seg_starts[c], seg_ends[c]
+        if start == end:  # empty stratum (possible with MiniBatchKMeans)
+            continue
+        seg = order[start:end]
+        medoid_ids.append(int(seg[d2[seg].argmin()]))
+
+    return labels, np.asarray(medoid_ids, dtype=np.int32)
+
+
+def stratified_subsample(
+    dismatrix,
+    *,
+    threshold=SUBSAMPLE_THRESHOLD,
+    q=FINE_Q,
+    floor=KEEP_FLOOR,
+    seed=SUBSAMPLE_SEED,
+):
+    """Reduce a tractogram to a coverage-preserving stratified sample.
+
+    When the tractogram exceeds ``threshold`` streamlines a fine
+    MiniBatchKMeans pass partitions the embedding into ``k_s = threshold // q``
+    strata. From each non-empty stratum the medoid is always kept plus a seeded
+    random draw of members, so ``keep = min(size, max(floor, round(pct*size)))``
+    with ``pct = threshold / N``. This preserves coverage of small structures
+    (every stratum contributes at least its medoid) far better than a flat
+    uniform sample, while keeping the working set near ``threshold``.
+
+    Parameters
+    ----------
+    dismatrix : ndarray
+        Dissimilarity embedding of shape ``(N, num_prototypes)``.
+    threshold : int, optional
+        Working-set size ceiling. When ``N <= threshold`` the full tractogram
+        is returned unchanged and no fine pass runs.
+    q : int, optional
+        Target kept-per-stratum, controlling stratum granularity via
+        ``k_s = threshold // q``.
+    floor : int, optional
+        Minimum streamlines kept per non-empty stratum.
+    seed : int, optional
+        Seed for both the fine pass and the per-stratum random draws.
+
+    Returns
+    -------
+    dict
+        ``{"sample_ids", "labels", "medoid_ids", "k_s", "n"}``. When no
+        subsampling is applied, ``labels`` and ``medoid_ids`` are ``None`` and
+        ``k_s`` is ``0``.
+    """
+    dismatrix = np.asarray(dismatrix)
+    n = dismatrix.shape[0]
+
+    if n <= threshold:
+        return {
+            "sample_ids": np.arange(n, dtype=np.int32),
+            "labels": None,
+            "medoid_ids": None,
+            "k_s": 0,
+            "n": n,
+        }
+
+    k_s = max(1, threshold // q)
+    labels, medoid_ids = fine_cluster_labels(dismatrix, k_s, seed=seed)
+
+    duplicate_medoids = len(medoid_ids) - len(np.unique(medoid_ids))
+    if duplicate_medoids:
+        logging.warning(
+            "Fine pass produced %s duplicate medoid ids; strata sharing a "
+            "medoid may collapse when re-clustered.",
+            duplicate_medoids,
+        )
+
+    pct = threshold / n
+    rng = np.random.default_rng(seed)
+
+    # Group streamline ids by stratum in one pass.
+    order = np.argsort(labels, kind="stable")
+    sorted_labels = labels[order]
+    n_clusters = int(labels.max()) + 1
+    seg_starts = np.searchsorted(sorted_labels, np.arange(n_clusters), side="left")
+    seg_ends = np.searchsorted(sorted_labels, np.arange(n_clusters), side="right")
+    medoid_set = set(medoid_ids.tolist())
+
+    chosen = []
+    for c in range(n_clusters):
+        start, end = seg_starts[c], seg_ends[c]
+        if start == end:
+            continue
+        members = order[start:end]
+        size = end - start
+        keep = min(size, max(floor, int(round(pct * size))))
+
+        # Identify this stratum's medoid (if any) so it is always kept.
+        stratum_medoid = None
+        for mid in members:
+            if int(mid) in medoid_set:
+                stratum_medoid = int(mid)
+                break
+
+        if stratum_medoid is None:
+            chosen.append(rng.choice(members, keep, replace=False))
+            continue
+
+        chosen.append(np.asarray([stratum_medoid], dtype=members.dtype))
+        remaining = members[members != stratum_medoid]
+        extra = keep - 1
+        if extra > 0 and len(remaining):
+            extra = min(extra, len(remaining))
+            chosen.append(rng.choice(remaining, extra, replace=False))
+
+    sample_ids = np.unique(np.concatenate(chosen)).astype(np.int32)
+    return {
+        "sample_ids": sample_ids,
+        "labels": labels,
+        "medoid_ids": medoid_ids,
+        "k_s": k_s,
+        "n": n,
+    }
+
+
+def nearest_reference(reference, queries, *, chunk=RECOVERY_CHUNK):
+    """Find, for every query row, its nearest row in ``reference``.
+
+    Brute force is deliberate: the dissimilarity embedding has ~40 dimensions,
+    where tree-based indices degenerate to a linear scan anyway while costing a
+    build. The brute-force path is BLAS-backed and needs no index at all, and
+    the callers here always search a pre-narrowed pool.
+
+    Parameters
+    ----------
+    reference : ndarray
+        Rows to search, of shape ``(R, d)``.
+    queries : ndarray
+        Rows to look up, of shape ``(Q, d)``.
+    chunk : int, optional
+        Number of query rows resolved per batch, bounding peak memory of the
+        ``(chunk, R)`` distance block.
+
+    Returns
+    -------
+    distances : ndarray
+        ``float32`` distance from each query row to its nearest reference row.
+    indices : ndarray
+        ``int32`` row index into ``reference`` of that nearest row.
+    """
+    reference = np.asarray(reference, dtype=np.float32)
+    queries = np.asarray(queries, dtype=np.float32)
+
+    distances = np.empty(len(queries), dtype=np.float32)
+    indices = np.empty(len(queries), dtype=np.int32)
+    if len(queries) == 0 or len(reference) == 0:
+        return distances, indices
+
+    nn = NearestNeighbors(n_neighbors=1, algorithm="brute").fit(reference)
+    for start in range(0, len(queries), max(1, int(chunk))):
+        stop = min(start + max(1, int(chunk)), len(queries))
+        batch_distances, batch_indices = nn.kneighbors(queries[start:stop])
+        distances[start:stop] = batch_distances[:, 0]
+        indices[start:stop] = batch_indices[:, 0]
+
+    return distances, indices
+
+
+def knn_indices(reference, queries, k):
+    """Return the ``k`` nearest reference rows for each query row.
+
+    Parameters
+    ----------
+    reference : ndarray
+        Rows to search, of shape ``(R, d)``.
+    queries : ndarray
+        Rows to look up, of shape ``(Q, d)``.
+    k : int
+        Neighbours per query, clamped to ``R``.
+
+    Returns
+    -------
+    ndarray
+        ``int32`` array of shape ``(Q, min(k, R))`` of reference row indices.
+    """
+    reference = np.asarray(reference, dtype=np.float32)
+    queries = np.asarray(queries, dtype=np.float32)
+    k = max(1, min(int(k), len(reference)))
+
+    if len(queries) == 0 or len(reference) == 0:
+        return np.empty((len(queries), 0), dtype=np.int32)
+
+    nn = NearestNeighbors(n_neighbors=k, algorithm="brute").fit(reference)
+    return nn.kneighbors(queries, return_distance=False).astype(np.int32)
+
+
+def rank_recovery_candidates(
+    dismatrix,
+    bundle_ids,
+    candidate_ids,
+    budget,
+    *,
+    seed=SUBSAMPLE_SEED,
+    query_cap=RECOVERY_QUERY_CAP,
+):
+    """Pick the ``budget`` candidates closest to a bundle in embedding space.
+
+    Each candidate is scored by its distance to the *nearest* member of the
+    bundle, so a fiber tight against any part of the bundle ranks highly even
+    when the bundle itself is long or curved. Scoring in this direction costs
+    one pass over the candidates rather than one per bundle member.
+
+    Parameters
+    ----------
+    dismatrix : ndarray
+        Dissimilarity embedding of the full tractogram, shape ``(N, d)``.
+    bundle_ids : array_like
+        Streamline ids forming the bundle to grow around.
+    candidate_ids : array_like
+        Streamline ids eligible to be recovered. Must not overlap
+        ``bundle_ids``; callers build this from the un-shown set.
+    budget : int
+        Maximum number of ids to return.
+    seed : int, optional
+        Seed used when the bundle is subsampled down to ``query_cap``.
+    query_cap : int, optional
+        Largest bundle sample used for scoring. Beyond this a seeded random
+        subset stands in for the bundle, which bounds cost without meaningfully
+        moving the ranking (neighbours of a dense bundle are neighbours of
+        almost any dense sample of it).
+
+    Returns
+    -------
+    ids : ndarray
+        ``int32`` recovered streamline ids, closest first.
+    distances : ndarray
+        ``float32`` distance of each returned id to the bundle, ascending.
+    """
+    dismatrix = np.asarray(dismatrix, dtype=np.float32)
+    bundle_ids = np.asarray(bundle_ids, dtype=np.int32).reshape(-1)
+    candidate_ids = np.asarray(candidate_ids, dtype=np.int32).reshape(-1)
+    budget = int(budget)
+
+    empty = (np.empty(0, dtype=np.int32), np.empty(0, dtype=np.float32))
+    if budget <= 0 or bundle_ids.size == 0 or candidate_ids.size == 0:
+        return empty
+
+    query_ids = bundle_ids
+    if query_cap and query_ids.size > query_cap:
+        rng = np.random.default_rng(seed)
+        query_ids = rng.choice(query_ids, int(query_cap), replace=False)
+
+    distances, _ = nearest_reference(dismatrix[query_ids], dismatrix[candidate_ids])
+
+    keep = min(budget, candidate_ids.size)
+    if keep < candidate_ids.size:
+        # argpartition finds the k smallest without ordering the rest.
+        selected = np.argpartition(distances, keep - 1)[:keep]
+    else:
+        selected = np.arange(candidate_ids.size)
+
+    selected = selected[np.argsort(distances[selected], kind="stable")]
+    return candidate_ids[selected], distances[selected]
+
+
+def assign_to_nearest_medoid(dismatrix, streamline_ids, medoid_ids):
+    """Attach each streamline to the cluster whose medoid it is closest to.
+
+    Mirrors the assignment step of the original Tractome: recovered fibers join
+    an existing cluster instead of forcing a re-clustering, so cluster colors
+    and identities survive the operation.
+
+    Parameters
+    ----------
+    dismatrix : ndarray
+        Dissimilarity embedding of the full tractogram, shape ``(N, d)``.
+    streamline_ids : array_like
+        Streamline ids to assign.
+    medoid_ids : array_like
+        Streamline ids of the candidate cluster medoids. In tractome a cluster
+        is keyed by its own medoid's streamline id, so these double as the
+        cluster ids returned.
+
+    Returns
+    -------
+    ndarray
+        ``int32`` cluster id chosen for each entry of ``streamline_ids``.
+    """
+    dismatrix = np.asarray(dismatrix, dtype=np.float32)
+    streamline_ids = np.asarray(streamline_ids, dtype=np.int32).reshape(-1)
+    medoid_ids = np.asarray(medoid_ids, dtype=np.int32).reshape(-1)
+
+    if streamline_ids.size == 0 or medoid_ids.size == 0:
+        return np.empty(0, dtype=np.int32)
+
+    _, nearest = nearest_reference(dismatrix[medoid_ids], dismatrix[streamline_ids])
+    return medoid_ids[nearest].astype(np.int32)
 
 
 def calculate_filter(rois, *, flip=None, reference_shape=None):

@@ -70,6 +70,7 @@ class CenterSectionWidget(QFrame):
         self._roi_drag_handlers_registered = False
         self._roi_create_dragging = False
         self._saved_2d_controls = None
+        self._focused_actor = None
 
         self._keystrokes_enabled = True
         self._keystroke_card_pre_isolation_visible = None
@@ -83,6 +84,7 @@ class CenterSectionWidget(QFrame):
                 The click event.
             """
             if state_manager.roi_create_mode is not None:
+                self._focused_actor = None
                 return
             if event.type == "pointer_down":
                 self._focused_actor = event.target

@@ -1,3 +1,4 @@
+import logging
 import os
 
 from PySide6.QtWidgets import QApplication, QProgressDialog
@@ -7,13 +8,22 @@ import numpy as np
 from fury import actor as _fury_actor, distinguishable_colormap
 from fury.actor import set_group_visibility, show_slices
 from tractome.compute import (
+    RECOVERY_NPROBE,
+    SUBSAMPLE_THRESHOLD,
+    assign_to_nearest_medoid,
     compute_dissimilarity,
     filter_streamline_ids,
     mkbm_clustering,
+    rank_recovery_candidates,
     transform_roi_to_world_grid,
 )
 from tractome.gpu import PointProjection
-from tractome.mem import ClusterState, input_manager, state_manager
+from tractome.mem import (
+    ClusterState,
+    input_manager,
+    recovery_manager,
+    state_manager,
+)
 from tractome.viz import (
     create_image_slicer,
     create_mesh,
@@ -584,9 +594,34 @@ class VisualizationManager:
         sft, _, _, _ = input_manager.get_current_tractogram()
 
         if not state_manager.has_states():
-            state_manager.add_state(
-                ClusterState(nb_clusters, np.arange(len(sft.streamlines)), 1000)
+            embedding_name = input_manager.selected_embedding
+            dismatrix = sft.data_per_streamline[embedding_name]
+            is_large = len(sft.streamlines) > SUBSAMPLE_THRESHOLD
+            needs_subsample = is_large and not recovery_manager.has_cached_labels(
+                sft, embedding_name
             )
+            progress = None
+            if needs_subsample:
+                progress = QProgressDialog(
+                    "Large tractogram: building working-set subsample...",
+                    None,
+                    0,
+                    0,
+                    QApplication.activeWindow(),
+                )
+                progress.setWindowTitle("Subsampling tractogram")
+                progress.setCancelButton(None)
+                progress.setMinimumDuration(0)
+                progress.setModal(True)
+                progress.show()
+                QApplication.processEvents()
+            try:
+                sample_ids = recovery_manager.build(sft, dismatrix, embedding_name)
+            finally:
+                if progress is not None:
+                    progress.close()
+                    progress.deleteLater()
+            state_manager.add_state(ClusterState(nb_clusters, sample_ids, 1000))
         else:
             state_manager.get_latest_state().nb_clusters = nb_clusters
 
@@ -685,13 +720,11 @@ class VisualizationManager:
             n_clusters=nb_clusters,
             streamline_ids=streamline_ids,
         )
-        min_size = min(len(streamline_ids) for streamline_ids in clusters.values())
-        max_size = max(len(streamline_ids) for streamline_ids in clusters.values())
-        size_range = max_size - min_size if max_size > min_size else 1
+        min_size, size_range = self._radius_scale(
+            len(streamline_ids) for streamline_ids in clusters.values()
+        )
         for cluster_id, streamline_ids in clusters.items():
-            num_streamlines = len(streamline_ids)
-            scaled_radius = ((num_streamlines - min_size) / size_range) * 2.0
-            radius = max(scaled_radius, 1)
+            radius = self._cluster_radius(len(streamline_ids), min_size, size_range)
             cluster_entry = state_manager.create_cluster_entry(
                 cluster_id, streamline_ids, next(colormap), radius
             )
@@ -701,6 +734,48 @@ class VisualizationManager:
                 cluster_entry["color"],
                 cluster_entry["radius"],
             )
+
+    @staticmethod
+    def _radius_scale(sizes):
+        """Derive the normalization used to scale representative tube radii.
+
+        Parameters
+        ----------
+        sizes : iterable of int
+            Fiber count of every cluster in the scene.
+
+        Returns
+        -------
+        min_size : int
+            Smallest cluster size.
+        size_range : int
+            Spread of cluster sizes, floored at 1 so uniform scenes are safe
+            to divide by.
+        """
+        sizes = list(sizes)
+        min_size = min(sizes)
+        max_size = max(sizes)
+        return min_size, (max_size - min_size if max_size > min_size else 1)
+
+    @staticmethod
+    def _cluster_radius(size, min_size, size_range):
+        """Scale a representative's tube radius by its cluster's fiber count.
+
+        Parameters
+        ----------
+        size : int
+            Number of fibers in the cluster.
+        min_size : int
+            Smallest cluster size in the scene.
+        size_range : int
+            Spread of cluster sizes, from :meth:`_radius_scale`.
+
+        Returns
+        -------
+        float
+            The tube radius, never below 1.
+        """
+        return max(((size - min_size) / size_range) * 2.0, 1)
 
     def _create_cluster_rep_actor(self, cluster_id, line, color, radius):
         """Create a representative actor for a cluster.
@@ -806,6 +881,177 @@ class VisualizationManager:
             ClusterState(nb_clusters, streamline_ids, latest_state.max_clusters)
         )
         self._apply_tractogram_states()
+
+    def recover_neighbors(self, budget, *, nprobe=RECOVERY_NPROBE):
+        """Pull the closest un-shown fibers back around the expanded clusters.
+
+        Restores fibers that left the scene -- dropped by the load-time
+        subsample, removed with Delete, or never sampled at all -- by ranking
+        every eligible fiber on its distance to the expanded bundle in
+        dissimilarity space and taking the ``budget`` closest. Recovered fibers
+        join the existing cluster whose medoid they sit nearest, so cluster
+        colors and identities are preserved rather than reshuffled.
+
+        The result is pushed as a new state, so Prev State undoes it. Clusters
+        that gain fibers stay expanded, otherwise the recovered fibers would be
+        hidden behind an unchanged representative and the action would look
+        like it did nothing.
+
+        Parameters
+        ----------
+        budget : int
+            Maximum number of fibers to recover.
+        nprobe : int, optional
+            Extra strata probed around the bundle's own, widening the search.
+
+        Returns
+        -------
+        dict
+            ``{"status": ...}`` where status is ``"ok"`` (with ``recovered``,
+            ``pool`` and ``clusters`` counts), ``"no_expanded"`` when no
+            cluster is expanded, ``"pool_empty"`` when every eligible fiber is
+            already on screen, or ``"unavailable"`` when there is nothing to
+            act on.
+        """
+        if not state_manager.has_states() or not input_manager.has_tractogram:
+            return {"status": "unavailable"}
+
+        latest_state = state_manager.get_latest_state()
+        cluster_states = latest_state.tractogram_states
+        if not cluster_states:
+            return {"status": "unavailable"}
+
+        expanded_ids = [
+            cluster_id
+            for cluster_id, data in cluster_states.items()
+            if data.get("expanded")
+        ]
+        if not expanded_ids:
+            return {"status": "no_expanded"}
+
+        budget = int(budget)
+        if budget <= 0:
+            return {"status": "unavailable"}
+
+        sft, _, _, _ = input_manager.get_current_tractogram()
+        embedding_name = input_manager.selected_embedding
+        if embedding_name is None:
+            return {"status": "unavailable"}
+        dismatrix = sft.data_per_streamline[embedding_name]
+
+        # On a tractogram small enough to skip subsampling no strata exist yet,
+        # so the first recovery pays for the one-time fine pass. Later calls
+        # reuse the index and return immediately.
+        progress = None
+        if not recovery_manager.has_index:
+            progress = QProgressDialog(
+                "Preparing fibers for recovery...",
+                None,
+                0,
+                0,
+                QApplication.activeWindow(),
+            )
+            progress.setWindowTitle("Building recovery index")
+            progress.setCancelButton(None)
+            progress.setMinimumDuration(0)
+            progress.setModal(True)
+            progress.show()
+            QApplication.processEvents()
+        try:
+            has_index = recovery_manager.ensure_index(sft, dismatrix, embedding_name)
+        finally:
+            if progress is not None:
+                progress.close()
+                progress.deleteLater()
+        if not has_index:
+            return {"status": "unavailable"}
+
+        def ids_of(cluster_id):
+            return np.asarray(
+                cluster_states[cluster_id]["streamline_ids"], dtype=np.int32
+            ).reshape(-1)
+
+        bundle_ids = np.unique(np.concatenate([ids_of(cid) for cid in expanded_ids]))
+        if bundle_ids.size == 0:
+            return {"status": "no_expanded"}
+
+        # Everything currently on screen is off-limits: the state's own id set
+        # plus each cluster's, which can differ once an ROI filter narrowed the
+        # clusters without rewriting the state.
+        state_ids = np.asarray(latest_state.streamline_ids, dtype=np.int32).reshape(-1)
+        on_screen = [state_ids]
+        on_screen.extend(ids_of(cluster_id) for cluster_id in cluster_states)
+        exclude_ids = np.unique(np.concatenate(on_screen))
+
+        strata = recovery_manager.probe_strata(dismatrix, bundle_ids, nprobe=nprobe)
+        candidates = recovery_manager.candidate_ids(
+            exclude_ids=exclude_ids,
+            allowed_ids=latest_state.filtered_streamline_ids,
+            strata=strata,
+        )
+        if candidates.size == 0:
+            return {"status": "pool_empty"}
+
+        recovered, _ = rank_recovery_candidates(
+            dismatrix, bundle_ids, candidates, budget
+        )
+        if recovered.size == 0:
+            return {"status": "pool_empty"}
+
+        assignment = assign_to_nearest_medoid(
+            dismatrix, recovered, np.asarray(expanded_ids, dtype=np.int32)
+        )
+        recovered_by_cluster = {}
+        for streamline_id, cluster_id in zip(recovered.tolist(), assignment.tolist()):
+            recovered_by_cluster.setdefault(cluster_id, []).append(streamline_id)
+
+        # Rebuild the per-cluster entries with the grown id sets. Actors are
+        # dropped rather than mutated so _apply_tractogram_states regenerates
+        # exactly the ones whose contents changed, and so the previous state
+        # keeps sole ownership of its own actors for undo.
+        new_cluster_states = {}
+        for cluster_id, data in cluster_states.items():
+            added = recovered_by_cluster.get(cluster_id, ())
+            streamline_ids = sorted(set(ids_of(cluster_id).tolist()).union(added))
+            new_cluster_states[cluster_id] = {
+                **data,
+                "streamline_ids": streamline_ids,
+                "expanded": bool(data["expanded"] or added),
+                "rep_actor": None,
+                "lines_actor": None,
+            }
+
+        min_size, size_range = self._radius_scale(
+            len(data["streamline_ids"]) for data in new_cluster_states.values()
+        )
+        for data in new_cluster_states.values():
+            data["radius"] = self._cluster_radius(
+                len(data["streamline_ids"]), min_size, size_range
+            )
+
+        state_manager.add_state(
+            ClusterState(
+                latest_state.nb_clusters,
+                np.unique(np.concatenate([state_ids, recovered])),
+                latest_state.max_clusters,
+                tractogram_states=new_cluster_states,
+                filtered_streamline_ids=latest_state.filtered_streamline_ids,
+            )
+        )
+        self._apply_tractogram_states()
+
+        logging.info(
+            "Recovered %s fibers into %s cluster(s) from a pool of %s.",
+            recovered.size,
+            len(recovered_by_cluster),
+            candidates.size,
+        )
+        return {
+            "status": "ok",
+            "recovered": int(recovered.size),
+            "pool": int(candidates.size),
+            "clusters": len(recovered_by_cluster),
+        }
 
     def toggle_t1_visibility(self):
         """Toggle the visibility of the T1 image slicer."""

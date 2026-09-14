@@ -155,7 +155,7 @@ QCheckBox::indicator:checked {
     font-weight: bold;
 }
 
-#fiberCountInput:disabled {
+#fiberCountInput {
     color: #ffffff;
     background-color: #1e1e1e;
     border: 2px solid #747474;
@@ -175,6 +175,10 @@ QCheckBox::indicator:checked {
     background-color: #575757;
     color: #ffffff;
     border: 2px solid #747474;
+}
+
+#fiberRecoveryButton:hover:enabled {
+    border-color: #e87722;
 }
 
 #imageTitle,

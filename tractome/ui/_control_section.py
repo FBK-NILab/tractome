@@ -109,7 +109,9 @@ class ViewModeWidget(QFrame):
 
 
 class FibersWidget(QFrame):
-    """Fibers panel with the active capture control."""
+    """Fibers panel with the capture and neighbour-recovery controls."""
+
+    recovery_requested = Signal(int)
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -143,22 +145,21 @@ class FibersWidget(QFrame):
         capture_row.addStretch()
         self.main_layout.addLayout(capture_row)
 
-        self.disabled_controls_widget = QWidget()
-        self.disabled_controls_widget.setVisible(False)
+        self.recovery_controls_widget = QWidget()
 
-        self.grid = QGridLayout(self.disabled_controls_widget)
+        self.grid = QGridLayout(self.recovery_controls_widget)
         self.grid.setSpacing(6)
         self.grid.setContentsMargins(0, 0, 0, 0)
 
         self.count_input = QSpinBox()
         self.count_input.setObjectName("fiberCountInput")
-        self.count_input.setRange(1, 100000)
+        self.count_input.setRange(1, 1000000)
         self.count_input.setValue(100)
         self.count_input.setButtonSymbols(QSpinBox.NoButtons)
         self.count_input.setFixedHeight(std_h)
         self.count_input.setMinimumWidth(56)
         self.count_input.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
-        self.count_input.setEnabled(False)
+        self.count_input.setToolTip("Number of fibers to recover")
         self.grid.addWidget(self.count_input, 0, 0)
 
         step_layout = QVBoxLayout()
@@ -173,8 +174,6 @@ class FibersWidget(QFrame):
         self.btn_down.setObjectName("fiberStepButton")
         self.btn_up.setFixedSize(33, (std_h // 2) - 1)
         self.btn_down.setFixedSize(33, (std_h // 2) - 1)
-        self.btn_up.setEnabled(False)
-        self.btn_down.setEnabled(False)
         step_layout.addWidget(self.btn_up)
         step_layout.addWidget(self.btn_down)
         self.grid.addLayout(step_layout, 0, 1)
@@ -184,14 +183,27 @@ class FibersWidget(QFrame):
         self.btn_recovery.setFixedHeight(std_h)
         self.btn_recovery.setMinimumWidth(70)
         self.btn_recovery.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.btn_recovery.setEnabled(False)
+        self.btn_recovery.setToolTip(
+            "Recover the closest fibers around the selected clusters"
+        )
         self.grid.addWidget(self.btn_recovery, 0, 2)
 
         self.grid.setColumnStretch(0, 1)
         self.grid.setColumnStretch(1, 0)
         self.grid.setColumnStretch(2, 1)
 
-        self.main_layout.addWidget(self.disabled_controls_widget)
+        self.main_layout.addWidget(self.recovery_controls_widget)
+
+        self.btn_up.clicked.connect(self.count_input.stepUp)
+        self.btn_down.clicked.connect(self.count_input.stepDown)
+        self.btn_recovery.clicked.connect(self._on_recovery_clicked)
+
+        for btn in (self.btn_recovery, self.btn_up, self.btn_down):
+            btn.setCursor(Qt.PointingHandCursor)
+
+    def _on_recovery_clicked(self):
+        """Emit the recovery request with the current fiber budget."""
+        self.recovery_requested.emit(int(self.count_input.value()))
 
 
 class ClustersWidget(QFrame):

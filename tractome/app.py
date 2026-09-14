@@ -9,7 +9,12 @@ from PySide6.QtWidgets import (
 import click
 
 from tractome.io import get_file_extension
-from tractome.mem import input_manager, state_manager, visualization_manager
+from tractome.mem import (
+    input_manager,
+    recovery_manager,
+    state_manager,
+    visualization_manager,
+)
 from tractome.ui import (
     EmbeddingSelectionDialog,
     InteractionScreen,
@@ -258,6 +263,7 @@ class Tractome(QMainWindow):
         """Reset managers and return to the tractogram upload screen."""
         input_manager.reset()
         state_manager.reset()
+        recovery_manager.reset()
         visualization_manager.reset()
 
         old_interaction_screen = self._interaction_screen

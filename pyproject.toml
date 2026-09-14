@@ -16,7 +16,7 @@ dependencies = [
 ]
 [project.optional-dependencies]
 parallel = ["ray>=2.47.0", "numba>=0.61.2"]
-dev = ["ruff>=0.12.7", "pre-commit"]
+dev = ["ruff>=0.12.7", "pre-commit", "pytest>=8.0"]
 optional = ["tractome[parallel]", "tractome[dev]"]
 
 [project.scripts]

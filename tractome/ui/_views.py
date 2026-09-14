@@ -3,6 +3,7 @@ from pathlib import Path
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -189,6 +190,9 @@ class InteractionScreen(QWidget):
         )
         self._left_section.fibers_box.btn_capture.clicked.connect(
             self._on_capture_clicked
+        )
+        self._left_section.fibers_box.recovery_requested.connect(
+            self._on_recovery_requested
         )
         self._right_section.tracks_widget.track_visibility_changed.connect(
             self._on_track_visibility_changed
@@ -859,15 +863,76 @@ class InteractionScreen(QWidget):
             streamline_ids=streamline_ids, color=color
         )
 
-    def _show_capture_empty_warning(self):
-        """Show the styled warning when no expanded cluster exists."""
+    def _on_recovery_requested(self, budget):
+        """Recover the nearest un-shown fibers around the expanded clusters.
+
+        Parameters
+        ----------
+        budget : int
+            Maximum number of fibers to recover, from the Fibers spin box.
+        """
+        if not state_manager.has_states():
+            return
+
+        if not self._has_expanded_cluster():
+            self._show_recovery_empty_warning()
+            return
+
+        self.remove_visualization(
+            visualization_manager.tractogram_visualizations,
+            visualization_type="tractogram",
+        )
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            result = visualization_manager.recover_neighbors(budget)
+        finally:
+            QApplication.restoreOverrideCursor()
+        self.add_visualization(
+            visualization_manager.tractogram_visualizations,
+            visualization_type="tractogram",
+        )
+        self._refresh_mesh_projection_if_active()
+
+        status = result.get("status")
+        if status == "no_expanded":
+            self._show_recovery_empty_warning()
+        elif status == "pool_empty":
+            self._show_fibers_message(
+                "Nothing to recover",
+                "Every fiber near this selection is already in the scene.",
+            )
+
+    def _show_fibers_message(self, title, text):
+        """Show a styled informational message from the Fibers panel.
+
+        Parameters
+        ----------
+        title : str
+            Window title of the message box.
+        text : str
+            Body text of the message box.
+        """
         box = QMessageBox(self)
         box.setObjectName("captureWarningBox")
         box.setIcon(QMessageBox.Information)
-        box.setWindowTitle("Nothing to capture")
-        box.setText("Expand a cluster before capturing a view.")
+        box.setWindowTitle(title)
+        box.setText(text)
         box.setStandardButtons(QMessageBox.Ok)
         box.exec()
+
+    def _show_capture_empty_warning(self):
+        """Show the styled warning when no expanded cluster exists."""
+        self._show_fibers_message(
+            "Nothing to capture", "Expand a cluster before capturing a view."
+        )
+
+    def _show_recovery_empty_warning(self):
+        """Show the styled warning when recovery is attempted without an
+        expanded cluster.
+        """
+        self._show_fibers_message(
+            "Nothing to recover", "Expand a cluster before recovering fibers."
+        )
 
     def _show_reference_image_required_warning(self):
         """Warn that 2D / ROI editing needs a reference image loaded."""
