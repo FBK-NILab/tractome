@@ -210,8 +210,8 @@ def create_streamlines(streamlines, color):
     return bundle
 
 
-def create_parcels(pts, colors):
-    """Create a point-based representation of parcels.
+def create_parcels(pts, colors, radii=0.10):
+    """Create a billboard-impostor sphere representation of parcels.
 
     Parameters
     ----------
@@ -219,15 +219,19 @@ def create_parcels(pts, colors):
         The input parcel points.
     colors : ndarray
         The input parcel colors.
+    radii : float, optional
+        Sphere radius in world units.
 
     Returns
     -------
-    Point
-        The created point-based representation of parcels.
+    Billboard
+        The created billboard sphere representation of parcels.
     """
     colors = np.asarray(colors, dtype=np.float32) / 255.0
-    pts = np.asarray(pts, dtype=np.float32) * 1
-    parcels = actor.point(pts, colors=colors, size=4.0, enable_picking=False)
+    pts = np.asarray(pts, dtype=np.float32)
+    parcels = actor.sphere(
+        pts, colors=colors, radii=radii, impostor=True, enable_picking=False
+    )
     return parcels
 
 

@@ -24,6 +24,30 @@ from tractome.viz import (
     create_streamtube,
 )
 
+_PARCEL_MAX_RADIUS = 0.10
+
+
+def _set_billboard_sphere_size(parcel_actor, slider_value):
+    """Update billboard sphere radii via the geometry normals buffer.
+
+    The billboard sphere shader reads size from the normals buffer
+    (normals.xy = width, height). Each billboard has 6 vertices sharing
+    the same size value.
+
+    Parameters
+    ----------
+    parcel_actor : Billboard
+        The billboard impostor sphere actor.
+    slider_value : int
+        Slider value in range 0-100.
+    """
+    radius = (slider_value / 100.0) * _PARCEL_MAX_RADIUS
+    diameter = radius * 2.0
+    normals = parcel_actor.geometry.normals.data
+    normals[:, 0] = diameter
+    normals[:, 1] = diameter
+    parcel_actor.geometry.normals.update_range()
+
 
 class VisualizationManager:
     """A class to manage the visualization of the inputs."""
@@ -915,7 +939,7 @@ class VisualizationManager:
         points, colors, _, _ = input_manager.get_current_parcel()
         parcel_actor = create_parcels(points, colors)
         parcel_actor.visible = state_manager.parcel_visible
-        parcel_actor.material.size = state_manager.parcel_size / 25.0
+        _set_billboard_sphere_size(parcel_actor, state_manager.parcel_size)
         self._visualizations["parcel"] = [parcel_actor]
         return self._visualizations["parcel"]
 
@@ -928,18 +952,18 @@ class VisualizationManager:
         state_manager.parcel_visible = parcel[0].visible
 
     def set_parcel_size(self, value):
-        """Set parcel point size from a slider value.
+        """Set parcel sphere size from a slider value.
 
         Parameters
         ----------
         value : int
-            Slider value in the range 0-100. The legacy mapping uses ``value / 25``.
+            Slider value in the range 0-100.
         """
         parcel = self._visualizations["parcel"]
         if not parcel:
             return
         state_manager.parcel_size = value
-        parcel[0].material.size = value / 25.0
+        _set_billboard_sphere_size(parcel[0], value)
 
     def sync_parcel_visibility_from_state(self):
         """Apply state_manager.parcel_visible to the parcel actor if present."""
