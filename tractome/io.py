@@ -1,4 +1,5 @@
 import csv
+from dataclasses import dataclass
 import logging
 import os
 
@@ -6,7 +7,7 @@ from dipy.io.image import load_nifti, save_nifti
 from dipy.io.stateful_tractogram import Space, StatefulTractogram
 from dipy.io.streamline import load_tractogram, save_tractogram as dipy_save_tractogram
 import numpy as np
-import trimesh
+import polyxios as px
 
 
 def get_file_extension(file_path):
@@ -155,8 +156,103 @@ def read_tractogram(file_path, reference=None):
     return sft
 
 
+@dataclass(frozen=True)
+class MeshData:
+    """Lightweight mesh container returned by :func:`read_mesh`."""
+
+    vertices: np.ndarray
+    faces: np.ndarray | None
+    normals: np.ndarray | None = None
+    texcoords: np.ndarray | None = None
+
+
+# Known per-format UV attribute name pairs in polyxios vertex_attrs.
+_UV_ATTR_PAIRS = [("s", "t"), ("texture_u", "texture_v")]
+
+
+def _extract_texcoords_from_attrs(attrs):
+    """Return (N, 2) float32 UVs from vertex_attrs, or None."""
+    for u_key, v_key in _UV_ATTR_PAIRS:
+        if u_key in attrs and v_key in attrs:
+            u = np.asarray(attrs[u_key], dtype=np.float32)
+            v = np.asarray(attrs[v_key], dtype=np.float32)
+            return np.column_stack([u, v])
+    return None
+
+
+def _read_obj_with_texcoords(path):
+    """Re-parse an OBJ to build a mesh with vertices split at UV seams.
+
+    OBJ allows separate indices for positions (v), texture coordinates
+    (vt) and normals (vn) per face corner.  A single position that
+    touches different UVs at a seam must become multiple vertices so the
+    GPU gets a 1-to-1 vertex-to-UV mapping.  This function builds that
+    expanded mesh and returns the four arrays that :class:`MeshData`
+    expects.
+    """
+    positions: list[list[float]] = []
+    texcoords: list[list[float]] = []
+    normals: list[list[float]] = []
+    faces_raw: list[list[tuple[int, int | None, int | None]]] = []
+
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+            directive = parts[0].lower()
+
+            if directive == "v":
+                positions.append([float(parts[1]), float(parts[2]), float(parts[3])])
+            elif directive == "vt":
+                texcoords.append(
+                    [float(parts[1]), float(parts[2]) if len(parts) > 2 else 0.0]
+                )
+            elif directive == "vn":
+                normals.append([float(parts[1]), float(parts[2]), float(parts[3])])
+            elif directive == "f":
+                face: list[tuple[int, int | None, int | None]] = []
+                for tok in parts[1:]:
+                    c = tok.split("/")
+                    vi = int(c[0]) - 1
+                    vti = (int(c[1]) - 1) if len(c) >= 2 and c[1] else None
+                    vni = (int(c[2]) - 1) if len(c) >= 3 and c[2] else None
+                    face.append((vi, vti, vni))
+                faces_raw.append(face)
+
+    if not texcoords:
+        return None, None, None, None
+
+    unique: dict[tuple[int, int | None, int | None], int] = {}
+    new_pos: list[list[float]] = []
+    new_uv: list[list[float]] = []
+    new_nrm: list[list[float]] = []
+    tri_faces: list[list[int]] = []
+
+    for face in faces_raw:
+        idx: list[int] = []
+        for key in face:
+            if key not in unique:
+                vi, vti, vni = key
+                unique[key] = len(new_pos)
+                new_pos.append(positions[vi])
+                new_uv.append(texcoords[vti] if vti is not None else [0.0, 0.0])
+                if normals and vni is not None:
+                    new_nrm.append(normals[vni])
+            idx.append(unique[key])
+        for i in range(1, len(idx) - 1):
+            tri_faces.append([idx[0], idx[i], idx[i + 1]])
+
+    verts = np.array(new_pos, dtype=np.float32)
+    faces_arr = np.array(tri_faces, dtype=np.int32)
+    uvs = np.array(new_uv, dtype=np.float32)
+    nrm_arr = np.array(new_nrm, dtype=np.float32) if new_nrm else None
+    return verts, faces_arr, nrm_arr, uvs
+
+
 def read_mesh(file_path, *, texture=None):
-    """Read a mesh file.
+    """Read a mesh file using polyxios.
 
     Parameters
     ----------
@@ -167,15 +263,39 @@ def read_mesh(file_path, *, texture=None):
 
     Returns
     -------
-    mesh : trimesh.Trimesh
-        The loaded mesh object.
+    mesh : MeshData
+        The loaded mesh data.
     texture : str or None
         Validated texture path, or None if no texture was provided.
     """
     validated_path = validate_path(file_path)
     logging.info(f"Loading mesh from {validated_path} ...")
 
-    mesh = trimesh.load_mesh(validated_path)
+    poly = px.read(validated_path)
+    vertices = np.asarray(poly.vertices, dtype=np.float32)
+    faces = poly.faces
+    if faces is not None:
+        faces = np.asarray(faces, dtype=np.int32)
+
+    normals = poly.vertex_attrs.get("normals")
+    if normals is not None:
+        normals = np.asarray(normals, dtype=np.float32)
+
+    texcoords = None
+    if texture:
+        texcoords = _extract_texcoords_from_attrs(poly.vertex_attrs)
+        if texcoords is None and validated_path.lower().endswith(".obj"):
+            obj_verts, obj_faces, obj_nrm, obj_uvs = _read_obj_with_texcoords(
+                validated_path
+            )
+            if obj_uvs is not None:
+                vertices, faces, texcoords = obj_verts, obj_faces, obj_uvs
+                if obj_nrm is not None:
+                    normals = obj_nrm
+
+    mesh = MeshData(
+        vertices=vertices, faces=faces, normals=normals, texcoords=texcoords
+    )
 
     if texture:
         texture = validate_path(texture)

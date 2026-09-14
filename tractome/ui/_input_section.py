@@ -702,7 +702,15 @@ class MeshInputWidget(QFrame):
         mesh_path = open_file_dialog(
             parent=self,
             title="Select a mesh file",
-            file_filter=("Wavefront OBJ (*.obj);; All Files (*.*)"),
+            file_filter=(
+                "Mesh Files (*.obj *.ply *.stl *.off *.vtk *.vtp);;"
+                " Wavefront OBJ (*.obj);;"
+                " PLY (*.ply);;"
+                " STL (*.stl);;"
+                " OFF (*.off);;"
+                " VTK (*.vtk *.vtp);;"
+                " All Files (*.*)"
+            ),
         )
         if not mesh_path:
             return

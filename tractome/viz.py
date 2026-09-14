@@ -80,8 +80,8 @@ def create_mesh(mesh_obj, *, texture=None, color=None, photographic=True):
 
     Parameters
     ----------
-    mesh_obj : trimesh.Trimesh
-        The input mesh object to be converted.
+    mesh_obj : MeshData
+        The input mesh data (from :func:`tractome.io.read_mesh`).
     texture : str or None, optional
         Path to the texture image for the mesh. Ignored when ``color`` is given.
     color : tuple or None, optional
@@ -100,15 +100,13 @@ def create_mesh(mesh_obj, *, texture=None, color=None, photographic=True):
     faces = mesh_obj.faces
 
     texture_coords = None
-    if texture and color is None and hasattr(mesh_obj.visual, "uv"):
-        uvs = np.asarray(mesh_obj.visual.uv, dtype=np.float32).copy()
+    if texture and color is None and mesh_obj.texcoords is not None:
+        uvs = np.asarray(mesh_obj.texcoords, dtype=np.float32).copy()
         logging.info("Flipping texture coordinates vertically (top-left image origin).")
         uvs[:, 1] = 1.0 - uvs[:, 1]
         texture_coords = uvs
 
-    normals = None
-    if hasattr(mesh_obj, "vertex_normals"):
-        normals = mesh_obj.vertex_normals
+    normals = mesh_obj.normals
 
     # A solid-coloured mesh (no texture) needs phong shading to convey 3D form;
     # the photographic/basic material only makes sense for textured meshes.

@@ -59,12 +59,6 @@ class CenterSectionWidget(QFrame):
         self._2D_controller.register_events(self.show_manager.renderer)
         self._2D_controller.enabled = False
 
-        # TODO: Remove long press event handler for Qt
-        # This is a temporary workaround for the long press issue in Qt
-        self.show_manager.renderer.remove_event_handler(
-            self.show_manager._set_key_long_press_event, "key_up", "key_down"
-        )
-
         self._roi_create_initial_pos = None
         self._roi_create_preview = None
         self._roi_drag_handlers_registered = False

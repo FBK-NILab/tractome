@@ -10,8 +10,7 @@ dependencies = [
   "dipy>=1.11.0",
   "click>=8.1.8",
   "PySide6>=6.10.0",
-  "fury>=2.0.0a6",
-  "trimesh>=4.6.12",
+  "fury>=2.0.0",
   "scikit-learn>=1.7.1"
 ]
 [project.optional-dependencies]
@@ -52,8 +51,7 @@ sources = ["tractome"]
 requires = [
   "dipy>=1.11.0",
   "PySide6>=6.10.0",
-  "fury>=2.0.0a6",
-  "trimesh>=4.6.12",
+  "fury>=2.0.0",
   "scikit-learn>=1.7.1",
   "numba>=0.61.2",
 ]
