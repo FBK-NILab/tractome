@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -14,7 +16,7 @@ from dipy.io.stateful_tractogram import Space, StatefulTractogram
 import numpy as np
 
 from fury import distinguishable_colormap
-from tractome.io import get_embedding_keys, save_tractogram
+from tractome.io import get_embedding_keys, save_roi, save_tractogram
 from tractome.mem import input_manager, state_manager, visualization_manager
 from tractome.ui._control_section import LeftSectionWidget
 from tractome.ui._input_section import RightSectionWidget
@@ -160,6 +162,9 @@ class InteractionScreen(QWidget):
         )
         self._left_section.roi_input_widget.roi_create_requested.connect(
             self._on_roi_create_requested
+        )
+        self._left_section.roi_input_widget.roi_save_requested.connect(
+            self._on_roi_save_requested
         )
         self._left_section.roi_create_widget.shape_changed.connect(
             self._on_roi_create_shape_changed
@@ -524,6 +529,42 @@ class InteractionScreen(QWidget):
             Slider value in the range 0-100.
         """
         self._center_section.show_manager.render()
+
+    def _on_roi_save_requested(self, index):
+        """Save the ROI at ``index`` as a NIfTI mask.
+
+        The volume is written on the voxel grid it was built on, with
+        the reference image's affine, so the saved mask overlays the
+        reference image without any further resampling.
+
+        Parameters
+        ----------
+        index : int
+            Index of the ROI to save.
+        """
+        try:
+            roi_volume, affine, path, _ = input_manager.get_roi_at(index)
+        except ValueError:
+            return
+
+        name = Path(path).name
+        for extension in (".nii.gz", ".nii"):
+            if name.lower().endswith(extension):
+                name = name[: -len(extension)]
+                break
+        default_name = f"{name.replace(' ', '_')}.nii.gz"
+
+        file_path = save_file_dialog(
+            parent=self,
+            title="Save ROI as NIfTI",
+            file_filter="NIfTI Files (*.nii.gz *.nii);; All Files (*.*)",
+            default_name=default_name,
+        )
+        if not file_path:
+            return
+        if not file_path.lower().endswith((".nii", ".nii.gz")):
+            file_path = f"{file_path}.nii.gz"
+        save_roi(file_path, roi_volume, affine)
 
     def _on_roi_create_requested(self):
         """Switch to 2D mode and start the interactive ROI draw."""

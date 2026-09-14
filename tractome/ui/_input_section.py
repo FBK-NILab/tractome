@@ -1057,6 +1057,7 @@ class RoiInputWidget(QFrame):
     roi_visibility_changed = Signal()
     roi_opacity_changed = Signal(int)
     roi_create_requested = Signal()
+    roi_save_requested = Signal(int)
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -1233,6 +1234,18 @@ class RoiInputWidget(QFrame):
         self._sync_row_appearance(index)
         self.rois_changed.emit()
 
+    def _on_save_clicked(self, index):
+        """Request saving the ROI at ``index`` as a NIfTI file.
+
+        Parameters
+        ----------
+        index : int
+            Index of the ROI row to save.
+        """
+        if index < 0:
+            return
+        self.roi_save_requested.emit(index)
+
     def _on_remove_clicked(self, index):
         """Remove the ROI at ``index`` from the input manager.
 
@@ -1396,6 +1409,18 @@ class RoiInputWidget(QFrame):
         )
         row_layout.addWidget(negate_button)
 
+        save_button, _save_effect = self._make_icon_button(
+            object_name="roiSaveButton",
+            icon_path=str(ICONS_PATH / "save.svg"),
+            tooltip="Save ROI as NIfTI",
+        )
+        save_button.clicked.connect(
+            lambda _checked=False, w=row_widget: self._on_save_clicked(
+                self._row_index(w)
+            )
+        )
+        row_layout.addWidget(save_button)
+
         remove_button, _remove_effect = self._make_icon_button(
             object_name="roiRemoveButton",
             text="✕",
@@ -1419,6 +1444,7 @@ class RoiInputWidget(QFrame):
             "apply_effect": apply_effect,
             "negate_button": negate_button,
             "negate_effect": negate_effect,
+            "save_button": save_button,
             "remove_button": remove_button,
         }
 

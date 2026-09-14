@@ -650,6 +650,7 @@ QCheckBox::indicator:checked {
 QToolButton#roiVisibilityButton,
 QToolButton#roiApplyButton,
 QToolButton#roiNegateButton,
+QToolButton#roiSaveButton,
 QToolButton#roiRemoveButton {
     padding: 0;
     margin: 0;
@@ -662,6 +663,7 @@ QToolButton#roiRemoveButton {
 QToolButton#roiVisibilityButton:hover,
 QToolButton#roiApplyButton:hover,
 QToolButton#roiNegateButton:hover,
+QToolButton#roiSaveButton:hover,
 QToolButton#roiRemoveButton:hover {
     border-color: #8a8a8a;
 }
