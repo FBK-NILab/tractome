@@ -260,6 +260,9 @@ class InteractionScreen(QWidget):
         self._right_section.parcel_input_widget.parcel_color_changed.connect(
             self._on_parcel_color_changed
         )
+        self._right_section.parcel_input_widget.parcel_probability_threshold_changed.connect(
+            self._on_parcel_probability_threshold_changed
+        )
         self._left_section.roi_input_widget.rois_changed.connect(self._on_rois_changed)
         self._left_section.roi_input_widget.roi_visibility_changed.connect(
             self._on_roi_visibility_changed
@@ -660,7 +663,8 @@ class InteractionScreen(QWidget):
         parcel_vis = visualization_manager.visualize_parcel()
         if parcel_vis is not None:
             self.add_visualization(parcel_vis, visualization_type="parcel")
-        self._right_section.parcel_input_widget.sync_parcel_visibility_button()
+        self._right_section.parcel_input_widget.refresh_parcel_lists()
+        self._center_section.show_manager.render()
 
     def _on_parcel_visibility_changed(self):
         """Re-render after toggling parcel visibility."""
@@ -692,6 +696,11 @@ class InteractionScreen(QWidget):
         new_viz = visualization_manager.parcel_visualizations
         if new_viz:
             self.add_visualization(new_viz, visualization_type="parcel")
+
+    def _on_parcel_probability_threshold_changed(self, threshold):
+        """Update parcel diameters in place without resetting the camera."""
+        visualization_manager.set_parcel_probability_threshold(threshold)
+        self._center_section.show_manager.render()
 
     def _on_rois_changed(self):
         """Rebuild the ROI visualization and re-filter streamlines.

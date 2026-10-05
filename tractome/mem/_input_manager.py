@@ -2,9 +2,9 @@ import numpy as np
 
 from tractome.io import (
     get_embedding_keys,
-    read_csv,
     read_mesh,
     read_nifti,
+    read_parcel,
     read_tractogram,
 )
 
@@ -524,7 +524,7 @@ class InputManager:
         Returns
         -------
         tuple
-            ``(points, colors, path, index)`` for the current parcel file.
+            ``(points, colors, probabilities, path, index)`` for the current file.
 
         Raises
         ------
@@ -536,13 +536,13 @@ class InputManager:
         idx = self._current_inputs["parcel"]
         if (
             self._loaded_inputs["parcel"] is not None
-            and self._loaded_inputs["parcel"][3] == idx
+            and self._loaded_inputs["parcel"][4] == idx
         ):
             return self._loaded_inputs["parcel"]
 
         path = self._provided_inputs["parcel"][idx]
-        points, colors = read_csv(path, delimiter=" ", has_header=False)
-        self._loaded_inputs["parcel"] = (points, colors, path, idx)
+        points, colors, probabilities = read_parcel(path)
+        self._loaded_inputs["parcel"] = (points, colors, probabilities, path, idx)
         return self._loaded_inputs["parcel"]
 
     @property
