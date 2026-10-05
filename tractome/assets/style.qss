@@ -904,7 +904,16 @@ QMessageBox QPushButton:pressed {
     background-color: transparent;
     color: #ffffff;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 6px 10px 6px 20px;
+}
+
+#itemPopupMenu::icon {
+    position: relative;
+    left: 10px;
+}
+
+#itemPopupMenu::item:disabled {
+    color: #bfbfbf;
 }
 
 #itemPopupMenu::item:selected {
@@ -918,9 +927,20 @@ QMessageBox QPushButton:pressed {
     margin: 4px 8px;
 }
 
+#roiConstraintStatus {
+    color: #bfbfbf;
+    padding: 6px 10px;
+}
+
 #popupMenuButton {
     background-color: transparent;
     border: none;
+}
+
+QToolButton#popupMenuButton::menu-indicator {
+    image: none;
+    width: 0px;
+    height: 0px;
 }
 
 #popupMenuButton:hover {

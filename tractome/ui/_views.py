@@ -497,7 +497,7 @@ class InteractionScreen(QWidget):
         self._center_section.show_manager.render()
 
     def _on_mesh_material_changed(self):
-        """Rebuild mesh when the Photographic toggle changes."""
+        """Rebuild only the mesh actor when its appearance changes."""
         if not input_manager.has_mesh:
             return
         mesh_viz = visualization_manager.mesh_visualizations
@@ -747,9 +747,7 @@ class InteractionScreen(QWidget):
     def _on_roi_save_requested(self, index):
         """Save the ROI at ``index`` as a NIfTI mask.
 
-        The volume is written on the voxel grid it was built on, with
-        the reference image's affine, so the saved mask overlays the
-        reference image without any further resampling.
+        The ROI's own voxel grid and affine are preserved without resampling.
 
         Parameters
         ----------

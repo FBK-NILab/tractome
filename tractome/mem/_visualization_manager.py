@@ -100,6 +100,7 @@ class VisualizationManager:
         self._roi_colormap = distinguishable_colormap()
         self._roi_colors = {}
         self._mesh_colors = {}
+        self._mesh_user_colors: dict[str, tuple[float, float, float]] = {}
         self._roi_visibility = {}
         self._roi_applied = {}
         self._roi_negated = {}
@@ -260,6 +261,19 @@ class VisualizationManager:
         """Return the 2D streamline projection list."""
         return self._2d_visualizations["tractogram"] or []
 
+    def set_mesh_color(
+        self, mesh_path: str, color: tuple[float, float, float] | None
+    ) -> None:
+        """Set a session-local uniform override, or restore automatic colors."""
+        if color is None:
+            self._mesh_user_colors.pop(mesh_path, None)
+        else:
+            self._mesh_user_colors[mesh_path] = color
+
+    def get_mesh_color(self, mesh_path: str) -> tuple[float, float, float] | None:
+        """Return the user override, excluding generated fallback colors."""
+        return self._mesh_user_colors.get(mesh_path)
+
     def visualize_mesh(self):
         """Build the mesh actor for the current mesh/texture pair.
 
@@ -275,10 +289,12 @@ class VisualizationManager:
         mesh_obj, texture_path, mesh_path, _ = input_manager.get_current_mesh()
         color = None
         if not texture_path:
-            color = self._mesh_colors.get(mesh_path)
-            if color is None:
-                color = next(self._roi_colormap)
-                self._mesh_colors[mesh_path] = color
+            color = self.get_mesh_color(mesh_path)
+            if color is None and mesh_obj.colors is None:
+                color = self._mesh_colors.get(mesh_path)
+                if color is None:
+                    color = next(self._roi_colormap)
+                    self._mesh_colors[mesh_path] = color
         mesh_actor = create_mesh(
             mesh_obj,
             texture=texture_path,

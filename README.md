@@ -22,10 +22,14 @@ pip install -e .
 **To run the tractome**
 
 ```
-tractome --tractogram <file_path> --mesh <file_path> --mesh_tex <file_path> --t1 <file_path>
+tractome 
 ```
 
-NOTE: All the options above are optional you can start and empty window as well. The functionality to add/swap files will be added later in the UI.
+The three-dot More menus in IMAGE, MESH, PARCELS, ROI, and Track View show their
+supplied action icons even when the platform normally hides menu icons. Icons
+and labels have a consistent left gutter inside the selection highlight;
+iconless actions remain aligned with the other labels. The ROI constraint-status
+line omits the icon-column indentation.
 
 **To visualize cluster representation**
 

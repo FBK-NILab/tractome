@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QWidget,
+    QWidgetAction,
 )
 
 from tractome.mem import input_manager, state_manager, visualization_manager
@@ -62,6 +63,8 @@ def _make_popup_menu_button(parent, actions, *, object_name="popupMenuButton"):
         action = QAction(label, button)
         if icon_path is not None:
             action.setIcon(QIcon(str(ICONS_PATH / icon_path)))
+            # Override platform policy that otherwise hides menu icons.
+            action.setIconVisibleInMenu(True)
         action.triggered.connect(lambda _checked=False, cb=callback: cb())
         menu.addAction(action)
         action_map[label] = action
@@ -524,9 +527,12 @@ class MeshInputWidget(QFrame):
             self,
             [
                 ("Hide/Show", "eye.svg", self._on_mesh_visibility_clicked),
+                ("Colour", "color.svg", self._on_mesh_color_clicked),
+                ("Reset colour", None, self._on_reset_mesh_color_clicked),
                 ("Delete", "close.svg", self._on_remove_mesh_clicked),
             ],
         )
+        self.mesh_menu_button.menu().aboutToShow.connect(self._sync_mesh_color_actions)
         self.mesh_row.addWidget(self.mesh_menu_button)
 
         self.main_layout.addLayout(self.mesh_row)
@@ -651,6 +657,59 @@ class MeshInputWidget(QFrame):
         has_mesh = input_manager.has_mesh
         self.mesh_menu_button.setVisible(has_mesh)
         self._update_mesh_controls_visibility()
+        self._sync_mesh_color_actions()
+
+    def _sync_mesh_color_actions(self):
+        """Enable uniform styling only for the current untextured mesh."""
+        try:
+            mesh_path, texture_path = input_manager.get_current_mesh_pair_paths()
+        except ValueError:
+            mesh_path, texture_path = None, None
+        eligible = mesh_path is not None and not texture_path
+        color_action = self._mesh_menu_actions["Colour"]
+        color_action.setEnabled(eligible)
+        color_action.setToolTip("Colour is available only without a texture.")
+        reset_action = self._mesh_menu_actions["Reset colour"]
+        reset_action.setEnabled(
+            eligible and visualization_manager.get_mesh_color(mesh_path) is not None
+        )
+        reset_action.setToolTip(
+            "Restore file colours, or the generated colour if the file has none."
+        )
+
+    def _on_mesh_color_clicked(self):
+        """Choose a uniform colour without changing geometry or projection."""
+        try:
+            mesh_path, texture_path = input_manager.get_current_mesh_pair_paths()
+        except ValueError:
+            return
+        if texture_path:
+            return
+        color = QColorDialog.getColor(parent=self)
+        if not color.isValid():
+            return
+        try:
+            current_path, texture_path = input_manager.get_current_mesh_pair_paths()
+        except ValueError:
+            return
+        if current_path != mesh_path or texture_path:
+            return
+        rgb = (color.redF(), color.greenF(), color.blueF())
+        visualization_manager.set_mesh_color(mesh_path, rgb)
+        self._sync_mesh_color_actions()
+        self.mesh_material_changed.emit()
+
+    def _on_reset_mesh_color_clicked(self):
+        """Restore file colours, or the cached fallback for an uncoloured file."""
+        try:
+            mesh_path, texture_path = input_manager.get_current_mesh_pair_paths()
+        except ValueError:
+            return
+        if texture_path or visualization_manager.get_mesh_color(mesh_path) is None:
+            return
+        visualization_manager.set_mesh_color(mesh_path, None)
+        self._sync_mesh_color_actions()
+        self.mesh_material_changed.emit()
 
     def _update_mesh_controls_visibility(self):
         """Show mesh controls only when at least one mesh is loaded."""
@@ -728,7 +787,7 @@ class MeshInputWidget(QFrame):
         """Prompt for a mesh and an optional texture, then add the pair.
 
         The texture is optional: cancelling the texture dialog adds the mesh
-        without a texture, in which case it is rendered with a solid colour.
+        with its file colors, or a generated color when the file is uncolored.
         """
         mesh_path = open_file_dialog(
             parent=self,
@@ -768,6 +827,7 @@ class MeshInputWidget(QFrame):
         if index < 0 or not input_manager.has_mesh:
             return
         input_manager.set_current_mesh_pair(index)
+        self._sync_mesh_color_actions()
         self.mesh_changed.emit()
         self._sync_mesh_dropdown_tooltip()
 
@@ -778,7 +838,10 @@ class MeshInputWidget(QFrame):
         idx = input_manager.current_mesh_index
         if idx < 0:
             return
+        mesh_path, _ = input_manager.get_current_mesh_pair_paths()
         input_manager.remove_mesh_pair(idx)
+        if mesh_path not in input_manager.provided_mesh_paths:
+            visualization_manager.set_mesh_color(mesh_path, None)
         self.refresh_mesh_lists()
         self.mesh_changed.emit()
 
@@ -814,7 +877,7 @@ class MeshInputWidget(QFrame):
         self.opacity_slider.blockSignals(False)
 
     def _set_mesh_current_path(self, current_mesh_path):
-        """Select the dropdown item matching the current mesh path.
+        """Synchronize the selected pair, retaining duplicate-path entry indices.
 
         Parameters
         ----------
@@ -826,7 +889,7 @@ class MeshInputWidget(QFrame):
             if not current_mesh_path:
                 self.mesh_dropdown.setCurrentIndex(-1)
             else:
-                idx = self.mesh_dropdown.findData(current_mesh_path, Qt.UserRole)
+                idx = input_manager.current_mesh_index
                 self.mesh_dropdown.setCurrentIndex(idx)
         finally:
             self.mesh_dropdown.blockSignals(False)
@@ -1301,7 +1364,17 @@ class RoiInputWidget(QFrame):
         """
         if index < 0 or index >= len(self._row_widgets):
             return
+        applied = visualization_manager.is_roi_applied_at(index)
+        negated = visualization_manager.is_roi_negated_at(index)
         row = self._row_widgets[index]
+        status = (
+            f"Constraint: {'Exclude' if negated else 'Include'} "
+            f"({'active' if applied else 'inactive'})"
+        )
+        row["constraint_status_label"].setText(status)
+        row["menu_button"].setToolTip(status)
+        row["constraint_status_action"].setVisible(self._show_filter_controls)
+        row["constraint_status_separator"].setVisible(self._show_filter_controls)
         row["include_action"].setVisible(self._show_filter_controls)
         row["exclude_action"].setVisible(self._show_filter_controls)
         width = row["label"].width()
@@ -1427,6 +1500,19 @@ class RoiInputWidget(QFrame):
                 ),
             ],
         )
+        menu = menu_button.menu()
+        first_action = menu.actions()[0]
+        status_action = QWidgetAction(menu)
+        status_label = QLabel()
+        status_label.setObjectName("roiConstraintStatus")
+        status_label.setIndent(0)
+        status_action.setDefaultWidget(status_label)
+        status_action.setEnabled(False)
+        menu.insertAction(first_action, status_action)
+        status_separator = menu.insertSeparator(first_action)
+        menu.aboutToShow.connect(
+            lambda w=row_widget: self._sync_row_appearance(self._row_index(w))
+        )
         row_layout.addWidget(menu_button)
 
         return {
@@ -1435,6 +1521,9 @@ class RoiInputWidget(QFrame):
             "full_name": name,
             "swatch": swatch,
             "menu_button": menu_button,
+            "constraint_status_action": status_action,
+            "constraint_status_label": status_label,
+            "constraint_status_separator": status_separator,
             "include_action": menu_actions["Include"],
             "exclude_action": menu_actions["Exclude"],
         }

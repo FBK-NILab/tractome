@@ -2,12 +2,16 @@ import csv
 from dataclasses import dataclass
 import logging
 import os
+from pathlib import Path
+import shlex
 
 from dipy.io.image import load_nifti, save_nifti
 from dipy.io.stateful_tractogram import Space, StatefulTractogram
 from dipy.io.streamline import load_tractogram, save_tractogram as dipy_save_tractogram
 import numpy as np
 import polyxios as px
+
+from fury.colormap import normalize_colors
 
 
 def get_file_extension(file_path):
@@ -164,6 +168,7 @@ class MeshData:
     faces: np.ndarray | None
     normals: np.ndarray | None = None
     texcoords: np.ndarray | None = None
+    colors: np.ndarray | None = None
 
 
 # Known per-format UV attribute name pairs in polyxios vertex_attrs.
@@ -180,79 +185,192 @@ def _extract_texcoords_from_attrs(attrs):
     return None
 
 
-def _read_obj_with_texcoords(path):
-    """Re-parse an OBJ to build a mesh with vertices split at UV seams.
+def _read_obj_material_colors(path) -> dict[str, tuple[float, float, float]]:
+    """Read standard diffuse colors; unavailable colors do not invalidate geometry."""
+    colors = {}
+    material = None
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line_number, line in enumerate(fh, 1):
+                parts = line.partition("#")[0].split()
+                if not parts:
+                    continue
+                if parts[0] == "newmtl":
+                    material = " ".join(parts[1:])
+                    colors.pop(material, None)
+                elif parts[0] == "Kd":
+                    try:
+                        rgb = tuple(float(value) for value in parts[1:])
+                        if len(rgb) != 3 or not all(
+                            np.isfinite(value) and 0 <= value <= 1 for value in rgb
+                        ):
+                            raise ValueError
+                    except ValueError:
+                        logging.warning(
+                            "Ignoring invalid MTL diffuse color in %s at line %d",
+                            path,
+                            line_number,
+                        )
+                        continue
+                    if material is not None:
+                        colors[material] = rgb
+    except OSError as error:
+        logging.warning("Unable to read OBJ material library %s: %s", path, error)
+    return colors
 
-    OBJ allows separate indices for positions (v), texture coordinates
-    (vt) and normals (vn) per face corner.  A single position that
-    touches different UVs at a seam must become multiple vertices so the
-    GPU gets a 1-to-1 vertex-to-UV mapping.  This function builds that
-    expanded mesh and returns the four arrays that :class:`MeshData`
-    expects.
-    """
-    positions: list[list[float]] = []
-    texcoords: list[list[float]] = []
-    normals: list[list[float]] = []
-    faces_raw: list[list[tuple[int, int | None, int | None]]] = []
+
+def _read_obj_mesh(path) -> MeshData:
+    """Decode OBJ face corners, splitting UV, normal and diffuse-color boundaries."""
+    positions = []
+    vertex_colors = []
+    texcoords = []
+    normals = []
+    faces_raw = []
+    material_colors = {}
+    material = None
+
+    def face_index(value, count, token, line_number):
+        try:
+            index = int(value)
+            if index == 0 or not -count <= index <= count:
+                raise ValueError
+        except ValueError:
+            raise ValueError(
+                f"Invalid OBJ face index in {path} at line {line_number}: {token}"
+            ) from None
+        return index - 1 if index > 0 else count + index
 
     with open(path, encoding="utf-8", errors="replace") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
+        for line_number, line in enumerate(fh, 1):
+            line = line.partition("#")[0].strip()
             parts = line.split()
+            if not parts:
+                continue
             directive = parts[0].lower()
-
             if directive == "v":
                 positions.append([float(parts[1]), float(parts[2]), float(parts[3])])
+                rgb = None
+                if len(parts) in (7, 8):
+                    try:
+                        rgb = tuple(float(value) for value in parts[4:7])
+                        if not all(
+                            np.isfinite(value) and 0 <= value <= 255 for value in rgb
+                        ):
+                            raise ValueError
+                    except ValueError:
+                        rgb = None
+                        logging.warning(
+                            "Ignoring invalid OBJ vertex color in %s at line %d",
+                            path,
+                            line_number,
+                        )
+                vertex_colors.append(rgb)
             elif directive == "vt":
                 texcoords.append(
                     [float(parts[1]), float(parts[2]) if len(parts) > 2 else 0.0]
                 )
             elif directive == "vn":
                 normals.append([float(parts[1]), float(parts[2]), float(parts[3])])
+            elif directive == "mtllib":
+                for library in shlex.split(line.split(maxsplit=1)[1], posix=False):
+                    if (
+                        len(library) >= 2
+                        and library[0] == library[-1]
+                        and library[0] in "\"'"
+                    ):
+                        library = library[1:-1]
+                    material_colors.update(
+                        _read_obj_material_colors(Path(path).parent / library)
+                    )
+            elif directive == "usemtl":
+                material = " ".join(parts[1:])
             elif directive == "f":
-                face: list[tuple[int, int | None, int | None]] = []
-                for tok in parts[1:]:
-                    c = tok.split("/")
-                    vi = int(c[0]) - 1
-                    vti = (int(c[1]) - 1) if len(c) >= 2 and c[1] else None
-                    vni = (int(c[2]) - 1) if len(c) >= 3 and c[2] else None
+                face = []
+                for token in parts[1:]:
+                    corner = token.split("/")
+                    vi = face_index(corner[0], len(positions), token, line_number)
+                    vti = (
+                        face_index(corner[1], len(texcoords), token, line_number)
+                        if len(corner) >= 2 and corner[1]
+                        else None
+                    )
+                    vni = (
+                        face_index(corner[2], len(normals), token, line_number)
+                        if len(corner) >= 3 and corner[2]
+                        else None
+                    )
                     face.append((vi, vti, vni))
-                faces_raw.append(face)
+                faces_raw.append((face, material))
 
-    if not texcoords:
-        return None, None, None, None
+    colored_indices = [i for i, rgb in enumerate(vertex_colors) if rgb is not None]
+    if colored_indices:
+        normalized = normalize_colors([vertex_colors[i] for i in colored_indices])
+        for index, rgb in zip(colored_indices, normalized, strict=True):
+            vertex_colors[index] = tuple(rgb)
 
-    unique: dict[tuple[int, int | None, int | None], int] = {}
-    new_pos: list[list[float]] = []
-    new_uv: list[list[float]] = []
-    new_nrm: list[list[float]] = []
-    tri_faces: list[list[int]] = []
+    def color_array(colors):
+        if not any(rgb is not None for rgb in colors):
+            return None
+        if any(rgb is None for rgb in colors):
+            logging.warning(
+                "OBJ %s contains uncolored face corners; using neutral gray", path
+            )
+        return np.asarray(
+            [rgb if rgb is not None else (0.7, 0.7, 0.7) for rgb in colors],
+            dtype=np.float32,
+        ).reshape(-1, 3)
 
-    for face in faces_raw:
-        idx: list[int] = []
-        for key in face:
+    if not faces_raw:
+        return MeshData(
+            vertices=np.asarray(positions, dtype=np.float32).reshape(-1, 3),
+            faces=np.empty((0, 3), dtype=np.int32),
+            colors=color_array(vertex_colors),
+        )
+
+    unique = {}
+    new_pos = []
+    new_uv = []
+    new_nrm = []
+    new_colors = []
+    tri_faces = []
+    complete_normals = True
+    for face, face_material in faces_raw:
+        indices = []
+        for vi, vti, vni in face:
+            rgb = vertex_colors[vi]
+            if rgb is None:
+                rgb = material_colors.get(face_material)
+            key = (vi, vti, vni, rgb)
             if key not in unique:
-                vi, vti, vni = key
                 unique[key] = len(new_pos)
                 new_pos.append(positions[vi])
+                new_colors.append(rgb)
                 new_uv.append(texcoords[vti] if vti is not None else [0.0, 0.0])
-                if normals and vni is not None:
+                if vni is None:
+                    complete_normals = False
+                else:
                     new_nrm.append(normals[vni])
-            idx.append(unique[key])
-        for i in range(1, len(idx) - 1):
-            tri_faces.append([idx[0], idx[i], idx[i + 1]])
+            indices.append(unique[key])
+        for i in range(1, len(indices) - 1):
+            tri_faces.append([indices[0], indices[i], indices[i + 1]])
 
-    verts = np.array(new_pos, dtype=np.float32)
-    faces_arr = np.array(tri_faces, dtype=np.int32)
-    uvs = np.array(new_uv, dtype=np.float32)
-    nrm_arr = np.array(new_nrm, dtype=np.float32) if new_nrm else None
-    return verts, faces_arr, nrm_arr, uvs
+    return MeshData(
+        vertices=np.asarray(new_pos, dtype=np.float32).reshape(-1, 3),
+        faces=np.asarray(tri_faces, dtype=np.int32).reshape(-1, 3),
+        normals=(
+            np.asarray(new_nrm, dtype=np.float32).reshape(-1, 3)
+            if complete_normals and new_nrm
+            else None
+        ),
+        texcoords=(
+            np.asarray(new_uv, dtype=np.float32).reshape(-1, 2) if texcoords else None
+        ),
+        colors=color_array(new_colors),
+    )
 
 
 def read_mesh(file_path, *, texture=None):
-    """Read a mesh file using polyxios.
+    """Read OBJ geometry/colors directly, or other mesh formats using polyxios.
 
     Parameters
     ----------
@@ -271,31 +389,23 @@ def read_mesh(file_path, *, texture=None):
     validated_path = validate_path(file_path)
     logging.info(f"Loading mesh from {validated_path} ...")
 
-    poly = px.read(validated_path)
-    vertices = np.asarray(poly.vertices, dtype=np.float32)
-    faces = poly.faces
-    if faces is not None:
-        faces = np.asarray(faces, dtype=np.int32)
-
-    normals = poly.vertex_attrs.get("normals")
-    if normals is not None:
-        normals = np.asarray(normals, dtype=np.float32)
-
-    texcoords = None
-    if texture:
-        texcoords = _extract_texcoords_from_attrs(poly.vertex_attrs)
-        if texcoords is None and validated_path.lower().endswith(".obj"):
-            obj_verts, obj_faces, obj_nrm, obj_uvs = _read_obj_with_texcoords(
-                validated_path
-            )
-            if obj_uvs is not None:
-                vertices, faces, texcoords = obj_verts, obj_faces, obj_uvs
-                if obj_nrm is not None:
-                    normals = obj_nrm
-
-    mesh = MeshData(
-        vertices=vertices, faces=faces, normals=normals, texcoords=texcoords
-    )
+    if validated_path.lower().endswith(".obj"):
+        mesh = _read_obj_mesh(validated_path)
+    else:
+        poly = px.read(validated_path)
+        vertices = np.asarray(poly.vertices, dtype=np.float32)
+        faces = poly.faces
+        if faces is not None:
+            faces = np.asarray(faces, dtype=np.int32)
+        normals = poly.vertex_attrs.get("normals")
+        if normals is not None:
+            normals = np.asarray(normals, dtype=np.float32)
+        texcoords = (
+            _extract_texcoords_from_attrs(poly.vertex_attrs) if texture else None
+        )
+        mesh = MeshData(
+            vertices=vertices, faces=faces, normals=normals, texcoords=texcoords
+        )
 
     if texture:
         texture = validate_path(texture)
@@ -447,7 +557,7 @@ def save_tractogram(sft, file_path):
 
 
 def save_roi(fpath, roi, affine):
-    """Save an ROI as a NIfTI file with uint8 dtype.
+    """Save positive ROI voxels as binary uint8 on the ROI's own grid.
 
     Parameters
     ----------
@@ -461,6 +571,6 @@ def save_roi(fpath, roi, affine):
     validated_path = os.path.expanduser(fpath)
     logging.info(f"Saving ROI to {validated_path} ...")
 
-    roi_uint8 = np.asarray(roi, dtype=np.uint8)
+    roi_uint8 = (np.asarray(roi) > 0).astype(np.uint8)
     save_nifti(validated_path, roi_uint8, affine, dtype=np.uint8)
     logging.info("ROI saved successfully.")
