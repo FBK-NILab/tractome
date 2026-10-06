@@ -1,3 +1,5 @@
+import functools
+
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
@@ -21,6 +23,32 @@ from fury.lib import (
 )
 from tractome.mem import state_manager, visualization_manager
 
+# Axis endpoint colors for the orientation gizmo, matched to the Tractome
+# logo palette (order: -X, +X, -Y, +Y, -Z, +Z).
+_GIZMO_AXIS_COLORS = [
+    (1.0, 0.518, 0.208),  # -X orange
+    (1.0, 0.518, 0.208),  # +X orange
+    (0.341, 0.831, 0.0),  # -Y green
+    (0.341, 0.831, 0.0),  # +Y green
+    (0.561, 0.259, 0.929),  # -Z purple
+    (0.561, 0.259, 0.929),  # +Z purple
+]
+
+
+class _ViewPreservingShowManager(window.ShowManager):
+    """FURY 2.0 viewport resizing without its implicit scene auto-fit."""
+
+    def _resize(self, size):
+        self._on_resize(size)
+        window.UIContext.canvas_size = size
+        bounds = window.calculate_screen_sizes(
+            self._screen_config, self.renderer.logical_size
+        )
+        for screen, bounding_box in zip(self.screens, bounds, strict=False):
+            screen.bounding_box = bounding_box
+        window.reposition_ui(self.screens)
+        self.render()
+
 
 class CenterSectionWidget(QFrame):
     """Center section container for visualization/content."""
@@ -41,13 +69,14 @@ class CenterSectionWidget(QFrame):
         self._3D_camera.add(DirectionalLight())
         self._3D_scene.add(self._3D_camera)
         self._3D_controller = TrackballController(self._3D_camera)
+        self._initial_3d_fit_requested = False
 
         self._2D_scene = window.Scene(background=(0.2, 0.2, 0.2))
         self._2D_scene.add(DirectionalLight())
         self._2D_camera = OrthographicCamera()
         self._2D_controller = PanZoomController(self._2D_camera)
 
-        self.show_manager = window.ShowManager(
+        self.show_manager = _ViewPreservingShowManager(
             scene=self._3D_scene,
             camera=self._3D_camera,
             controller=self._3D_controller,
@@ -112,11 +141,37 @@ class CenterSectionWidget(QFrame):
         self._build_keystroke_card(layout)
 
         self._axes_gizmo_margin = 60
-        self.show_manager.show_axes_gizmo(size=30, thickness=2)
+        self._show_axes_gizmo_with_logo_colors(size=30, thickness=2)
         # The wgpu canvas reports its own resize before Qt's
         # CenterSectionWidget.resizeEvent fires, so listen on both.
         self.show_manager.resize_callback(self._on_canvas_resize)
         QTimer.singleShot(0, self._reposition_axes_gizmo)
+
+    def _show_axes_gizmo_with_logo_colors(self, **kwargs):
+        """Show the axes gizmo colored to match the Tractome logo palette.
+
+        ``ShowManager.show_axes_gizmo`` builds its actors through
+        ``fury.window.create_axes_helper`` but does not forward a
+        ``colors`` argument, so the palette cannot be customized through
+        its public API. The creator is temporarily wrapped to inject the
+        logo colors for the duration of this single call; anchoring,
+        camera-relative rotation, click-to-orient, and depth-based
+        opacity remain unmodified fury behavior.
+
+        Parameters
+        ----------
+        **kwargs
+            Forwarded to ``ShowManager.show_axes_gizmo`` (e.g. ``size``,
+            ``thickness``).
+        """
+        original_create_axes_helper = window.create_axes_helper
+        window.create_axes_helper = functools.partial(
+            original_create_axes_helper, colors=_GIZMO_AXIS_COLORS
+        )
+        try:
+            self.show_manager.show_axes_gizmo(**kwargs)
+        finally:
+            window.create_axes_helper = original_create_axes_helper
 
     def _build_display_info_overlay(self, parent_layout):
         """Create display info overlay inside the visualization area.
@@ -213,10 +268,21 @@ class CenterSectionWidget(QFrame):
             Type/category of the visualization payload.
         """
         self._3D_scene.add(*visualizations)
+        if visualizations and not self._initial_3d_fit_requested:
+            self._initial_3d_fit_requested = True
+            QTimer.singleShot(0, self._fit_initial_3d_scene)
         if visualization_type == "tractogram":
             self._update_display_info()
             self._keystroke_card.setVisible(True)
         self._refresh_overlays()
+
+    def _fit_initial_3d_scene(self):
+        """Coalesce startup additions into one fit, leaving later views untouched."""
+        if self._3D_scene.main_scene.get_world_bounding_sphere() is None:
+            self._initial_3d_fit_requested = False
+            return
+        self._3D_camera.show_object(self._3D_scene.main_scene)
+        self.show_manager.render()
 
     def resizeEvent(self, event):
         """Re-pin the axes gizmo to the bottom-right after a canvas resize."""
@@ -240,7 +306,7 @@ class CenterSectionWidget(QFrame):
         ``size`` is the new ``(width, height)`` of the wgpu canvas, in
         logical pixels — when there's a single screen filling the
         window it matches ``screens[0].size`` so we use it directly
-        without having to wait for ``update_viewports`` to run.
+        without having to wait for viewport bounds to update.
 
         Parameters
         ----------

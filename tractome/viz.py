@@ -83,10 +83,10 @@ def create_mesh(mesh_obj, *, texture=None, color=None, photographic=True):
     mesh_obj : MeshData
         The input mesh data (from :func:`tractome.io.read_mesh`).
     texture : str or None, optional
-        Path to the texture image for the mesh. Ignored when ``color`` is given.
-    color : tuple or None, optional
-        RGB tuple in [0, 1] used to colour the whole mesh when no texture is
-        applied.
+        Path to the texture image for the mesh. Takes precedence over colors.
+    color : tuple or ndarray or None, optional
+        Explicit RGB for an untextured mesh, otherwise use file colors.
+        A supplied texture takes precedence over both.
     photographic : bool, optional
         When True (default) use basic shading suitable for textured photographic
         rendering; when False use phong shading with vertex normals.
@@ -96,11 +96,19 @@ def create_mesh(mesh_obj, *, texture=None, color=None, photographic=True):
     Mesh
         The created 3D mesh.
     """
-    vertices = mesh_obj.vertices * 1
+    vertices = mesh_obj.vertices
     faces = mesh_obj.faces
+    colors = None
+    if not texture:
+        colors = mesh_obj.colors
+        if color is not None:
+            colors = np.asarray(color, dtype=np.float32)
+            if colors.ndim == 1:
+                # FURY 2.0 mistakes an RGB vector for vertex data on a triangle.
+                colors = np.tile(colors, (len(vertices), 1))
 
     texture_coords = None
-    if texture and color is None and mesh_obj.texcoords is not None:
+    if texture and mesh_obj.texcoords is not None:
         uvs = np.asarray(mesh_obj.texcoords, dtype=np.float32).copy()
         logging.info("Flipping texture coordinates vertically (top-left image origin).")
         uvs[:, 1] = 1.0 - uvs[:, 1]
@@ -108,19 +116,15 @@ def create_mesh(mesh_obj, *, texture=None, color=None, photographic=True):
 
     normals = mesh_obj.normals
 
-    # A solid-coloured mesh (no texture) needs phong shading to convey 3D form;
-    # the photographic/basic material only makes sense for textured meshes.
-    if color is not None:
-        material = "phong"
-    else:
-        material = "basic" if photographic else "phong"
+    # Every untextured surface uses lighting, including vertex-colored meshes.
+    material = ("basic" if photographic else "phong") if texture else "phong"
 
     mesh = actor.surface(
         vertices,
         faces,
         material=material,
-        colors=color,
-        texture=None if color is not None else texture,
+        colors=colors,
+        texture=texture,
         texture_coords=texture_coords,
         normals=normals,
     )

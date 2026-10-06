@@ -1,7 +1,10 @@
-from PySide6.QtCore import QSize, Qt, Signal
+from pathlib import Path
+
+from PySide6.QtCore import QSize, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QComboBox,
     QFrame,
     QGraphicsOpacityEffect,
     QGridLayout,
@@ -19,8 +22,10 @@ from PySide6.QtWidgets import (
 )
 
 from tractome.mem import input_manager, state_manager, visualization_manager
+from tractome.ui._dialogs import CreditsDialog
 from tractome.ui._input_section import RoiInputWidget
-from tractome.ui._paths import ICONS_PATH
+from tractome.ui._paths import ICONS_PATH, IMAGES_PATH
+from tractome.ui.utils import open_file_dialog
 
 
 class ViewModeWidget(QFrame):
@@ -112,6 +117,7 @@ class FibersWidget(QFrame):
     """Fibers panel with the capture and neighbour-recovery controls."""
 
     recovery_requested = Signal(int)
+    tractogram_changed = Signal()
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -194,6 +200,34 @@ class FibersWidget(QFrame):
 
         self.main_layout.addWidget(self.recovery_controls_widget)
 
+        tractogram_row = QHBoxLayout()
+        tractogram_row.setSpacing(8)
+        tractogram_row.setContentsMargins(0, 0, 0, 0)
+
+        self.tractogram_upload_button = QPushButton("")
+        self.tractogram_upload_button.setIcon(QIcon(str(ICONS_PATH / "upload.svg")))
+        self.tractogram_upload_button.setIconSize(QSize(16, 16))
+        self.tractogram_upload_button.setObjectName("uploadButton")
+        self.tractogram_upload_button.setFixedSize(std_h, std_h)
+        self.tractogram_upload_button.setToolTip("Load tractogram file")
+        tractogram_row.addWidget(self.tractogram_upload_button)
+
+        self.tractogram_dropdown = QComboBox()
+        self.tractogram_dropdown.setObjectName("tractogramDropdown")
+        self.tractogram_dropdown.setFixedHeight(std_h)
+        self.tractogram_dropdown.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        tractogram_row.addWidget(self.tractogram_dropdown)
+
+        self.main_layout.addLayout(tractogram_row)
+
+        self.tractogram_upload_button.setCursor(Qt.PointingHandCursor)
+        self.tractogram_upload_button.clicked.connect(
+            self._on_tractogram_upload_clicked
+        )
+        self.tractogram_dropdown.currentIndexChanged.connect(
+            self._on_tractogram_selection_changed
+        )
+
         self.btn_up.clicked.connect(self.count_input.stepUp)
         self.btn_down.clicked.connect(self.count_input.stepDown)
         self.btn_recovery.clicked.connect(self._on_recovery_clicked)
@@ -201,9 +235,99 @@ class FibersWidget(QFrame):
         for btn in (self.btn_recovery, self.btn_up, self.btn_down):
             btn.setCursor(Qt.PointingHandCursor)
 
+        self._poll_timer = QTimer(self)
+        self._poll_timer.setInterval(500)
+        self._poll_timer.timeout.connect(self.refresh_tractograms)
+        self._poll_timer.start()
+
+        self.refresh_tractograms()
+
     def _on_recovery_clicked(self):
         """Emit the recovery request with the current fiber budget."""
         self.recovery_requested.emit(int(self.count_input.value()))
+
+    def _sync_tractogram_dropdown_tooltip(self):
+        """Show the current tractogram's full path on hover."""
+        path = self.tractogram_dropdown.currentData(Qt.UserRole)
+        self.tractogram_dropdown.setToolTip(str(path) if path else "")
+
+    def _set_current_tractogram_path(self, current_path):
+        """Select the dropdown item matching the current tractogram path.
+
+        Parameters
+        ----------
+        current_path : str or None
+            Tractogram path to select, or None to clear the selection.
+        """
+        self.tractogram_dropdown.blockSignals(True)
+        try:
+            if not current_path:
+                self.tractogram_dropdown.setCurrentIndex(-1)
+            else:
+                idx = self.tractogram_dropdown.findData(current_path, Qt.UserRole)
+                self.tractogram_dropdown.setCurrentIndex(idx)
+        finally:
+            self.tractogram_dropdown.blockSignals(False)
+        self._sync_tractogram_dropdown_tooltip()
+
+    def refresh_tractograms(self):
+        """Synchronize the dropdown with available tractograms."""
+        options = list(input_manager.provided_tractogram_paths)
+
+        try:
+            _, _, current_path, _ = input_manager.get_current_tractogram()
+        except ValueError:
+            current_path = None
+
+        current_items = [
+            self.tractogram_dropdown.itemData(i, Qt.UserRole)
+            for i in range(self.tractogram_dropdown.count())
+        ]
+        if current_items == options:
+            self._set_current_tractogram_path(current_path)
+        else:
+            self.tractogram_dropdown.blockSignals(True)
+            self.tractogram_dropdown.clear()
+            for path in options:
+                self.tractogram_dropdown.addItem(Path(path).name, path)
+                self.tractogram_dropdown.setItemData(
+                    self.tractogram_dropdown.count() - 1, str(path), Qt.ToolTipRole
+                )
+            self.tractogram_dropdown.blockSignals(False)
+            self._set_current_tractogram_path(current_path)
+
+    def _on_tractogram_upload_clicked(self):
+        """Upload a tractogram file and make it current."""
+        file_path = open_file_dialog(
+            parent=self,
+            title="Select a tractogram file",
+            file_filter=(
+                "Tractogram Files (*.trx *.trk);; TRX Files (*.trx);; "
+                "TRK Files (*.trk);; All Files (*.*)"
+            ),
+        )
+        if not file_path:
+            return
+        input_manager.add_tractogram(file_path)
+        self.refresh_tractograms()
+        self.tractogram_changed.emit()
+
+    def _on_tractogram_selection_changed(self, index):
+        """Switch the current tractogram from the dropdown selection.
+
+        Parameters
+        ----------
+        index : int
+            Selected dropdown index.
+        """
+        if index < 0:
+            return
+        path = self.tractogram_dropdown.itemData(index, Qt.UserRole)
+        if not path:
+            return
+        input_manager.add_tractogram(path)
+        self.refresh_tractograms()
+        self.tractogram_changed.emit()
 
 
 class ClustersWidget(QFrame):
@@ -221,11 +345,29 @@ class ClustersWidget(QFrame):
         self.title.setObjectName("clustersTitle")
         self.main_layout.addWidget(self.title)
 
+        std_h = 38
+
+        self.btn_filter = QPushButton()
+        self.btn_filter.setObjectName("clusterFilterButton")
+        self.btn_filter.setIcon(QIcon(str(ICONS_PATH / "filter.svg")))
+        self.btn_filter.setIconSize(QSize(18, 18))
+        self.btn_filter.setFixedSize(44, 44)
+        self.btn_filter.setCursor(Qt.PointingHandCursor)
+        self.btn_filter.setToolTip("Remove non-selected clusters")
+
+        filter_row = QHBoxLayout()
+        filter_row.setContentsMargins(0, 0, 0, 0)
+        filter_row.setSpacing(8)
+        filter_row.addWidget(self.btn_filter)
+        self.filter_label = QLabel("Filter Clusters")
+        self.filter_label.setObjectName("clusterFilterLabel")
+        filter_row.addWidget(self.filter_label)
+        filter_row.addStretch()
+        self.main_layout.addLayout(filter_row)
+
         self.grid = QGridLayout()
         self.grid.setSpacing(6)
         self.grid.setContentsMargins(0, 0, 0, 0)
-
-        std_h = 38
 
         self.count_input = QSpinBox()
         self.count_input.setObjectName("clusterCountInput")
@@ -261,22 +403,6 @@ class ClustersWidget(QFrame):
         self.btn_apply.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.btn_apply.clicked.connect(self._apply_clusters)
         self.grid.addWidget(self.btn_apply, 0, 2)
-
-        self.btn_prev = QPushButton("Prev State")
-        self.btn_next = QPushButton("Next State")
-        self.btn_prev.setObjectName("clusterNavButton")
-        self.btn_next.setObjectName("clusterNavButton")
-        self.btn_prev.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
-        self.btn_next.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
-        self.btn_prev.setMinimumWidth(90)
-        self.btn_next.setMinimumWidth(90)
-        self.btn_prev.setFixedHeight(std_h)
-        self.btn_next.setFixedHeight(std_h)
-        self.btn_prev.clicked.connect(self._on_prev_state)
-        self.btn_next.clicked.connect(self._on_next_state)
-
-        self.grid.addWidget(self.btn_prev, 1, 0, 1, 2)
-        self.grid.addWidget(self.btn_next, 1, 2)
 
         self.btn_settings = QToolButton()
         self.btn_settings.setObjectName("clusterSettingsButton")
@@ -314,7 +440,7 @@ class ClustersWidget(QFrame):
             self.settings_menu.addAction(action)
 
         self.btn_settings.setMenu(self.settings_menu)
-        self.grid.addWidget(self.btn_settings, 2, 0, 1, 3)
+        self.grid.addWidget(self.btn_settings, 1, 0, 1, 3)
 
         self.grid.setColumnStretch(0, 1)
         self.grid.setColumnStretch(1, 0)
@@ -324,12 +450,12 @@ class ClustersWidget(QFrame):
 
         self.btn_up.clicked.connect(self.count_input.stepUp)
         self.btn_down.clicked.connect(self.count_input.stepDown)
+        self.btn_filter.clicked.connect(self._on_filter_clusters)
 
         for btn in [
             self.btn_apply,
-            self.btn_prev,
-            self.btn_next,
             self.btn_settings,
+            self.btn_filter,
             self.btn_up,
             self.btn_down,
         ]:
@@ -373,21 +499,20 @@ class ClustersWidget(QFrame):
         )
         screen._refresh_mesh_projection_if_active()
 
-    def _on_prev_state(self):
-        """Handle the 'Previous State' button click."""
-        if state_manager.can_move_back():
-            latest_state = state_manager.move_back()
-            self.count_input.setMaximum(latest_state.max_clusters)
-            self.count_input.setValue(latest_state.nb_clusters)
-            self._apply_clusters(only_cluster=False)
+    def _delete_selected_clusters(self):
+        """Remove non-selected clusters without re-clustering.
 
-    def _on_next_state(self):
-        """Handle the 'Next State' button click."""
-        if state_manager.can_move_next():
-            latest_state = state_manager.move_next()
-            self.count_input.setMaximum(latest_state.max_clusters)
-            self.count_input.setValue(latest_state.nb_clusters)
-            self._apply_clusters(only_cluster=False)
+        Shared by the settings-menu Delete action and the filter-cluster
+        toolbar button: both remove the tractogram visualizations, call
+        ``visualization_manager.delete_clusters()``, and re-add them.
+        """
+        self._remove_tractogram_visualizations()
+        visualization_manager.delete_clusters()
+        self._add_tractogram_visualizations()
+
+    def _on_filter_clusters(self):
+        """Remove non-selected clusters without re-clustering."""
+        self._delete_selected_clusters()
 
     def _on_cluster_menu_action(self, action_name):
         """Handle cluster settings menu actions.
@@ -408,9 +533,7 @@ class ClustersWidget(QFrame):
         elif action_name == "Hide":
             visualization_manager.hide_clusters()
         elif action_name == "Delete":
-            self._remove_tractogram_visualizations()
-            visualization_manager.delete_clusters()
-            self._add_tractogram_visualizations()
+            self._delete_selected_clusters()
             return
         elif action_name == "Expand":
             self._remove_tractogram_visualizations()
@@ -888,8 +1011,6 @@ class RoiCreateWidget(QFrame):
 class LeftSectionWidget(QFrame):
     """The Sidebar container that holds the control modules."""
 
-    change_tractogram_requested = Signal()
-
     def __init__(self, *, parent=None):
         super().__init__(parent)
         self.setObjectName("interactionLeftSection")
@@ -914,20 +1035,63 @@ class LeftSectionWidget(QFrame):
         self.roi_create_widget.setVisible(False)
         self.main_layout.addWidget(self.roi_create_widget)
 
+        undo_redo_row = QHBoxLayout()
+        undo_redo_row.setContentsMargins(0, 0, 0, 0)
+        undo_redo_row.setSpacing(8)
+
+        self.btn_undo = QPushButton("Undo")
+        self.btn_undo.setObjectName("clusterNavButton")
+        self.btn_undo.setCursor(Qt.PointingHandCursor)
+        self.btn_undo.setFixedHeight(38)
+        self.btn_undo.setMinimumWidth(90)
+        self.btn_undo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.btn_undo.clicked.connect(self._on_undo)
+        undo_redo_row.addWidget(self.btn_undo)
+
+        self.btn_redo = QPushButton("Redo")
+        self.btn_redo.setObjectName("clusterNavButton")
+        self.btn_redo.setCursor(Qt.PointingHandCursor)
+        self.btn_redo.setFixedHeight(38)
+        self.btn_redo.setMinimumWidth(90)
+        self.btn_redo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.btn_redo.clicked.connect(self._on_redo)
+        undo_redo_row.addWidget(self.btn_redo)
+
+        self.main_layout.addLayout(undo_redo_row)
+
         self.main_layout.addStretch()
 
-        self.change_tractogram_button = QPushButton("Change tractogram")
-        self.change_tractogram_button.setObjectName("changeTractogramButton")
-        self.change_tractogram_button.setCursor(Qt.PointingHandCursor)
-        self.change_tractogram_button.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Fixed
-        )
-        self.change_tractogram_button.clicked.connect(
-            self.change_tractogram_requested.emit
-        )
-        self.main_layout.addWidget(self.change_tractogram_button)
+        self.btn_credits = QPushButton()
+        self.btn_credits.setObjectName("creditsLogoButton")
+        self.btn_credits.setIcon(QIcon(str(IMAGES_PATH / "logo.png")))
+        self.btn_credits.setIconSize(QSize(64, 18))
+        self.btn_credits.setFlat(True)
+        self.btn_credits.setCursor(Qt.PointingHandCursor)
+        self.btn_credits.setToolTip("About Tractome")
+        self.btn_credits.clicked.connect(self._on_show_credits)
+        self.main_layout.addWidget(self.btn_credits, alignment=Qt.AlignLeft)
 
         self._track_isolation_active = False
+
+    def _on_undo(self):
+        """Navigate to the previous cluster state (undo)."""
+        if state_manager.can_move_back():
+            latest_state = state_manager.move_back()
+            self.clusters_box.count_input.setMaximum(latest_state.max_clusters)
+            self.clusters_box.count_input.setValue(latest_state.nb_clusters)
+            self.clusters_box._apply_clusters(only_cluster=False)
+
+    def _on_redo(self):
+        """Navigate to the next cluster state (redo)."""
+        if state_manager.can_move_next():
+            latest_state = state_manager.move_next()
+            self.clusters_box.count_input.setMaximum(latest_state.max_clusters)
+            self.clusters_box.count_input.setValue(latest_state.nb_clusters)
+            self.clusters_box._apply_clusters(only_cluster=False)
+
+    def _on_show_credits(self):
+        """Open the Tractome credits/about dialog."""
+        CreditsDialog(self).exec()
 
     def set_track_isolation_active(self, active):
         """Hide cluster/ROI panels while a captured track is isolated.
@@ -956,6 +1120,8 @@ class LeftSectionWidget(QFrame):
         )
         self.roi_input_widget.set_filter_controls_visible(is_3d)
         self.roi_create_widget.setVisible(is_create_mode and not isolating)
+        self.btn_undo.setVisible(is_3d and not isolating)
+        self.btn_redo.setVisible(is_3d and not isolating)
 
         if has_tractogram_input:
             self._sync_clusters_from_latest_state()

@@ -100,6 +100,7 @@ class VisualizationManager:
         self._roi_colormap = distinguishable_colormap()
         self._roi_colors = {}
         self._mesh_colors = {}
+        self._mesh_user_colors: dict[str, tuple[float, float, float]] = {}
         self._roi_visibility = {}
         self._roi_applied = {}
         self._roi_negated = {}
@@ -260,6 +261,19 @@ class VisualizationManager:
         """Return the 2D streamline projection list."""
         return self._2d_visualizations["tractogram"] or []
 
+    def set_mesh_color(
+        self, mesh_path: str, color: tuple[float, float, float] | None
+    ) -> None:
+        """Set a session-local uniform override, or restore automatic colors."""
+        if color is None:
+            self._mesh_user_colors.pop(mesh_path, None)
+        else:
+            self._mesh_user_colors[mesh_path] = color
+
+    def get_mesh_color(self, mesh_path: str) -> tuple[float, float, float] | None:
+        """Return the user override, excluding generated fallback colors."""
+        return self._mesh_user_colors.get(mesh_path)
+
     def visualize_mesh(self):
         """Build the mesh actor for the current mesh/texture pair.
 
@@ -275,10 +289,12 @@ class VisualizationManager:
         mesh_obj, texture_path, mesh_path, _ = input_manager.get_current_mesh()
         color = None
         if not texture_path:
-            color = self._mesh_colors.get(mesh_path)
-            if color is None:
-                color = next(self._roi_colormap)
-                self._mesh_colors[mesh_path] = color
+            color = self.get_mesh_color(mesh_path)
+            if color is None and mesh_obj.colors is None:
+                color = self._mesh_colors.get(mesh_path)
+                if color is None:
+                    color = next(self._roi_colormap)
+                    self._mesh_colors[mesh_path] = color
         mesh_actor = create_mesh(
             mesh_obj,
             texture=texture_path,
@@ -893,17 +909,35 @@ class VisualizationManager:
         self._apply_tractogram_states()
 
     def delete_clusters(self):
-        """Delete selected clusters."""
+        """Remove non-selected clusters, keeping the rest exactly as they are.
+
+        Selected clusters' representative/line actors, colors, and radii
+        are reused unchanged, so surviving clusters keep their identity
+        instead of being recomputed by a fresh clustering pass. Pushed as
+        a new state so Undo/Redo can still navigate it.
+        """
         latest_state = state_manager.get_latest_state()
-        streamline_ids = []
-        for state_data in latest_state.tractogram_states.values():
+        kept_states = {}
+        for cluster_id, state_data in latest_state.tractogram_states.items():
             if state_data["selected"]:
-                streamline_ids.extend(state_data["streamline_ids"])
-        streamline_ids = np.unique(streamline_ids)
-        nb_clusters = min(latest_state.nb_clusters, len(streamline_ids))
-        state_manager.add_state(
-            ClusterState(nb_clusters, streamline_ids, latest_state.max_clusters)
+                kept = dict(state_data)
+                kept["selected"] = False
+                kept_states[cluster_id] = kept
+
+        if kept_states:
+            streamline_ids = np.unique(
+                np.concatenate(
+                    [np.asarray(s["streamline_ids"]) for s in kept_states.values()]
+                )
+            )
+        else:
+            streamline_ids = np.array([], dtype=np.int64)
+
+        new_state = ClusterState(
+            len(kept_states), streamline_ids, latest_state.max_clusters
         )
+        new_state.tractogram_states = kept_states
+        state_manager.add_state(new_state)
         self._apply_tractogram_states()
 
     def recover_neighbors(self, budget, *, nprobe=RECOVERY_NPROBE):
@@ -1211,6 +1245,29 @@ class VisualizationManager:
         state_manager.parcel_size = value
         _set_billboard_sphere_size(parcel[0], value)
 
+    def set_parcel_color(self, color):
+        """Set the color of the parcel actor.
+
+        Rebuilds the billboard actor with every point set to a single
+        uniform color, since the underlying billboard geometry bakes
+        per-point colors into its vertex buffer at creation time.
+
+        Parameters
+        ----------
+        color : tuple of float
+            RGB color, each in [0, 1].
+        """
+        parcel = self._visualizations["parcel"]
+        if not parcel or not input_manager.has_parcel:
+            return
+        points, _colors, _path, _idx = input_manager.get_current_parcel()
+        rgb_255 = np.asarray(color, dtype=np.float32) * 255.0
+        new_colors = np.tile(rgb_255, (len(points), 1))
+        parcel_actor = create_parcels(points, new_colors)
+        parcel_actor.visible = parcel[0].visible
+        _set_billboard_sphere_size(parcel_actor, state_manager.parcel_size)
+        self._visualizations["parcel"] = [parcel_actor]
+
     def sync_parcel_visibility_from_state(self):
         """Apply state_manager.parcel_visible to the parcel actor if present."""
         parcel = self._visualizations["parcel"]
@@ -1395,6 +1452,33 @@ class VisualizationManager:
         if index < 0 or index >= len(self._visualizations["roi"]):
             return None
         return getattr(self._visualizations["roi"][index], "color", None)
+
+    def set_roi_color(self, index, color):
+        """Set the color of the ROI actor at ``index``.
+
+        Updates the cached color used whenever ROI actors are rebuilt
+        (e.g. after a visibility or filter change) and, when the actor
+        already exists, recolors its contour meshes in place.
+
+        Parameters
+        ----------
+        index : int
+            ROI actor index.
+        color : tuple of float
+            RGB color, each in [0, 1].
+        """
+        if index < 0 or index >= len(input_manager.provided_roi_paths):
+            return
+        path = input_manager.provided_roi_paths[index]
+        color = tuple(float(c) for c in color)
+        self._roi_colors[path] = color
+        if index >= len(self._visualizations["roi"]):
+            return
+        roi_actor = self._visualizations["roi"][index]
+        roi_actor.color = color
+        for contour in roi_actor.children:
+            alpha = contour.material.color.a
+            contour.material.color = (*color, alpha)
 
     @property
     def roi_visualizations(self):

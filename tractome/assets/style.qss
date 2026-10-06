@@ -100,19 +100,6 @@ QCheckBox::indicator:checked {
   border: 2px solid white;
 }
 
-#changeTractogramButton {
-    background-color: #333333;
-    color: #ffffff;
-    border: 2px solid #d8d8d8;
-    border-radius: 8px;
-    font-size: 11pt;
-    padding: 8px;
-}
-
-#changeTractogramButton:hover {
-    background-color: #444444;
-}
-
 #interactionCenterSection {
   background-color: #333333;
   border: none;
@@ -253,6 +240,23 @@ QCheckBox::indicator:checked {
     border-radius: 8px;
     padding: 2px;
 	qproperty-alignment: 'AlignCenter';
+}
+
+#clusterFilterButton {
+    background-color: #2b2b2b;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+#clusterFilterButton:hover {
+    border-color: #2ecc71;
+}
+
+#clusterFilterLabel {
+    color: #ffffff;
+    font-size: 12pt;
+    font-weight: bold;
 }
 
 #clusterSettingsButton::menu-indicator {
@@ -884,4 +888,190 @@ QMessageBox QPushButton:pressed {
     border: 1px solid #575757;
     border-radius: 4px;
     padding: 4px;
+}
+
+/* 3-dot popup menus (ROI / Track View / IMAGE / MESH / PARCELS rows) */
+#itemPopupMenu {
+    margin: 2px 2px;
+    border-radius: 8px;
+    background-color: #575757;
+    border: 2px solid #747474;
+    color: #ffffff;
+    padding: 4px;
+}
+
+#itemPopupMenu::item {
+    background-color: transparent;
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 6px 10px 6px 20px;
+}
+
+#itemPopupMenu::icon {
+    position: relative;
+    left: 10px;
+}
+
+#itemPopupMenu::item:disabled {
+    color: #bfbfbf;
+}
+
+#itemPopupMenu::item:selected {
+    background-color: #2ecc71;
+    color: #121212;
+}
+
+#itemPopupMenu::separator {
+    height: 1px;
+    background: #747474;
+    margin: 4px 8px;
+}
+
+#roiConstraintStatus {
+    color: #bfbfbf;
+    padding: 6px 10px;
+}
+
+#popupMenuButton {
+    background-color: transparent;
+    border: none;
+}
+
+QToolButton#popupMenuButton::menu-indicator {
+    image: none;
+    width: 0px;
+    height: 0px;
+}
+
+#popupMenuButton:hover {
+    background-color: #3a3a3a;
+    border-radius: 4px;
+}
+
+#trackRowBar {
+    border-radius: 2px;
+}
+
+/* Tractogram dropdown (FIBERS section) */
+#tractogramDropdown {
+    color: #ffffff;
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 4px;
+    font-size: 11pt;
+    min-height: 1.2em;
+    outline: none;
+}
+
+#tractogramDropdown:hover {
+    border-color: #8a8a8a;
+}
+
+#tractogramDropdown:focus {
+    border-color: #747474;
+}
+
+#tractogramDropdown::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+    background: transparent;
+}
+
+#tractogramDropdown::down-arrow {
+    image: url(icons/arrow_down.svg);
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+}
+
+#tractogramDropdown QAbstractItemView {
+    background-color: #575757;
+    border: 2px solid #747474;
+    border-radius: 8px;
+    color: #ffffff;
+    selection-background-color: #2ecc71;
+    selection-color: #121212;
+    outline: none;
+    padding: 4px;
+}
+
+/* Compact branded header (logo + title) on Save/Embedding dialogs */
+#dialogBrandTitle {
+    color: #F0F0F0;
+    font-size: 14pt;
+    font-weight: 600;
+}
+
+#dialogBrandSeparator {
+    background-color: #575757;
+    max-height: 1px;
+    border: none;
+}
+
+/* Embedding-selection popup uses the same dark theme as save-options */
+#embeddingSelectionDialog {
+    background-color: #000000;
+}
+
+#embeddingSelectionDialog QLabel {
+    color: #ffffff;
+}
+
+#embeddingSelectionDialog QRadioButton {
+    color: #ffffff;
+}
+
+/* Credits / about dialog */
+#creditsDialog {
+    background-color: #383838;
+    border-radius: 12px;
+}
+
+#creditsTitle {
+    color: #F0F0F0;
+    font-size: 28pt;
+    font-weight: 600;
+}
+
+#creditsVersion {
+    color: #B0B0B0;
+    font-size: 14pt;
+}
+
+#creditsBody {
+    color: #F0F0F0;
+    font-size: 16pt;
+}
+
+#creditsLink {
+    color: #F0F0F0;
+    font-size: 14pt;
+}
+
+#creditsSectionHeader {
+    color: #B0B0B0;
+    font-size: 11pt;
+    letter-spacing: 2px;
+}
+
+#creditsReference {
+    color: #B0B0B0;
+    font-size: 10pt;
+}
+
+#creditsLogoButton {
+    background-color: transparent;
+    border: none;
+    padding: 4px;
+}
+
+#creditsLogoButton:hover {
+    background-color: #2a2a2a;
+    border-radius: 4px;
 }

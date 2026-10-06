@@ -1,9 +1,7 @@
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
-    QDialog,
     QMainWindow,
-    QMessageBox,
     QStackedWidget,
 )
 import click
@@ -11,12 +9,10 @@ import click
 from tractome.io import get_file_extension
 from tractome.mem import (
     input_manager,
-    recovery_manager,
     state_manager,
     visualization_manager,
 )
 from tractome.ui import (
-    EmbeddingSelectionDialog,
     InteractionScreen,
     StartScreen,
     load_style_sheet,
@@ -89,7 +85,7 @@ class Tractome(QMainWindow):
             input_manager.add_tractogram(tractogram)
         if t1 is not None:
             input_manager.add_t1(t1)
-        if mesh is not None and mesh_texture is not None:
+        if mesh is not None:
             input_manager.add_mesh(mesh, mesh_texture)
         if roi is not None:
             for roi_path in roi:
@@ -134,70 +130,15 @@ class Tractome(QMainWindow):
 
         self._stack = QStackedWidget()
         self.setCentralWidget(self._stack)
-        self._retired_interaction_screens = []
 
         self._start_screen = StartScreen(on_uploading_done=self._completed_start_screen)
         self._stack.addWidget(self._start_screen)
 
         self._interaction_screen = InteractionScreen()
-        self._interaction_screen.change_tractogram_requested.connect(
-            self._confirm_change_tractogram
-        )
         self._stack.addWidget(self._interaction_screen)
 
         if input_manager.has_input:
             self._completed_start_screen(None)
-
-    def _resolve_embedding_selection(self):
-        """Ensure an embedding is chosen for the current tractogram.
-
-        Embeddings are recognized generically: any per-streamline vector on
-        the tractogram counts, regardless of its name/type. When several are
-        present the user picks one via a radio-button dialog; a single one is
-        selected automatically; when none are present the user is offered to
-        generate a dissimilarity embedding on the fly.
-
-        Returns
-        -------
-        bool
-            True if an embedding is selected and clustering can proceed,
-            False if the user declined to generate one when none existed.
-        """
-        if not input_manager.has_tractogram:
-            return False
-        if input_manager.selected_embedding is not None:
-            return True
-
-        embedding_keys = input_manager.get_embedding_keys()
-
-        if len(embedding_keys) == 1:
-            input_manager.set_selected_embedding(embedding_keys[0])
-            return True
-
-        if len(embedding_keys) >= 2:
-            dialog = EmbeddingSelectionDialog(embedding_keys, self)
-            if dialog.exec() == QDialog.Accepted and dialog.selected_embedding:
-                input_manager.set_selected_embedding(dialog.selected_embedding)
-            else:
-                input_manager.set_selected_embedding(embedding_keys[0])
-            return True
-
-        result = QMessageBox.question(
-            self,
-            "No embeddings found",
-            "This tractogram has no embeddings.\n"
-            "Generate a dissimilarity embedding now?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.Yes,
-        )
-        if result != QMessageBox.Yes:
-            return False
-
-        name = visualization_manager.generate_dissimilarity_embedding()
-        if name is None:
-            return False
-        input_manager.set_selected_embedding(name)
-        return True
 
     def _visualize_inputs(self):
         """Visualize the inputs in the interaction screen."""
@@ -207,7 +148,7 @@ class Tractome(QMainWindow):
                 t1_visualization, visualization_type="t1"
             )
         if input_manager.has_tractogram:
-            self._resolve_embedding_selection()
+            self._interaction_screen._resolve_embedding_selection()
         tractogram_visualization = visualization_manager.visualize_tractogram()
         if tractogram_visualization is not None:
             self._interaction_screen.add_visualization(
@@ -246,36 +187,6 @@ class Tractome(QMainWindow):
                 self._interaction_screen.add_visualization(
                     tractogram_visualization, visualization_type="tractogram"
                 )
-
-    def _confirm_change_tractogram(self):
-        """Ask before resetting the app to choose a different tractogram."""
-        result = QMessageBox.question(
-            self,
-            "Change tractogram",
-            "Changing the tractogram will reset the application. Continue?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if result == QMessageBox.Yes:
-            self._reset_to_start_screen()
-
-    def _reset_to_start_screen(self):
-        """Reset managers and return to the tractogram upload screen."""
-        input_manager.reset()
-        state_manager.reset()
-        recovery_manager.reset()
-        visualization_manager.reset()
-
-        old_interaction_screen = self._interaction_screen
-        self._stack.removeWidget(old_interaction_screen)
-        self._retired_interaction_screens.append(old_interaction_screen)
-
-        self._interaction_screen = InteractionScreen()
-        self._interaction_screen.change_tractogram_requested.connect(
-            self._confirm_change_tractogram
-        )
-        self._stack.addWidget(self._interaction_screen)
-        self._stack.setCurrentWidget(self._start_screen)
 
     def start(self):
         """Show the main window and start the FURY/Qt loop."""

@@ -84,6 +84,17 @@ class StateManager:
         max_size = self._max_size
         self.__init__(max_size=max_size)
 
+    def clear_history(self):
+        """Discard cluster-state history without touching other settings.
+
+        Used when switching to a different tractogram: cluster history
+        (streamline ids, cluster selections) is tied to a specific set of
+        streamlines and must not carry over, while unrelated view state
+        (T1 slices, mesh/ROI/parcel settings) should be preserved.
+        """
+        self._states = []
+        self._current_index = -1
+
     def has_states(self):
         """Check if there are any states in the history.
 

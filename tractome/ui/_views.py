@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -24,6 +24,7 @@ from fury import distinguishable_colormap
 from tractome.io import get_embedding_keys, save_roi, save_tractogram
 from tractome.mem import input_manager, state_manager, visualization_manager
 from tractome.ui._control_section import LeftSectionWidget
+from tractome.ui._dialogs import EmbeddingSelectionDialog, _build_brand_header
 from tractome.ui._input_section import RightSectionWidget
 from tractome.ui._paths import IMAGES_PATH
 from tractome.ui._visualization_section import CenterSectionWidget
@@ -86,6 +87,7 @@ class SaveOptionsDialog(QDialog):
         self.setWindowTitle("Save track")
 
         layout = QVBoxLayout(self)
+        _build_brand_header(layout)
 
         self.name_edit = QLineEdit(default_name)
         self.name_edit.setObjectName("saveOptionsNameEdit")
@@ -203,8 +205,6 @@ class StartScreen(QWidget):
 class InteractionScreen(QWidget):
     """Interaction screen of the app."""
 
-    change_tractogram_requested = Signal()
-
     def __init__(self):
         """Initialize the interaction screen."""
         super().__init__()
@@ -216,8 +216,8 @@ class InteractionScreen(QWidget):
         self._left_section = LeftSectionWidget(parent=self)
         self._center_section = CenterSectionWidget()
         self._right_section = RightSectionWidget()
-        self._left_section.change_tractogram_requested.connect(
-            self.change_tractogram_requested.emit
+        self._left_section.fibers_box.tractogram_changed.connect(
+            self._on_tractogram_changed
         )
 
         # Per-track color generator: each captured view gets the next
@@ -256,6 +256,9 @@ class InteractionScreen(QWidget):
         )
         self._right_section.parcel_input_widget.parcel_size_changed.connect(
             self._on_parcel_size_changed
+        )
+        self._right_section.parcel_input_widget.parcel_color_changed.connect(
+            self._on_parcel_color_changed
         )
         self._left_section.roi_input_widget.rois_changed.connect(self._on_rois_changed)
         self._left_section.roi_input_widget.roi_visibility_changed.connect(
@@ -306,6 +309,9 @@ class InteractionScreen(QWidget):
         self._right_section.tracks_widget.track_remove_requested.connect(
             self._on_track_remove_requested
         )
+        self._right_section.tracks_widget.track_color_changed.connect(
+            self._on_track_color_changed
+        )
         self._right_section.btn_toggle_info.clicked.connect(
             self._center_section.toggle_display_info
         )
@@ -318,6 +324,91 @@ class InteractionScreen(QWidget):
         main_layout.addWidget(self._right_section, 1)
 
         visualization_manager.set_wgpu_device(self._center_section.show_manager.device)
+
+    def _resolve_embedding_selection(self):
+        """Ensure an embedding is chosen for the current tractogram.
+
+        Embeddings are recognized generically: any per-streamline vector on
+        the tractogram counts, regardless of its name/type. When several are
+        present the user picks one via a radio-button dialog; a single one is
+        selected automatically; when none are present the user is offered to
+        generate a dissimilarity embedding on the fly.
+
+        Returns
+        -------
+        bool
+            True if an embedding is selected and clustering can proceed,
+            False if the user declined to generate one when none existed.
+        """
+        if not input_manager.has_tractogram:
+            return False
+        if input_manager.selected_embedding is not None:
+            return True
+
+        embedding_keys = input_manager.get_embedding_keys()
+
+        if len(embedding_keys) == 1:
+            input_manager.set_selected_embedding(embedding_keys[0])
+            return True
+
+        if len(embedding_keys) >= 2:
+            dialog = EmbeddingSelectionDialog(embedding_keys, self)
+            if dialog.exec() == QDialog.Accepted and dialog.selected_embedding:
+                input_manager.set_selected_embedding(dialog.selected_embedding)
+            else:
+                input_manager.set_selected_embedding(embedding_keys[0])
+            return True
+
+        result = QMessageBox.question(
+            self,
+            "No embeddings found",
+            "This tractogram has no embeddings.\n"
+            "Generate a dissimilarity embedding now?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if result != QMessageBox.Yes:
+            return False
+
+        name = visualization_manager.generate_dissimilarity_embedding()
+        if name is None:
+            return False
+        input_manager.set_selected_embedding(name)
+        return True
+
+    def _on_tractogram_changed(self):
+        """Rebuild cluster/tractogram visualizations for a newly selected tractogram.
+
+        Captured tracks reference streamline indices from the previous
+        tractogram and are discarded. Other add-ons (T1, mesh, ROI, parcel)
+        are left untouched.
+        """
+        for index in reversed(
+            range(len(list(self._right_section.tracks_widget.iter_tracks())))
+        ):
+            self._on_track_remove_requested(index)
+
+        tractogram_viz = visualization_manager.tractogram_visualizations
+        if tractogram_viz:
+            self.remove_visualization(tractogram_viz, visualization_type="tractogram")
+
+        state_manager.clear_history()
+
+        if not self._resolve_embedding_selection():
+            self._center_section.show_manager.render()
+            return
+
+        tractogram_viz = visualization_manager.visualize_tractogram()
+        if tractogram_viz is not None:
+            self.add_visualization(tractogram_viz, visualization_type="tractogram")
+
+        if visualization_manager.apply_roi_filter() and tractogram_viz is not None:
+            self.remove_visualization(tractogram_viz, visualization_type="tractogram")
+            tractogram_viz = visualization_manager.visualize_tractogram(
+                nb_clusters=state_manager.get_latest_state().nb_clusters
+            )
+            if tractogram_viz is not None:
+                self.add_visualization(tractogram_viz, visualization_type="tractogram")
 
     def _on_t1_changed(self):
         """Refresh T1 visualization and reset slices for current T1."""
@@ -406,7 +497,7 @@ class InteractionScreen(QWidget):
         self._center_section.show_manager.render()
 
     def _on_mesh_material_changed(self):
-        """Rebuild mesh when the Photographic toggle changes."""
+        """Rebuild only the mesh actor when its appearance changes."""
         if not input_manager.has_mesh:
             return
         mesh_viz = visualization_manager.mesh_visualizations
@@ -586,6 +677,22 @@ class InteractionScreen(QWidget):
         visualization_manager.set_parcel_size(value)
         self._center_section.show_manager.render()
 
+    def _on_parcel_color_changed(self, rgb):
+        """Rebuild the parcel actor with a new uniform color.
+
+        Parameters
+        ----------
+        rgb : tuple of float
+            RGB color chosen from the Colour popup action, each in [0, 1].
+        """
+        old_viz = visualization_manager.parcel_visualizations
+        if old_viz:
+            self.remove_visualization(old_viz, visualization_type="parcel")
+        visualization_manager.set_parcel_color(rgb)
+        new_viz = visualization_manager.parcel_visualizations
+        if new_viz:
+            self.add_visualization(new_viz, visualization_type="parcel")
+
     def _on_rois_changed(self):
         """Rebuild the ROI visualization and re-filter streamlines.
 
@@ -640,9 +747,7 @@ class InteractionScreen(QWidget):
     def _on_roi_save_requested(self, index):
         """Save the ROI at ``index`` as a NIfTI mask.
 
-        The volume is written on the voxel grid it was built on, with
-        the reference image's affine, so the saved mask overlays the
-        reference image without any further resampling.
+        The ROI's own voxel grid and affine are preserved without resampling.
 
         Parameters
         ----------
@@ -1066,6 +1171,7 @@ class InteractionScreen(QWidget):
         self._apply_track_isolation()
         is_active = self._right_section.tracks_widget.has_active_track()
         self._left_section.set_track_isolation_active(is_active)
+        self._sync_track_default_bar(is_active)
         self._sync_keystroke_lock()
         if state_manager.mesh_project and not self._has_projectable_streamlines():
             self._disable_mesh_projection()
@@ -1073,6 +1179,20 @@ class InteractionScreen(QWidget):
             return
         self._refresh_mesh_projection_if_active()
         self._center_section.show_manager.render()
+
+    def _sync_track_default_bar(self, is_active):
+        """Gray out the Track Default header bar while a track is isolated.
+
+        Parameters
+        ----------
+        is_active : bool
+            Whether at least one captured track checkbox is checked.
+        """
+        bar = self._right_section.tracks_widget._header_bar
+        if is_active:
+            bar.setStyleSheet("background-color: #747474; border-radius: 2px;")
+        else:
+            bar.setStyleSheet("")
 
     def _disable_mesh_projection(self):
         """Turn off projection and restore the interactive tractogram."""
@@ -1152,6 +1272,25 @@ class InteractionScreen(QWidget):
             return None
         color = np.asarray(track["color"], dtype=np.float32)
         return create_streamlines(streamlines, color)
+
+    def _on_track_color_changed(self, index):
+        """Rebuild a captured track's actor after its color changes.
+
+        Parameters
+        ----------
+        index : int
+            Index of the recolored track.
+        """
+        track = self._right_section.tracks_widget.get_track(index)
+        if track is None:
+            return
+        old_actor = track.get("actor")
+        if old_actor is not None:
+            self._center_section._3D_scene.remove(old_actor)
+            track["actor"] = None
+        if track["visible"]:
+            self._apply_track_isolation()
+        self._center_section.show_manager.render()
 
     def _on_track_save_requested(self, index):
         """Export a captured track in the user-selected formats.

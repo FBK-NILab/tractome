@@ -107,11 +107,21 @@ class InputManager:
     def add_tractogram(self, tractogram):
         """Add a tractogram path and make it the current tractogram.
 
+        Re-adding a path already present selects it in place, matching
+        ``add_t1``/``add_parcel``, so switching back to a previously
+        loaded tractogram does not duplicate dropdown entries.
+
         Parameters
         ----------
         tractogram : str
             Path to the tractogram file to store.
         """
+        if tractogram in self._provided_inputs["tractogram"]:
+            self._current_inputs["tractogram"] = self._provided_inputs[
+                "tractogram"
+            ].index(tractogram)
+            return
+
         self._provided_inputs["tractogram"].append(tractogram)
         self._current_inputs["tractogram"] = (
             len(self._provided_inputs["tractogram"]) - 1
@@ -618,6 +628,51 @@ class InputManager:
             List of paths to the provided images.
         """
         return self._provided_inputs["t1"]
+
+    @property
+    def current_t1_index(self):
+        """Index of the selected T1 image.
+
+        Returns
+        -------
+        int
+            Selected T1 index, or -1 if no T1 image is selected.
+        """
+        return self._current_inputs["t1"]
+
+    def remove_t1(self, index):
+        """Remove a T1 image entry at the given index.
+
+        Parameters
+        ----------
+        index : int
+            Index of the T1 image to remove.
+        """
+        if index < 0 or index >= len(self._provided_inputs["t1"]):
+            raise ValueError("Invalid T1 index.")
+        del self._provided_inputs["t1"][index]
+        self._loaded_inputs["t1"] = None
+
+        n = len(self._provided_inputs["t1"])
+        if n == 0:
+            self._current_inputs["t1"] = -1
+        else:
+            cur = self._current_inputs["t1"]
+            if cur == index:
+                self._current_inputs["t1"] = min(index, n - 1)
+            elif cur > index:
+                self._current_inputs["t1"] = cur - 1
+
+    @property
+    def provided_tractogram_paths(self):
+        """Return paths for loaded tractogram files.
+
+        Returns
+        -------
+        list[str]
+            Tractogram file paths in the order they were added.
+        """
+        return list(self._provided_inputs["tractogram"])
 
     @property
     def provided_mesh_paths(self):
