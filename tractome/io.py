@@ -1,3 +1,4 @@
+import csv
 from dataclasses import dataclass
 import logging
 import os
@@ -437,13 +438,23 @@ def read_nifti(file_path):
     return nifti_img, affine
 
 
+def _parse_parcel_hex(value: str) -> tuple[int, int, int]:
+    value = value.strip()
+    if value.startswith("#"):
+        value = value[1:]
+    if len(value) != 6 or any(char not in "0123456789abcdefABCDEF" for char in value):
+        raise ValueError(f"Invalid parcel HEX color {value!r}: expected six hex digits")
+    return tuple(int(value[start : start + 2], 16) for start in (0, 2, 4))
+
+
 def read_parcel(
     file_path: str, *, encoding: str = "utf-8-sig"
 ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
-    """Load parcel vertices, optional RGB/RGBA colors, and probabilities.
+    """Load parcel vertices, optional RGB colors, and probabilities.
 
-    CSV columns are xyz, xyz/probability, xyz/RGB, or xyz/RGBA. PLY
-    faces are ignored; only vertex colors and probability/value are used.
+    CSV supports XYZ with RGB or HEX colors and/or a probability in [0,1].
+    Seven columns always mean XYZ/RGB/probability, not RGBA. PLY faces are
+    ignored; only vertex colors and probability/value are used.
     """
     resolved_path = os.path.expanduser(file_path)
     if os.path.isdir(resolved_path):
@@ -521,47 +532,76 @@ def read_parcel(
                     probabilities = np.asarray(attrs[name], dtype=np.float32)
                     break
         else:
-            delimiter = None
-            header_columns = None
-            skiprows = 0
-            has_rows = False
+            rows = []
+            columns = None
+            hex_colors = False
             with open(path, encoding=encoding) as source:
-                for line_number, line in enumerate(source):
-                    line = line.split("#", 1)[0].strip()
-                    if not line:
+                for line in source:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
                         continue
-                    delimiter = "," if "," in line else None
-                    fields = line.split(delimiter)
-                    if [field.strip().lower() for field in fields[:3]] == [
-                        "x",
-                        "y",
-                        "z",
-                    ]:
-                        header_columns = len(fields)
-                        skiprows = line_number + 1
-                        has_rows = any(row.split("#", 1)[0].strip() for row in source)
+                    if "," in line:
+                        fields = []
+                        for index, field in enumerate(
+                            next(csv.reader([line], skipinitialspace=True))
+                        ):
+                            field = field.strip()
+                            # A leading # in the color field belongs to HEX data.
+                            start = 1 if index == 3 and field.startswith("#") else 0
+                            comment = field.find("#", start)
+                            if comment != -1:
+                                field = field[:comment].strip()
+                                if field:
+                                    fields.append(field)
+                                break
+                            fields.append(field)
                     else:
-                        has_rows = True
-                    break
-                if has_rows:
-                    source.seek(0)
-                    data = np.loadtxt(
-                        source,
-                        delimiter=delimiter,
-                        skiprows=skiprows,
-                        dtype=np.float32,
-                        ndmin=2,
-                    )
-                elif header_columns is not None:
-                    data = np.empty((0, header_columns), dtype=np.float32)
-                else:
-                    data = np.empty((0, 3), dtype=np.float32)
-            columns = data.shape[1]
-            if columns not in (3, 4, 6, 7):
-                raise ValueError(f"Invalid parcel column count {columns} in {path}")
-            points = data[:, :3]
-            colors = data[:, 3:] if columns in (6, 7) else None
-            probabilities = data[:, 3] if columns == 4 else None
+                        fields = line.split("#", 1)[0].split()
+                    if not fields:
+                        continue
+                    if columns is None:
+                        columns = len(fields)
+                        if columns not in (3, 4, 5, 6, 7):
+                            raise ValueError(
+                                f"Invalid parcel column count {columns} in {path}"
+                            )
+                        header = [field.lower() for field in fields[:3]] == [
+                            "x",
+                            "y",
+                            "z",
+                        ]
+                        hex_colors = columns == 5
+                        if columns == 4:
+                            if header:
+                                hex_colors = fields[3].lower() == "hex"
+                            else:
+                                try:
+                                    float(fields[3])
+                                except ValueError:
+                                    hex_colors = True
+                        if header:
+                            continue
+                    if len(fields) != columns or any(not field for field in fields):
+                        raise ValueError(
+                            f"Invalid parcel row: expected {columns} nonempty fields"
+                        )
+                    rows.append(fields)
+            columns = columns if columns is not None else 3
+            points = np.asarray([row[:3] for row in rows], dtype=np.float32).reshape(
+                -1, 3
+            )
+            colors = None
+            if hex_colors:
+                colors = np.asarray(
+                    [_parse_parcel_hex(row[3]) for row in rows], dtype=np.float32
+                ).reshape(-1, 3)
+            elif columns in (6, 7):
+                colors = np.asarray(
+                    [row[3:6] for row in rows], dtype=np.float32
+                ).reshape(-1, 3)
+            probabilities = None
+            if columns in (5, 7) or (columns == 4 and not hex_colors):
+                probabilities = np.asarray([row[-1] for row in rows], dtype=np.float32)
 
         if points.ndim != 2 or points.shape[1] != 3 or not np.isfinite(points).all():
             raise ValueError(

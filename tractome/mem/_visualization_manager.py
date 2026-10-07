@@ -1284,12 +1284,17 @@ class VisualizationManager:
         parcel = self._visualizations["parcel"]
         if not parcel or not input_manager.has_parcel:
             return
-        points, _colors, _path, _idx = input_manager.get_current_parcel()
+        points, _colors, probabilities, _path, _idx = input_manager.get_current_parcel()
         rgb_255 = np.asarray(color, dtype=np.float32) * 255.0
         new_colors = np.tile(rgb_255, (len(points), 1))
         parcel_actor = create_parcels(points, new_colors)
         parcel_actor.visible = parcel[0].visible
-        _set_billboard_sphere_size(parcel_actor, state_manager.parcel_size)
+        _set_billboard_sphere_size(
+            parcel_actor,
+            state_manager.parcel_size,
+            probabilities=probabilities,
+            threshold=state_manager.parcel_probability_threshold,
+        )
         self._visualizations["parcel"] = [parcel_actor]
 
     def sync_parcel_visibility_from_state(self):
