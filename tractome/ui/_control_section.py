@@ -473,6 +473,8 @@ class ClustersWidget(QFrame):
         only_cluster : bool, optional
             If True, clear cached tractogram states before re-clustering.
         """
+        if state_manager.view_mode == "2D":
+            return
         value = self.count_input.value()
         if 1 <= value <= self.count_input.maximum():
             self._remove_tractogram_visualizations()
@@ -506,6 +508,8 @@ class ClustersWidget(QFrame):
         toolbar button: both remove the tractogram visualizations, call
         ``visualization_manager.delete_clusters()``, and re-add them.
         """
+        if state_manager.view_mode == "2D":
+            return
         self._remove_tractogram_visualizations()
         visualization_manager.delete_clusters()
         self._add_tractogram_visualizations()
@@ -522,6 +526,8 @@ class ClustersWidget(QFrame):
         action_name : str
             Text label of the selected cluster menu action.
         """
+        if state_manager.view_mode == "2D":
+            return
         if action_name == "All":
             visualization_manager.select_all_clusters()
         elif action_name == "None":
@@ -1075,6 +1081,8 @@ class LeftSectionWidget(QFrame):
 
     def _on_undo(self):
         """Navigate to the previous cluster state (undo)."""
+        if state_manager.view_mode == "2D":
+            return
         if state_manager.can_move_back():
             latest_state = state_manager.move_back()
             self.clusters_box.count_input.setMaximum(latest_state.max_clusters)
@@ -1083,6 +1091,8 @@ class LeftSectionWidget(QFrame):
 
     def _on_redo(self):
         """Navigate to the next cluster state (redo)."""
+        if state_manager.view_mode == "2D":
+            return
         if state_manager.can_move_next():
             latest_state = state_manager.move_next()
             self.clusters_box.count_input.setMaximum(latest_state.max_clusters)
@@ -1110,6 +1120,11 @@ class LeftSectionWidget(QFrame):
         is_create_mode = state_manager.roi_create_mode is not None
         has_tractogram_input = input_manager.has_tractogram
         isolating = self._track_isolation_active
+        editing_enabled = is_3d and not isolating
+        self.fibers_box.setEnabled(editing_enabled)
+        self.clusters_box.setEnabled(editing_enabled)
+        self.btn_undo.setEnabled(editing_enabled)
+        self.btn_redo.setEnabled(editing_enabled)
         show_regular_2d_rois = (
             not is_3d and not is_create_mode and input_manager.has_roi
         )

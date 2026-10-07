@@ -273,7 +273,8 @@ class CenterSectionWidget(QFrame):
             QTimer.singleShot(0, self._fit_initial_3d_scene)
         if visualization_type == "tractogram":
             self._update_display_info()
-            self._keystroke_card.setVisible(True)
+            if self._keystrokes_enabled:
+                self._keystroke_card.setVisible(True)
         self._refresh_overlays()
 
     def _fit_initial_3d_scene(self):
@@ -357,17 +358,16 @@ class CenterSectionWidget(QFrame):
         self._refresh_overlays()
 
     def set_track_isolation_active(self, active):
-        """Disable keystrokes and hide the keystroke card while a tract view is active.
+        """Apply the combined cluster-editing and shortcut-card lock.
 
-        On entering isolation, the current keystroke-card visibility is
-        remembered and restored when isolation ends. Keystroke handling
-        is also gated so cluster-mutation keys (a/n/i/d/e/c/s/h/x) do
-        nothing while a captured view is shown.
+        Snapshot card visibility when locking and restore it on release.
+        2D inspection, captured-track isolation, and mesh projection share
+        this lock; cluster-mutation keys (a/n/i/d/e/c/s/h/x) are unavailable.
 
         Parameters
         ----------
         active : bool
-            Whether a captured track is isolated.
+            Whether cluster editing is locked.
         """
         if active:
             if self._keystrokes_enabled:
@@ -979,7 +979,7 @@ class CenterSectionWidget(QFrame):
         event : Event
             The key stroke event.
         """
-        if not self._keystrokes_enabled:
+        if state_manager.view_mode == "2D" or not self._keystrokes_enabled:
             return
         cluster_state_changed = False
         if event.key == "e":

@@ -178,8 +178,9 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         lift=-4.0,
     )
 
-    obj = actor.Group()
+    obj = actor.Group(name="Slicer")
     obj.add(x_projection, y_projection, z_projection)
+    actor.show_slices(obj, slice_values)
     return obj
 
 
