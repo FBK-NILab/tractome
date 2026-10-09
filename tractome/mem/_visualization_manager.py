@@ -191,44 +191,50 @@ class VisualizationManager:
             self._2d_visualizations["roi"].append(slicer)
         return self._2d_visualizations["roi"]
 
-    def visualize_streamlines_projection_2d(self):
-        """Build streamline projections for selected clusters in 2D.
+    def visualize_streamlines_projection_2d(self, *, streamline_colors=None):
+        """Build expanded default fibers or an isolated captured source in 2D.
 
-        Returns
-        -------
-        list
-            A single-element list with the projection group actor, or an
-            empty list when no clusters are selected.
+        A captured per-streamline RGB mapping replaces the default source;
+        an empty mapping intentionally produces no projections.
         """
-        self._2d_visualizations["tractogram"] = None
-        if not input_manager.has_tractogram or not state_manager.has_states():
-            return []
-
-        latest_state = state_manager.get_latest_state()
-        if latest_state.tractogram_states is None:
-            return []
-
-        sft, _, _, _ = input_manager.get_current_tractogram()
-        slice_values = state_manager.t1_state
-
         projections = []
-        for state_data in latest_state.tractogram_states.values():
-            if not state_data["selected"]:
-                continue
-            streamlines = [
-                np.asarray(sft.streamlines[i]) for i in state_data["streamline_ids"]
-            ]
+        self._2d_visualizations["tractogram"] = projections
+        if not input_manager.has_tractogram:
+            return projections
+
+        sources = []
+        if streamline_colors is not None:
+            if streamline_colors:
+                sources.append(
+                    (
+                        streamline_colors.keys(),
+                        np.asarray(list(streamline_colors.values()), dtype=np.float32),
+                    )
+                )
+        else:
+            if not state_manager.has_states():
+                return projections
+            latest_state = state_manager.get_latest_state()
+            if latest_state.tractogram_states is None:
+                return projections
+            for state_data in latest_state.tractogram_states.values():
+                if state_data.get("expanded") and state_data.get("visible", True):
+                    sources.append((state_data["streamline_ids"], state_data["color"]))
+
+        if not sources:
+            return projections
+        sft, _, _, _ = input_manager.get_current_tractogram()
+        for streamline_ids, colors in sources:
+            streamlines = [np.asarray(sft.streamlines[i]) for i in streamline_ids]
             if not streamlines:
                 continue
             projection = create_streamlines_projection(
                 streamlines=streamlines,
-                colors=state_data["color"],
-                slice_values=slice_values,
+                colors=colors,
+                slice_values=state_manager.t1_state,
             )
             set_group_visibility(projection, state_manager.t1_slice_visibility_2d)
             projections.append(projection)
-
-        self._2d_visualizations["tractogram"] = projections
         return projections
 
     def _build_roi_rgba_volume(self, volume, color):

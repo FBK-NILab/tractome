@@ -1374,6 +1374,8 @@ class RoiInputWidget(QFrame):
         index : int
             Index of the ROI row whose applied flag should flip.
         """
+        if state_manager.view_mode == "2D":
+            return
         if index < 0:
             return
         visualization_manager.toggle_roi_applied_at(index)
@@ -1388,6 +1390,8 @@ class RoiInputWidget(QFrame):
         index : int
             Index of the ROI row whose negation flag should flip.
         """
+        if state_manager.view_mode == "2D":
+            return
         if index < 0:
             return
         visualization_manager.toggle_roi_negated_at(index)
@@ -1443,6 +1447,8 @@ class RoiInputWidget(QFrame):
         row["constraint_status_separator"].setVisible(self._show_filter_controls)
         row["include_action"].setVisible(self._show_filter_controls)
         row["exclude_action"].setVisible(self._show_filter_controls)
+        row["include_action"].setEnabled(self._show_filter_controls)
+        row["exclude_action"].setEnabled(self._show_filter_controls)
         width = row["label"].width()
         if width > 0:
             row["label"].setText(

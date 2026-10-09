@@ -150,9 +150,14 @@ def create_streamlines_projection(streamlines, colors, slice_values):
     -------
     Group
         Group actor holding the X, Y, and Z plane projections.
+
+    Notes
+    -----
+    Marker size is 1.0 world units with a 0.25-world-unit outline.
+    Both scale with the anatomy during zoom, without a minimum pixel size.
     """
-    thickness = 3
-    outline_thickness = 1.0
+    thickness = 1.0
+    outline_thickness = 0.25
     z_projection = actor.line_projection(
         streamlines,
         plane=(0, 0, -1, slice_values[2]),
@@ -178,8 +183,11 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         lift=-4.0,
     )
 
-    obj = actor.Group()
+    obj = actor.Group(name="Slicer")
     obj.add(x_projection, y_projection, z_projection)
+    for projection in obj.children:
+        projection.material.size_space = "world"
+    actor.show_slices(obj, slice_values)
     return obj
 
 

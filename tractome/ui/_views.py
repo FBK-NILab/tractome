@@ -1062,6 +1062,8 @@ class InteractionScreen(QWidget):
         with a uniform per-view color. If no cluster is expanded,
         prompts the user to expand one first.
         """
+        if state_manager.view_mode == "2D":
+            return
         if not state_manager.has_states():
             return
         latest_state = state_manager.get_latest_state()
@@ -1088,6 +1090,8 @@ class InteractionScreen(QWidget):
         budget : int
             Maximum number of fibers to recover, from the Fibers spin box.
         """
+        if state_manager.view_mode == "2D":
+            return
         if not state_manager.has_states():
             return
 
@@ -1164,13 +1168,13 @@ class InteractionScreen(QWidget):
     def _sync_keystroke_lock(self):
         """Gate keystrokes, the keystroke card, and the shortcut toggle.
 
-        They are disabled while a captured track is isolated or while mesh
-        projection is active, so projection mirrors the capture-view lock.
-        Driven off the combined state so turning one off does not unlock
-        while the other is still on.
+        Disabled during 2D inspection, captured-track isolation, or mesh
+        projection. Releasing one condition does not release another.
         """
-        locked = self._right_section.tracks_widget.has_active_track() or bool(
-            state_manager.mesh_project
+        locked = (
+            state_manager.view_mode == "2D"
+            or self._right_section.tracks_widget.has_active_track()
+            or bool(state_manager.mesh_project)
         )
         self._center_section.set_track_isolation_active(locked)
         self._right_section.btn_toggle_shortcuts.setDisabled(locked)
@@ -1182,8 +1186,10 @@ class InteractionScreen(QWidget):
         self._left_section.set_track_isolation_active(is_active)
         self._sync_track_default_bar(is_active)
         self._sync_keystroke_lock()
+        self._refresh_2d_streamlines()
         if state_manager.mesh_project and not self._has_projectable_streamlines():
             self._disable_mesh_projection()
+            self._sync_keystroke_lock()
             self._center_section.show_manager.render()
             return
         self._refresh_mesh_projection_if_active()
@@ -1299,6 +1305,7 @@ class InteractionScreen(QWidget):
             track["actor"] = None
         if track["visible"]:
             self._apply_track_isolation()
+            self._refresh_2d_streamlines()
         self._center_section.show_manager.render()
 
     def _on_track_save_requested(self, index):
@@ -1432,6 +1439,7 @@ class InteractionScreen(QWidget):
             self._commit_roi_create_session()
 
         state_manager.view_mode = mode
+        self._sync_keystroke_lock()
         if mode == "2D":
             self._build_2d_scene_contents()
             self._right_section.mesh_input_widget.setVisible(False)
@@ -1449,15 +1457,11 @@ class InteractionScreen(QWidget):
         """Rebuild the actors that belong to the 2D scene.
 
         Existing 2D T1 / ROI / streamline actors are removed first so the
-        2D scene reflects the current data and selection. The streamline
-        projections are recomputed from the latest cluster selection.
+        2D scene reflects the current inputs and fiber source.
         """
         center = self._center_section
         center.remove_2d_visualization(visualization_manager.t1_2d_visualizations)
         center.remove_2d_visualization(visualization_manager.roi_2d_visualizations)
-        center.remove_2d_visualization(
-            visualization_manager.streamlines_2d_visualizations
-        )
 
         t1_2d = visualization_manager.visualize_t1_2d()
         if t1_2d:
@@ -1467,9 +1471,26 @@ class InteractionScreen(QWidget):
         if roi_2d:
             center.add_2d_visualization(roi_2d)
 
-        projections = visualization_manager.visualize_streamlines_projection_2d()
-        if projections:
-            center.add_2d_visualization(projections)
+        self._refresh_2d_streamlines()
+
+    def _refresh_2d_streamlines(self):
+        """Replace only the active 2D fiber source without reframing or rendering."""
+        if state_manager.view_mode != "2D":
+            return
+        center = self._center_section
+        center.remove_2d_visualization(
+            visualization_manager.streamlines_2d_visualizations
+        )
+        tracks = self._right_section.tracks_widget
+        source = (
+            (self._active_track_projection_source() or {})
+            if tracks.has_active_track()
+            else None
+        )
+        projections = visualization_manager.visualize_streamlines_projection_2d(
+            streamline_colors=source
+        )
+        center.add_2d_visualization(projections)
 
     def add_visualization(self, visualizations, visualization_type="unknown"):
         """Add a visualization to the center section.
