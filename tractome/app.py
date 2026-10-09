@@ -55,7 +55,7 @@ class Tractome(QMainWindow):
         roi : list[str], optional
             List of paths to ROI files
         parcel : str, optional
-            Path to a parcel CSV file
+            Path to a parcel CSV or PLY file
         """
         super().__init__()
         self._initialize_input_manager(tractogram, t1, mesh, mesh_texture, roi, parcel)
@@ -166,6 +166,7 @@ class Tractome(QMainWindow):
                 parcel_visualization, visualization_type="parcel"
             )
             self._interaction_screen._right_section.parcel_input_widget.sync_parcel_visibility_button()
+        self._interaction_screen._right_section.parcel_input_widget.refresh_parcel_lists()
         roi_visualization = visualization_manager.visualize_rois()
         if roi_visualization:
             self._interaction_screen.add_visualization(
@@ -216,7 +217,7 @@ class Tractome(QMainWindow):
 @click.option(
     "--parcel",
     type=click.Path(exists=True),
-    help=("Path to a parcel CSV file."),
+    help="Path to a parcel CSV or PLY file.",
 )
 def tractome(
     tractogram=None, mesh=None, mesh_texture=None, t1=None, roi=(), parcel=None
@@ -236,7 +237,7 @@ def tractome(
     roi : tuple[str], optional
         One or more paths to ROI files
     parcel : str, optional
-        Path to a parcel CSV file
+        Path to a parcel CSV or PLY file
     """
     tractome = Tractome(tractogram, t1, mesh, mesh_texture, roi, parcel)
     tractome.start()

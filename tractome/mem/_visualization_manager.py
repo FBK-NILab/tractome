@@ -37,7 +37,9 @@ from tractome.viz import (
 _PARCEL_MAX_RADIUS = 0.10
 
 
-def _set_billboard_sphere_size(parcel_actor, slider_value):
+def _set_billboard_sphere_size(
+    parcel_actor, slider_value, *, probabilities=None, threshold=0.0
+):
     """Update billboard sphere radii via the geometry normals buffer.
 
     The billboard sphere shader reads size from the normals buffer
@@ -51,11 +53,15 @@ def _set_billboard_sphere_size(parcel_actor, slider_value):
     slider_value : int
         Slider value in range 0-100.
     """
-    radius = (slider_value / 100.0) * _PARCEL_MAX_RADIUS
-    diameter = radius * 2.0
-    normals = parcel_actor.geometry.normals.data
-    normals[:, 0] = diameter
-    normals[:, 1] = diameter
+    diameter = (slider_value / 100.0) * _PARCEL_MAX_RADIUS * 2.0
+    normals = parcel_actor.geometry.normals.data.reshape(-1, 6, 3)
+    if probabilities is None:
+        normals[:, :, :2] = diameter
+        parcel_actor.billboard_sizes[:] = diameter
+    else:
+        diameters = np.where(probabilities >= threshold, diameter, 0.0)
+        normals[:, :, :2] = diameters[:, None, None]
+        parcel_actor.billboard_sizes[:] = diameters[:, None]
     parcel_actor.geometry.normals.update_range()
 
 
@@ -1216,20 +1222,27 @@ class VisualizationManager:
             self._visualizations["parcel"] = None
             return None
 
-        points, colors, _, _ = input_manager.get_current_parcel()
+        points, colors, probabilities, _, _ = input_manager.get_current_parcel()
+        if not len(points):
+            self._visualizations["parcel"] = None
+            return None
         parcel_actor = create_parcels(points, colors)
         parcel_actor.visible = state_manager.parcel_visible
-        _set_billboard_sphere_size(parcel_actor, state_manager.parcel_size)
+        _set_billboard_sphere_size(
+            parcel_actor,
+            state_manager.parcel_size,
+            probabilities=probabilities,
+            threshold=state_manager.parcel_probability_threshold,
+        )
         self._visualizations["parcel"] = [parcel_actor]
         return self._visualizations["parcel"]
 
     def toggle_parcel_visibility(self):
-        """Toggle parcel actor visibility."""
-        parcel = self._visualizations["parcel"]
-        if not parcel:
+        """Toggle loaded parcel visibility, including empty inputs."""
+        if not input_manager.has_parcel:
             return
-        parcel[0].visible = not parcel[0].visible
-        state_manager.parcel_visible = parcel[0].visible
+        state_manager.parcel_visible = not state_manager.parcel_visible
+        self.sync_parcel_visibility_from_state()
 
     def set_parcel_size(self, value):
         """Set parcel sphere size from a slider value.
@@ -1239,11 +1252,22 @@ class VisualizationManager:
         value : int
             Slider value in the range 0-100.
         """
+        state_manager.parcel_size = value
         parcel = self._visualizations["parcel"]
         if not parcel:
             return
-        state_manager.parcel_size = value
-        _set_billboard_sphere_size(parcel[0], value)
+        _, _, probabilities, _, _ = input_manager.get_current_parcel()
+        _set_billboard_sphere_size(
+            parcel[0],
+            value,
+            probabilities=probabilities,
+            threshold=state_manager.parcel_probability_threshold,
+        )
+
+    def set_parcel_probability_threshold(self, value):
+        """Filter existing parcel spheres without rebuilding geometry."""
+        state_manager.parcel_probability_threshold = float(value)
+        self.set_parcel_size(state_manager.parcel_size)
 
     def set_parcel_color(self, color):
         """Set the color of the parcel actor.
@@ -1260,12 +1284,17 @@ class VisualizationManager:
         parcel = self._visualizations["parcel"]
         if not parcel or not input_manager.has_parcel:
             return
-        points, _colors, _path, _idx = input_manager.get_current_parcel()
+        points, _colors, probabilities, _path, _idx = input_manager.get_current_parcel()
         rgb_255 = np.asarray(color, dtype=np.float32) * 255.0
         new_colors = np.tile(rgb_255, (len(points), 1))
         parcel_actor = create_parcels(points, new_colors)
         parcel_actor.visible = parcel[0].visible
-        _set_billboard_sphere_size(parcel_actor, state_manager.parcel_size)
+        _set_billboard_sphere_size(
+            parcel_actor,
+            state_manager.parcel_size,
+            probabilities=probabilities,
+            threshold=state_manager.parcel_probability_threshold,
+        )
         self._visualizations["parcel"] = [parcel_actor]
 
     def sync_parcel_visibility_from_state(self):
@@ -1277,10 +1306,10 @@ class VisualizationManager:
 
     @property
     def parcel_is_visible(self):
-        """Whether the parcel actor is shown (defaults True if absent)."""
+        """Whether the parcel is shown, retaining state without an actor."""
         parcel = self._visualizations["parcel"]
         if not parcel:
-            return True
+            return state_manager.parcel_visible
         return bool(parcel[0].visible)
 
     @property

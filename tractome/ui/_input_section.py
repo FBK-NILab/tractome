@@ -901,12 +901,13 @@ class MeshInputWidget(QFrame):
 
 
 class ParcelInputWidget(QFrame):
-    """Widget for parcel CSV inputs (space-separated points and colors)."""
+    """Widget for parcel CSV/PLY vertex inputs and probability filtering."""
 
     parcel_changed = Signal()
     parcel_visibility_changed = Signal()
     parcel_size_changed = Signal(int)
     parcel_color_changed = Signal(tuple)
+    parcel_probability_threshold_changed = Signal(float)
 
     def __init__(self, *, parent=None):
         super().__init__(parent)
@@ -931,9 +932,7 @@ class ParcelInputWidget(QFrame):
         self.parcel_upload_button.setIconSize(QSize(16, 16))
         self.parcel_upload_button.setObjectName("uploadButton")
         self.parcel_upload_button.setFixedSize(std_h, std_h)
-        self.parcel_upload_button.setToolTip(
-            "Load parcel file (space-separated values)"
-        )
+        self.parcel_upload_button.setToolTip("Load parcel CSV or PLY file")
         self.parcel_row.addWidget(self.parcel_upload_button)
 
         self.parcel_dropdown = QComboBox()
@@ -983,6 +982,38 @@ class ParcelInputWidget(QFrame):
         opacity_slider_row.addWidget(self.opacity_max_label)
         parcel_controls_layout.addLayout(opacity_slider_row)
 
+        self._probability_controls = QWidget(self._parcel_controls)
+        probability_layout = QVBoxLayout(self._probability_controls)
+        probability_layout.setContentsMargins(0, 0, 0, 0)
+        probability_layout.setSpacing(8)
+        probability_header = QHBoxLayout()
+        self.probability_label = QLabel("Minimum probability")
+        self.probability_label.setObjectName("parcelOpacityLabel")
+        self.probability_value_label = QLabel("0.00")
+        self.probability_value_label.setObjectName("parcelOpacityLabel")
+        probability_header.addWidget(self.probability_label)
+        probability_header.addStretch()
+        probability_header.addWidget(self.probability_value_label)
+        probability_layout.addLayout(probability_header)
+        probability_slider_row = QHBoxLayout()
+        self.probability_min_label = QLabel("0.00")
+        self.probability_min_label.setObjectName("parcelOpacityTickLabel")
+        self.probability_slider = QSlider(Qt.Horizontal)
+        self.probability_slider.setObjectName("parcelOpacitySlider")
+        self.probability_slider.setRange(0, 100)
+        self.probability_slider.setSingleStep(1)
+        self.probability_slider.setPageStep(10)
+        self.probability_slider.setToolTip(
+            "Show parcel points with probability at least the selected value."
+        )
+        self.probability_max_label = QLabel("1.00")
+        self.probability_max_label.setObjectName("parcelOpacityTickLabel")
+        probability_slider_row.addWidget(self.probability_min_label)
+        probability_slider_row.addWidget(self.probability_slider)
+        probability_slider_row.addWidget(self.probability_max_label)
+        probability_layout.addLayout(probability_slider_row)
+        parcel_controls_layout.addWidget(self._probability_controls)
+
         self.main_layout.addWidget(self._parcel_controls)
 
         self.parcel_upload_button.setCursor(Qt.PointingHandCursor)
@@ -992,6 +1023,15 @@ class ParcelInputWidget(QFrame):
             self._on_parcel_dropdown_changed
         )
         self.opacity_slider.valueChanged.connect(self._on_size_changed)
+        self._probability_threshold_debounce = QTimer(self)
+        self._probability_threshold_debounce.setSingleShot(True)
+        self._probability_threshold_debounce.setInterval(150)
+        self._probability_threshold_debounce.timeout.connect(
+            self._emit_probability_threshold
+        )
+        self.probability_slider.valueChanged.connect(
+            self._on_probability_threshold_changed
+        )
 
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(500)
@@ -1043,14 +1083,28 @@ class ParcelInputWidget(QFrame):
         state_manager.parcel_size = value
         self.parcel_size_changed.emit(value)
 
+    def _on_probability_threshold_changed(self, slider_value):
+        """Store the fraction immediately; defer geometry updates until a pause."""
+        threshold = float(slider_value) / 100.0
+        state_manager.parcel_probability_threshold = threshold
+        self.probability_value_label.setText(f"{threshold:.2f}")
+        self._probability_threshold_debounce.start()
+
+    def _emit_probability_threshold(self):
+        """Emit the current shared threshold after the debounce interval."""
+        self.parcel_probability_threshold_changed.emit(
+            float(state_manager.parcel_probability_threshold)
+        )
+
     def _on_parcel_upload_clicked(self):
         """Prompt for a parcel file and add it to the input manager."""
+        self._probability_threshold_debounce.stop()
         file_path = open_file_dialog(
             parent=self,
             title="Select a parcel file",
             file_filter=(
-                "Parcel text / CSV (*.csv *.txt);; "
-                "CSV Files (*.csv);; Text Files (*.txt);; All Files (*.*)"
+                "Parcel Files (*.csv *.ply);;CSV Files (*.csv);;"
+                "PLY Files (*.ply);;All Files (*.*)"
             ),
         )
         if not file_path:
@@ -1067,14 +1121,17 @@ class ParcelInputWidget(QFrame):
         index : int
             Selected dropdown index.
         """
+        self._probability_threshold_debounce.stop()
         if index < 0 or not input_manager.has_parcel:
             return
         input_manager.set_current_parcel(index)
+        self.refresh_parcel_lists()
         self.parcel_changed.emit()
         self._sync_parcel_dropdown_tooltip()
 
     def _on_remove_parcel_clicked(self):
         """Remove the currently selected parcel file."""
+        self._probability_threshold_debounce.stop()
         if not input_manager.has_parcel:
             return
         idx = input_manager.current_parcel_index
@@ -1089,9 +1146,12 @@ class ParcelInputWidget(QFrame):
         parcel_paths = input_manager.provided_parcel_paths
 
         try:
-            _pts, _colors, cur_path, _idx = input_manager.get_current_parcel()
+            (_pts, _colors, _probabilities, cur_path, _idx) = (
+                input_manager.get_current_parcel()
+            )
         except ValueError:
             cur_path = None
+            _probabilities = None
 
         current_items = [
             self.parcel_dropdown.itemData(i, Qt.UserRole)
@@ -1113,6 +1173,12 @@ class ParcelInputWidget(QFrame):
         self.opacity_slider.blockSignals(True)
         self.opacity_slider.setValue(state_manager.parcel_size)
         self.opacity_slider.blockSignals(False)
+        self._probability_controls.setVisible(_probabilities is not None)
+        threshold = state_manager.parcel_probability_threshold
+        self.probability_slider.blockSignals(True)
+        self.probability_slider.setValue(round(threshold * 100))
+        self.probability_slider.blockSignals(False)
+        self.probability_value_label.setText(f"{threshold:.2f}")
 
     def _set_parcel_current_path(self, current_path):
         """Select the dropdown item matching the current parcel path.

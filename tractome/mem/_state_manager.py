@@ -76,6 +76,7 @@ class StateManager:
         self.mesh_visible = True
         self.parcel_size = 100
         self.parcel_visible = True
+        self.parcel_probability_threshold = 0.0
         self.roi_opacity = 80
         self.roi_create_mode = None  # None | "sphere" | "rectangle"
 

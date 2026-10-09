@@ -438,69 +438,198 @@ def read_nifti(file_path):
     return nifti_img, affine
 
 
-def read_csv(file_path, *, delimiter=",", has_header=True, encoding="utf-8"):
-    """Read a CSV file.
+def _parse_parcel_hex(value: str) -> tuple[int, int, int]:
+    value = value.strip()
+    if value.startswith("#"):
+        value = value[1:]
+    if len(value) != 6 or any(char not in "0123456789abcdefABCDEF" for char in value):
+        raise ValueError(f"Invalid parcel HEX color {value!r}: expected six hex digits")
+    return tuple(int(value[start : start + 2], 16) for start in (0, 2, 4))
 
-    Parameters
-    ----------
-    file_path : str
-        The path to the CSV file.
-    delimiter : str, optional
-        The CSV delimiter character.
-    has_header : bool, optional
-        Whether the CSV file contains a header row.
-    encoding : str, optional
-        The file encoding.
 
-    Returns
-    -------
-    points : ndarray
-        First three columns from all loaded CSV rows.
-    colors : ndarray
-        Remaining columns from all loaded CSV rows.
+def read_parcel(
+    file_path: str, *, encoding: str = "utf-8-sig"
+) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
+    """Load parcel vertices, optional RGB colors, and probabilities.
 
-    Raises
-    ------
-    ValueError
-        If ``file_path`` is a directory with no CSV files, or a non-CSV file.
+    CSV supports XYZ with RGB or HEX colors and/or a probability in [0,1].
+    Seven columns always mean XYZ/RGB/probability, not RGBA. PLY faces are
+    ignored; only vertex colors and probability/value are used.
     """
-
     resolved_path = os.path.expanduser(file_path)
-    csv_paths = []
     if os.path.isdir(resolved_path):
-        csv_paths = sorted(
+        paths = sorted(
             os.path.join(resolved_path, name)
             for name in os.listdir(resolved_path)
             if os.path.isfile(os.path.join(resolved_path, name))
-            and name.lower().endswith(".csv")
+            and get_file_extension(name) == ".csv"
         )
-        if not csv_paths:
+        if not paths:
             raise ValueError(f"No CSV files found in directory: {resolved_path}")
-        logging.info(f"Loading CSV files from directory {resolved_path} ...")
-    else:
-        validated_path = validate_path(resolved_path)
-        if not validated_path.lower().endswith(".csv"):
-            raise ValueError(f"File must be a CSV: {validated_path}")
-        csv_paths = [validated_path]
-        logging.info(f"Loading CSV file from {validated_path} ...")
-
-    data_chunks = []
-    for csv_path in csv_paths:
-        with open(csv_path, newline="", encoding=encoding) as csv_file:
-            if has_header:
-                rows = list(csv.DictReader(csv_file, delimiter=delimiter))
-                chunk = np.asarray([[row[key] for key in row] for row in rows])
-            else:
-                chunk = np.asarray(list(csv.reader(csv_file, delimiter=delimiter)))
-            if chunk.size == 0:
+        chunks = []
+        empty_schema = None
+        schema = None
+        for path in paths:
+            chunk = read_parcel(path, encoding=encoding)
+            points, colors, probabilities = chunk
+            if not len(points):
+                if empty_schema is None:
+                    if colors is not None or probabilities is not None:
+                        empty_schema = chunk
+                    else:
+                        # Distinguish a position-only header from a blank file.
+                        with open(path, encoding=encoding) as source:
+                            for line in source:
+                                line = line.split("#", 1)[0].strip()
+                                if line:
+                                    fields = line.split("," if "," in line else None)
+                                    if [s.strip().lower() for s in fields[:3]] == [
+                                        "x",
+                                        "y",
+                                        "z",
+                                    ]:
+                                        empty_schema = chunk
+                                    break
                 continue
-            data_chunks.append(chunk)
+            current_schema = (
+                None if colors is None else colors.shape[1],
+                probabilities is not None,
+            )
+            if schema is not None and current_schema != schema:
+                raise ValueError(f"Inconsistent parcel schema in {path}")
+            schema = current_schema
+            chunks.append(chunk)
+        if not chunks:
+            return (
+                empty_schema
+                if empty_schema is not None
+                else (np.empty((0, 3), dtype=np.float32), None, None)
+            )
+        return tuple(
+            None
+            if chunks[0][i] is None
+            else np.concatenate([chunk[i] for chunk in chunks], axis=0)
+            for i in range(3)
+        )
 
-    if not data_chunks:
-        return np.empty((0, 3)), np.empty((0, 0))
+    path = validate_path(resolved_path)
+    extension = get_file_extension(path)
+    if extension not in (".csv", ".ply"):
+        raise ValueError(f"Unsupported parcel format: {path}")
+    try:
+        if extension == ".ply":
+            poly = px.read(path)
+            points = np.asarray(poly.vertices, dtype=np.float32)
+            attrs = poly.vertex_attrs
+            colors = None
+            if all(channel in attrs for channel in ("red", "green", "blue")):
+                colors = np.column_stack(
+                    [attrs[channel] for channel in ("red", "green", "blue")]
+                )
+            probabilities = None
+            for name in ("probability", "value"):
+                if name in attrs:
+                    probabilities = np.asarray(attrs[name], dtype=np.float32)
+                    break
+        else:
+            rows = []
+            columns = None
+            hex_colors = False
+            with open(path, encoding=encoding) as source:
+                for line in source:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "," in line:
+                        fields = []
+                        for index, field in enumerate(
+                            next(csv.reader([line], skipinitialspace=True))
+                        ):
+                            field = field.strip()
+                            # A leading # in the color field belongs to HEX data.
+                            start = 1 if index == 3 and field.startswith("#") else 0
+                            comment = field.find("#", start)
+                            if comment != -1:
+                                field = field[:comment].strip()
+                                if field:
+                                    fields.append(field)
+                                break
+                            fields.append(field)
+                    else:
+                        fields = line.split("#", 1)[0].split()
+                    if not fields:
+                        continue
+                    if columns is None:
+                        columns = len(fields)
+                        if columns not in (3, 4, 5, 6, 7):
+                            raise ValueError(
+                                f"Invalid parcel column count {columns} in {path}"
+                            )
+                        header = [field.lower() for field in fields[:3]] == [
+                            "x",
+                            "y",
+                            "z",
+                        ]
+                        hex_colors = columns == 5
+                        if columns == 4:
+                            if header:
+                                hex_colors = fields[3].lower() == "hex"
+                            else:
+                                try:
+                                    float(fields[3])
+                                except ValueError:
+                                    hex_colors = True
+                        if header:
+                            continue
+                    if len(fields) != columns or any(not field for field in fields):
+                        raise ValueError(
+                            f"Invalid parcel row: expected {columns} nonempty fields"
+                        )
+                    rows.append(fields)
+            columns = columns if columns is not None else 3
+            points = np.asarray([row[:3] for row in rows], dtype=np.float32).reshape(
+                -1, 3
+            )
+            colors = None
+            if hex_colors:
+                colors = np.asarray(
+                    [_parse_parcel_hex(row[3]) for row in rows], dtype=np.float32
+                ).reshape(-1, 3)
+            elif columns in (6, 7):
+                colors = np.asarray(
+                    [row[3:6] for row in rows], dtype=np.float32
+                ).reshape(-1, 3)
+            probabilities = None
+            if columns in (5, 7) or (columns == 4 and not hex_colors):
+                probabilities = np.asarray([row[-1] for row in rows], dtype=np.float32)
 
-    data = np.concatenate(data_chunks, axis=0)
-    return data[:, :3], data[:, 3:]
+        if points.ndim != 2 or points.shape[1] != 3 or not np.isfinite(points).all():
+            raise ValueError(
+                f"Invalid parcel positions in {path}: expected finite (N,3)"
+            )
+        if colors is not None and (
+            colors.ndim != 2
+            or colors.shape[0] != len(points)
+            or colors.shape[1] not in (3, 4)
+            or not np.isfinite(colors).all()
+            or np.any(colors < 0)
+            or np.any(colors > 255)
+        ):
+            raise ValueError(
+                f"Invalid parcel colors in {path}: expected RGB/RGBA in 0..255"
+            )
+        if probabilities is not None and (
+            probabilities.shape != (len(points),)
+            or not np.isfinite(probabilities).all()
+            or np.any(probabilities < 0)
+            or np.any(probabilities > 1)
+        ):
+            raise ValueError(
+                f"Invalid parcel probabilities in {path}: expected finite [0,1]"
+            )
+        return points, colors, probabilities
+    except Exception as exc:
+        raise ValueError(f"Failed to load parcel {path}: {exc}") from exc
 
 
 def save_tractogram_from_streamlines(

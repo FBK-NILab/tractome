@@ -31,6 +31,48 @@ and labels have a consistent left gutter inside the selection highlight;
 iconless actions remain aligned with the other labels. The ROI constraint-status
 line omits the icon-column indentation.
 
+### Parcel point clouds
+
+Use `tractome --parcel <file.csv-or-ply>` or the PARCELS upload button.
+PLY parcels show individual colored vertex spheres; faces are ignored.
+CSV accepts comma-separated rows and existing whitespace-separated numeric
+rows, with an optional `x,y,z` header (case-insensitive). Column layouts:
+
+- `x,y,z`: white points.
+- `x,y,z,scalar`: white points with probabilities in `[0,1]`.
+- `x,y,z,r,g,b,scalar`: RGB colors and probabilities.
+- `x,y,z,HEX,scalar`: HEX colors and probabilities.
+- `x,y,z,r,g,b`: RGB colors in `[0,255]`.
+- `x,y,z,HEX`: HEX colors.
+
+Seven columns always mean RGB plus probability, never RGBA, regardless of
+header labels. HEX colors in comma-separated CSV contain exactly six hex
+digits, optionally prefixed by `#`; quoted fields and surrounding whitespace
+are accepted. Full-line and trailing `#` comments are supported without
+discarding HEX prefixes.
+
+In four-column files, a fourth header label of `HEX` selects color; any other
+label (such as `value`, `probability`, `scalar`, or `float`) selects probability.
+Without a header, a numeric fourth field selects probability: `000001` means
+probability `1`. Use `#000001` or a `HEX` header for RGB `[0,0,1]`.
+Five-column files unambiguously contain HEX plus probability.
+
+PLY vertex properties `red`, `green`, and `blue` provide RGB colors.
+`probability` (or, if absent, `value`) supplies probabilities independently
+of those colors. No other scalar property is interpreted as a probability.
+Nonfinite coordinates/colors/probabilities, RGB outside `[0,255]`, and
+probabilities outside `[0,1]` are rejected. A CSV directory loads immediate
+`.csv` children in sorted order; nonempty files must have matching optional
+attributes. RGB and HEX files can be combined when probability presence matches.
+
+The **Minimum probability** slider appears only for probability-bearing
+parcels. It keeps points whose probability is at least the selected fraction,
+including equality, without rebuilding the point cloud or moving the camera.
+The threshold is remembered across selections; RGB-only parcels ignore it.
+The existing **Opacity** control adjusts point size, and the eye controls
+visibility. Size and uniform **Colour** changes preserve the probability filter;
+recoloring also retains point positions, size, and hidden/shown state.
+
 **To visualize cluster representation**
 
 You are required to pre-compute the embeddings of the streamlines, use the following command to save a new `.trx` file with embedding. Later you can provide this newly saved file to open the tractogram in the above command.
