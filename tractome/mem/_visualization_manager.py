@@ -891,7 +891,7 @@ class VisualizationManager:
         self._apply_tractogram_states()
 
     def collapse_clusters(self):
-        """Collapse selected clusters."""
+        """Collapse all expanded clusters, regardless of selection."""
         state_manager.collapse_clusters()
         self._apply_tractogram_states()
 

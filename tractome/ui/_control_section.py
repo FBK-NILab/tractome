@@ -427,7 +427,7 @@ class ClustersWidget(QFrame):
             "Hide",
             "Delete",
             "Expand",
-            "Collapse",
+            "Collapse All",
         ):
             action = QAction(action_label, self.btn_settings)
 
@@ -546,7 +546,7 @@ class ClustersWidget(QFrame):
             visualization_manager.expand_clusters()
             self._add_tractogram_visualizations()
             return
-        elif action_name == "Collapse":
+        elif action_name == "Collapse All":
             self._remove_tractogram_visualizations()
             visualization_manager.collapse_clusters()
             self._add_tractogram_visualizations()

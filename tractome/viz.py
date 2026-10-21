@@ -31,7 +31,7 @@ def create_keystroke_card():
         "i : Swap Selection",
         "d: Delete Selection",
         "e: Expand Selection",
-        "c: Collapse Selection",
+        "c: Collapse All",
         "s: Show Selection",
         "h: Hide Selection",
         "x: Toggle this message",
