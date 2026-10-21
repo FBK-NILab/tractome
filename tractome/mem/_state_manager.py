@@ -322,11 +322,11 @@ class StateManager:
             logging.warning("No states available.")
 
     def collapse_clusters(self):
-        """Collapse selected clusters."""
+        """Collapse all expanded clusters, regardless of selection."""
         latest_state = self.get_latest_state()
         if latest_state.tractogram_states is not None:
             for cluster_id in latest_state.tractogram_states:
-                if latest_state.tractogram_states[cluster_id]["selected"]:
+                if latest_state.tractogram_states[cluster_id]["expanded"]:
                     latest_state.tractogram_states[cluster_id]["expanded"] = False
         else:
             logging.warning("No states available.")
