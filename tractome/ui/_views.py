@@ -483,6 +483,7 @@ class InteractionScreen(QWidget):
         visualization_manager.clear_mesh_projection()
         if state_manager.mesh_project:
             self._on_mesh_projection_changed(True)
+        self._center_section.show_manager.render()
 
     def _on_mesh_visibility_changed(self):
         """Re-render after toggling mesh visibility."""
@@ -510,6 +511,7 @@ class InteractionScreen(QWidget):
         if mesh_vis is not None:
             self.add_visualization(mesh_vis, visualization_type="mesh")
         self._right_section.mesh_input_widget.sync_mesh_visibility_button()
+        self._center_section.show_manager.render()
 
     def _refresh_mesh_projection_if_active(self):
         """Rebuild the projection actor from the current tractogram state.

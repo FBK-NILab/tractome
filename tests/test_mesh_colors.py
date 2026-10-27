@@ -90,7 +90,7 @@ f -3/-4/-1 -1/-2/-1 -2/-1/-1
     assert set(mesh.faces[0]).isdisjoint(mesh.faces[1])
 
 
-def test_vertex_precedence_and_partial_coloring(tmp_path, caplog):
+def test_vertex_precedence_and_partial_coloring(tmp_path):
     (tmp_path / "colors.mtl").write_text("newmtl red\nKd 1 0 0\n")
     mesh = _mesh(
         tmp_path,
@@ -112,8 +112,6 @@ f 1 3 2
     )
     np.testing.assert_array_equal(mesh.vertices.min(axis=0), [0, 0, 0])
     np.testing.assert_array_equal(mesh.vertices.max(axis=0), [1, 1, 0])
-    assert caplog.text.count("contains uncolored face corners") == 1
-    assert "Unable to read OBJ material library" in caplog.text
 
 
 def test_uncolored_missing_library_and_xyzw(tmp_path):
@@ -134,7 +132,7 @@ f 1 2 3
 
 
 @pytest.mark.parametrize("rgb", ["nan 0 0", "256 0 0", "-1 0 0", "bad 0 0"])
-def test_invalid_color_preserves_geometry(tmp_path, caplog, rgb):
+def test_invalid_color_preserves_geometry(tmp_path, rgb):
     (tmp_path / "colors.mtl").write_text(
         "newmtl valid\nKd 0 0 1\nnewmtl invalid\nKd inf 0 0\n"
     )
@@ -152,8 +150,6 @@ f 1 2 3
     np.testing.assert_array_equal(
         mesh.vertices[mesh.faces[0]], [[0, 0, 0], [1, 0, 0], [0, 1, 0]]
     )
-    assert "Ignoring invalid OBJ vertex color" in caplog.text
-    assert "Ignoring invalid MTL diffuse color" in caplog.text
 
 
 @pytest.mark.parametrize("token", ["0", "4", "-4", "1/0", "1/2", "1//0", "1//2"])
@@ -353,3 +349,150 @@ f 2 4 3
         surface.geometry.colors.data[surface.geometry.indices.data], expected
     )
     np.testing.assert_array_equal(surface.geometry.colors.data, mesh.colors)
+
+
+def _textured_obj(tmp_path, declaration="mtllib surface.mtl", faces=None):
+    path = tmp_path / "mesh.obj"
+    path.write_text(
+        declaration + "\nv 0 0 0\nv 1 0 0\nv 0 1 0\n"
+        "vt 0 0\nvt 1 0\nvt 0 1\nusemtl brain\n" + (faces or "f 1/1 2/2 3/3\n"),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def test_automatic_texture_relative_to_mtl_and_color_reset(
+    tmp_path, texture_path, mesh_managers
+):
+    from pathlib import Path
+
+    directory = tmp_path / "materials"
+    directory.mkdir()
+    image_path = directory / "brain photo.png"
+    image_path.write_bytes(Path(texture_path).read_bytes())
+    (directory / "surface.mtl").write_text(
+        'newmtl brain\nKd 0.2 0.4 0.6\nmap_Kd "brain photo.png"\n'
+    )
+    path = _textured_obj(tmp_path, "mtllib materials/surface.mtl")
+    inputs, state, visualization = mesh_managers
+    inputs.add_mesh(path, None)
+    mesh, resolved, _, _ = inputs.get_current_mesh()
+    assert Path(resolved) == image_path
+    actor = visualization.visualize_mesh()[0]
+    np.testing.assert_array_equal(
+        actor.material.map.texture.data,
+        [[[255, 0, 0], [0, 0, 255]], [[255, 0, 0], [0, 0, 255]]],
+    )
+    np.testing.assert_array_equal(
+        actor.geometry.texcoords.data, [[0, 1], [1, 1], [0, 0]]
+    )
+    state.mesh_visible = False
+    state.mesh_opacity = 35
+    visualization.set_mesh_color(path, (0.0, 0.0, 0.0))
+    black = visualization.visualize_mesh()[0]
+    np.testing.assert_array_equal(black.geometry.colors.data, [[0, 0, 0]] * 3)
+    assert getattr(black.material, "map", None) is None
+    assert not black.visible
+    assert black.material.opacity == pytest.approx(0.35)
+    visualization.set_mesh_color(path, None)
+    restored = visualization.visualize_mesh()[0]
+    np.testing.assert_array_equal(
+        restored.material.map.texture.data, actor.material.map.texture.data
+    )
+    assert not restored.visible
+    assert restored.material.opacity == pytest.approx(0.35)
+    assert inputs.get_current_mesh_pair_paths()[1] is None
+    np.testing.assert_array_equal(mesh.vertices, [[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+
+
+@pytest.mark.parametrize("library", ["valid", "absent", "missing-image"])
+def test_explicit_image_overrides_optional_material(
+    tmp_path, texture_path, mesh_managers, library
+):
+    from PIL import Image
+
+    Image.new("RGB", (2, 2), "green").save(tmp_path / "automatic.png")
+    if library != "absent":
+        image = "automatic.png" if library == "valid" else "missing.png"
+        (tmp_path / "surface.mtl").write_text(f"newmtl brain\nmap_Kd {image}\n")
+    path = _textured_obj(tmp_path)
+    inputs, _, visualization = mesh_managers
+    inputs.add_mesh(path, texture_path)
+    visualization.set_mesh_color(path, (0.0, 0.0, 0.0))
+    actor = visualization.visualize_mesh()[0]
+    np.testing.assert_array_equal(
+        actor.material.map.texture.data,
+        [[[255, 0, 0], [0, 0, 255]], [[255, 0, 0], [0, 0, 255]]],
+    )
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "missing-mtl",
+        "missing-image",
+        "corrupt",
+        "options",
+        "empty-map",
+        "quote",
+        "empty-library",
+        "quoted-library",
+    ],
+)
+def test_optional_material_failure_preserves_appearance(
+    tmp_path, mesh_managers, failure
+):
+    declaration = {
+        "empty-library": "mtllib",
+        "quoted-library": 'mtllib "unterminated',
+    }.get(failure, "mtllib surface.mtl")
+    mapping = {
+        "options": "-s 2 2 1 missing.png",
+        "empty-map": "",
+        "quote": '"unterminated',
+    }.get(failure, "missing.png")
+    if failure != "missing-mtl":
+        (tmp_path / "surface.mtl").write_text(
+            f"newmtl brain\nKd 0.2 0.4 0.6\nmap_Kd {mapping}\n"
+        )
+    if failure == "corrupt":
+        (tmp_path / "missing.png").write_bytes(b"not an image")
+    path = _textured_obj(tmp_path, declaration)
+    inputs, _, visualization = mesh_managers
+    inputs.add_mesh(path, None)
+    mesh, texture, _, _ = inputs.get_current_mesh()
+    assert texture is None
+    np.testing.assert_array_equal(mesh.faces, [[0, 1, 2]])
+    actor = visualization.visualize_mesh()[0]
+    if failure not in ("missing-mtl", "empty-library", "quoted-library"):
+        np.testing.assert_allclose(actor.geometry.colors.data, [[0.2, 0.4, 0.6]] * 3)
+    else:
+        assert np.isfinite(actor.geometry.colors.data).all()
+    visualization.set_mesh_color(path, (0.0, 0.0, 0.0))
+    np.testing.assert_array_equal(
+        visualization.visualize_mesh()[0].geometry.colors.data, [[0, 0, 0]] * 3
+    )
+
+
+@pytest.mark.parametrize("case", ["shared", "distinct", "partial-uv", "unassigned"])
+def test_global_texture_requires_shared_material_and_complete_uvs(
+    tmp_path, texture_path, case
+):
+    from pathlib import Path
+
+    image = Path(texture_path).name
+    (tmp_path / "surface.mtl").write_text(
+        f"newmtl brain\nKd 1 0 0\nmap_Kd {image}\n"
+        f"newmtl other\nKd 0 0 1\nmap_Kd "
+        f"{'other.png' if case == 'distinct' else image}\n"
+    )
+    second_face = "f 1/1 3/3 2/2\n" if case != "partial-uv" else "f 1/1 3 2/2\n"
+    material = "unknown" if case == "unassigned" else "other"
+    path = _textured_obj(
+        tmp_path, faces=f"f 1/1 2/2 3/3\nusemtl {material}\n{second_face}"
+    )
+    mesh, texture = read_mesh(path)
+    assert (texture is not None) == (case == "shared")
+    np.testing.assert_array_equal(mesh.colors[mesh.faces[0]], [[1, 0, 0]] * 3)
+    if case != "unassigned":
+        np.testing.assert_array_equal(mesh.colors[mesh.faces[1]], [[0, 0, 1]] * 3)

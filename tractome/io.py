@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shlex
 
+from PIL import Image
 from dipy.io.image import load_nifti, save_nifti
 from dipy.io.stateful_tractogram import Space, StatefulTractogram
 from dipy.io.streamline import load_tractogram, save_tractogram as dipy_save_tractogram
@@ -185,19 +186,27 @@ def _extract_texcoords_from_attrs(attrs):
     return None
 
 
-def _read_obj_material_colors(path) -> dict[str, tuple[float, float, float]]:
-    """Read standard diffuse colors; unavailable colors do not invalidate geometry."""
-    colors = {}
+@dataclass(frozen=True)
+class _ObjMaterial:
+    color: tuple[float, float, float] | None = None
+    texture: str | None = None
+
+
+def _read_obj_materials(path) -> dict[str, _ObjMaterial]:
+    """Read optional diffuse appearance without invalidating OBJ geometry."""
+    materials = {}
     material = None
+    with_path = Path(path).parent
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             for line_number, line in enumerate(fh, 1):
-                parts = line.partition("#")[0].split()
+                line = line.partition("#")[0].strip()
+                parts = line.split()
                 if not parts:
                     continue
                 if parts[0] == "newmtl":
                     material = " ".join(parts[1:])
-                    colors.pop(material, None)
+                    materials[material] = _ObjMaterial()
                 elif parts[0] == "Kd":
                     try:
                         rgb = tuple(float(value) for value in parts[1:])
@@ -213,20 +222,44 @@ def _read_obj_material_colors(path) -> dict[str, tuple[float, float, float]]:
                         )
                         continue
                     if material is not None:
-                        colors[material] = rgb
+                        materials[material] = _ObjMaterial(
+                            color=rgb, texture=materials[material].texture
+                        )
+                elif parts[0] == "map_Kd" and material is not None:
+                    filename = line[len("map_Kd") :].strip()
+                    valid = bool(filename) and not filename.startswith("-")
+                    if filename and filename[0] in "\"'":
+                        valid = (
+                            valid and len(filename) >= 2 and filename[-1] == filename[0]
+                        )
+                        filename = filename[1:-1] if valid else ""
+                    elif filename and filename[-1] in "\"'":
+                        valid = False
+                    if not valid or not filename:
+                        logging.warning(
+                            "Ignoring unsupported MTL texture in %s at line %d",
+                            path,
+                            line_number,
+                        )
+                    materials[material] = _ObjMaterial(
+                        color=materials[material].color,
+                        texture=str((with_path / filename).resolve())
+                        if valid and filename
+                        else None,
+                    )
     except OSError as error:
         logging.warning("Unable to read OBJ material library %s: %s", path, error)
-    return colors
+    return materials
 
 
-def _read_obj_mesh(path) -> MeshData:
+def _read_obj_mesh(path) -> tuple[MeshData, str | None]:
     """Decode OBJ face corners, splitting UV, normal and diffuse-color boundaries."""
     positions = []
     vertex_colors = []
     texcoords = []
     normals = []
     faces_raw = []
-    material_colors = {}
+    materials = {}
     material = None
 
     def face_index(value, count, token, line_number):
@@ -272,16 +305,26 @@ def _read_obj_mesh(path) -> MeshData:
             elif directive == "vn":
                 normals.append([float(parts[1]), float(parts[2]), float(parts[3])])
             elif directive == "mtllib":
-                for library in shlex.split(line.split(maxsplit=1)[1], posix=False):
+                try:
+                    libraries = shlex.split(line[len(parts[0]) :].strip(), posix=False)
+                    if not libraries:
+                        raise ValueError("Empty material library declaration")
+                except ValueError as error:
+                    logging.warning(
+                        "Ignoring invalid OBJ material library in %s at line %d: %s",
+                        path,
+                        line_number,
+                        error,
+                    )
+                    continue
+                for library in libraries:
                     if (
                         len(library) >= 2
                         and library[0] == library[-1]
                         and library[0] in "\"'"
                     ):
                         library = library[1:-1]
-                    material_colors.update(
-                        _read_obj_material_colors(Path(path).parent / library)
-                    )
+                    materials.update(_read_obj_materials(Path(path).parent / library))
             elif directive == "usemtl":
                 material = " ".join(parts[1:])
             elif directive == "f":
@@ -325,7 +368,7 @@ def _read_obj_mesh(path) -> MeshData:
             vertices=np.asarray(positions, dtype=np.float32).reshape(-1, 3),
             faces=np.empty((0, 3), dtype=np.int32),
             colors=color_array(vertex_colors),
-        )
+        ), None
 
     unique = {}
     new_pos = []
@@ -334,12 +377,23 @@ def _read_obj_mesh(path) -> MeshData:
     new_colors = []
     tri_faces = []
     complete_normals = True
+    automatic_texture = None
+    complete_texture = True
     for face, face_material in faces_raw:
+        appearance = materials.get(face_material)
+        if len(face) >= 3:
+            candidate = appearance.texture if appearance is not None else None
+            if candidate is None or any(vti is None for _, vti, _ in face):
+                complete_texture = False
+            elif automatic_texture is None:
+                automatic_texture = candidate
+            elif candidate != automatic_texture:
+                complete_texture = False
         indices = []
         for vi, vti, vni in face:
             rgb = vertex_colors[vi]
             if rgb is None:
-                rgb = material_colors.get(face_material)
+                rgb = appearance.color if appearance is not None else None
             key = (vi, vti, vni, rgb)
             if key not in unique:
                 unique[key] = len(new_pos)
@@ -354,7 +408,7 @@ def _read_obj_mesh(path) -> MeshData:
         for i in range(1, len(indices) - 1):
             tri_faces.append([indices[0], indices[i], indices[i + 1]])
 
-    return MeshData(
+    mesh = MeshData(
         vertices=np.asarray(new_pos, dtype=np.float32).reshape(-1, 3),
         faces=np.asarray(tri_faces, dtype=np.int32).reshape(-1, 3),
         normals=(
@@ -367,6 +421,7 @@ def _read_obj_mesh(path) -> MeshData:
         ),
         colors=color_array(new_colors),
     )
+    return mesh, automatic_texture if complete_texture and tri_faces else None
 
 
 def read_mesh(file_path, *, texture=None):
@@ -377,20 +432,21 @@ def read_mesh(file_path, *, texture=None):
     file_path : str
         The path to the mesh file.
     texture : str, optional
-        The path to a texture file, if applicable.
+        Explicit texture path; overrides automatic OBJ material textures.
 
     Returns
     -------
     mesh : MeshData
         The loaded mesh data.
     texture : str or None
-        Validated texture path, or None if no texture was provided.
+        Explicit or discovered texture path, or None if unavailable.
     """
     validated_path = validate_path(file_path)
     logging.info(f"Loading mesh from {validated_path} ...")
 
+    automatic_texture = None
     if validated_path.lower().endswith(".obj"):
-        mesh = _read_obj_mesh(validated_path)
+        mesh, automatic_texture = _read_obj_mesh(validated_path)
     else:
         poly = px.read(validated_path)
         vertices = np.asarray(poly.vertices, dtype=np.float32)
@@ -410,6 +466,19 @@ def read_mesh(file_path, *, texture=None):
     if texture:
         texture = validate_path(texture)
         logging.info(f"Validating texture from {texture} ...")
+    elif automatic_texture:
+        try:
+            candidate = validate_path(automatic_texture)
+            with Image.open(candidate) as image:
+                image.verify()
+        except (OSError, ValueError, Image.DecompressionBombError) as error:
+            logging.warning(
+                "Unable to read OBJ material texture %s: %s",
+                automatic_texture,
+                error,
+            )
+        else:
+            texture = candidate
 
     return mesh, texture
 

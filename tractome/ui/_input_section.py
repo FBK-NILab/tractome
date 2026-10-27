@@ -660,7 +660,7 @@ class MeshInputWidget(QFrame):
         self._sync_mesh_color_actions()
 
     def _sync_mesh_color_actions(self):
-        """Enable uniform styling only for the current untextured mesh."""
+        """Allow colour overrides unless a texture was explicitly selected."""
         try:
             mesh_path, texture_path = input_manager.get_current_mesh_pair_paths()
         except ValueError:
@@ -668,13 +668,17 @@ class MeshInputWidget(QFrame):
         eligible = mesh_path is not None and not texture_path
         color_action = self._mesh_menu_actions["Colour"]
         color_action.setEnabled(eligible)
-        color_action.setToolTip("Colour is available only without a texture.")
+        color_action.setToolTip(
+            "Colour overrides automatic materials; unavailable while a texture "
+            "is explicitly selected."
+        )
         reset_action = self._mesh_menu_actions["Reset colour"]
         reset_action.setEnabled(
             eligible and visualization_manager.get_mesh_color(mesh_path) is not None
         )
         reset_action.setToolTip(
-            "Restore file colours, or the generated colour if the file has none."
+            "Restore automatic file appearance, or the generated colour if none "
+            "is available."
         )
 
     def _on_mesh_color_clicked(self):
