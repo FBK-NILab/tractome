@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from fury import actor
+from fury import actor, colormap
 
 
 def create_keystroke_card():
@@ -189,6 +189,29 @@ def create_streamlines_projection(streamlines, colors, slice_values):
         projection.material.size_space = "world"
     actor.show_slices(obj, slice_values)
     return obj
+
+
+def streamline_direction_colors(streamlines):
+    """Return one end-to-end orientation RGB per streamline.
+
+    Parameters
+    ----------
+    streamlines : sequence of ndarray
+        Streamlines, each of shape (P, 3).
+
+    Returns
+    -------
+    ndarray, shape (N, 3), float32
+        ``fury.colormap.line_colors`` colors in [0, 1]. Streamlines whose
+        start and end coincide (undefined orientation) are gray (0.5, 0.5, 0.5).
+    """
+    if len(streamlines) == 0:
+        return np.empty((0, 3), dtype=np.float32)
+    colors = colormap.line_colors([np.asarray(s) for s in streamlines]).astype(
+        np.float32
+    )
+    colors[~np.isfinite(colors).all(axis=1)] = 0.5
+    return colors
 
 
 def create_streamlines(streamlines, color):

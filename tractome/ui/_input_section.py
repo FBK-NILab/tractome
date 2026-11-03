@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QWidgetAction,
 )
+import numpy as np
 
 from tractome.mem import input_manager, state_manager, visualization_manager
 from tractome.ui._paths import ICONS_PATH
@@ -1651,9 +1652,11 @@ class TracksWidget(QFrame):
     """Right-side panel listing captured tracks.
 
     The widget shows a single ``Track Default`` header at all times.
-    Each capture appends a row with a color bar, a checkbox (used to
-    isolate that track in the scene), and a 3-dot menu (Save / Colour /
-    Delete).
+    Each capture appends a row with a color bar (gray while the track uses
+    direction colors, otherwise the override color picked from the menu), a
+    checkbox (used to isolate that track in the scene), and a 3-dot menu
+    (Save / Colour / Reset colour / Delete). Reset colour drops the override
+    and returns the track to direction colors.
     """
 
     track_visibility_changed = Signal()
@@ -1693,7 +1696,7 @@ class TracksWidget(QFrame):
         self._tracks = []
         self._row_widgets = []
 
-    def add_track(self, *, streamline_ids, color, name=None):
+    def add_track(self, *, streamline_ids, direction_colors, name=None):
         """Append a captured track and build its row.
 
         Parameters
@@ -1701,9 +1704,10 @@ class TracksWidget(QFrame):
         streamline_ids : list[int]
             Indices into the current SFT streamlines to associate with
             this track.
-        color : tuple[float, float, float]
-            RGB (0-1) color used to paint every streamline in this track
-            uniformly when the track is isolated.
+        direction_colors : ndarray, shape (len(streamline_ids), 3)
+            Per-streamline RGB (0-1) end-to-end direction colors; row ``i``
+            belongs to ``streamline_ids[i]``. The track starts out colored
+            by these until the user picks an override color.
         name : str, optional
             Display name. Auto-numbered when omitted.
         """
@@ -1714,7 +1718,8 @@ class TracksWidget(QFrame):
             {
                 "name": name,
                 "streamline_ids": [int(i) for i in streamline_ids],
-                "color": tuple(float(c) for c in color),
+                "direction_colors": np.asarray(direction_colors, dtype=np.float32),
+                "color": None,
                 "visible": False,
                 "actor": None,
             }
@@ -1752,8 +1757,11 @@ class TracksWidget(QFrame):
         color_bar = QFrame()
         color_bar.setObjectName("trackRowBar")
         color_bar.setFixedSize(4, 18)
-        r, g, b = (int(round(c * 255)) for c in track["color"])
-        color_bar.setStyleSheet(f"background-color: rgb({r}, {g}, {b});")
+        if track["color"] is None:
+            color_bar.setStyleSheet("background-color: rgb(128, 128, 128);")
+        else:
+            r, g, b = (int(round(c * 255)) for c in track["color"])
+            color_bar.setStyleSheet(f"background-color: rgb({r}, {g}, {b});")
         row_layout.insertWidget(1, color_bar)
 
         menu_button, _menu_actions = _make_popup_menu_button(
@@ -1764,6 +1772,11 @@ class TracksWidget(QFrame):
                     "Colour",
                     "color.svg",
                     lambda w=row_widget: self._on_pick_track_color(w),
+                ),
+                (
+                    "Reset colour",
+                    "color.svg",
+                    lambda w=row_widget: self._on_reset_track_color(w),
                 ),
                 ("Delete", "close.svg", lambda w=row_widget: self._emit_remove(w)),
             ],
@@ -1871,6 +1884,23 @@ class TracksWidget(QFrame):
         r, g, b = (int(round(c * 255)) for c in rgb)
         self._row_widgets[index]["color_bar"].setStyleSheet(
             f"background-color: rgb({r}, {g}, {b});"
+        )
+        self.track_color_changed.emit(index)
+
+    def _on_reset_track_color(self, row_widget):
+        """Drop a track's override color and return to direction colors.
+
+        Parameters
+        ----------
+        row_widget : QWidget
+            Row widget whose Reset colour action was triggered.
+        """
+        index = self._row_index(row_widget)
+        if index < 0 or self._tracks[index]["color"] is None:
+            return
+        self._tracks[index]["color"] = None
+        self._row_widgets[index]["color_bar"].setStyleSheet(
+            "background-color: rgb(128, 128, 128);"
         )
         self.track_color_changed.emit(index)
 
