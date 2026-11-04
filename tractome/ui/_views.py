@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
 from dipy.io.stateful_tractogram import Space, StatefulTractogram
 import numpy as np
 
-from fury import distinguishable_colormap
 from tractome.io import get_embedding_keys, save_roi, save_tractogram
 from tractome.mem import input_manager, state_manager, visualization_manager
 from tractome.ui._control_section import LeftSectionWidget
@@ -33,8 +32,22 @@ from tractome.viz import (
     create_streamlines,
     rasterize_box,
     rasterize_sphere,
+    streamline_direction_colors,
     streamlines_to_mask,
 )
+
+
+def _track_line_colors(track):
+    """Return (N, 3) float32 colors aligned with ``track["streamline_ids"]``.
+
+    Direction colors unless the user picked a uniform override color.
+    """
+    if track["color"] is None:
+        return track["direction_colors"]
+    return np.tile(
+        np.asarray(track["color"], dtype=np.float32),
+        (len(track["streamline_ids"]), 1),
+    )
 
 
 def _strip_track_extension(path):
@@ -220,9 +233,6 @@ class InteractionScreen(QWidget):
             self._on_tractogram_changed
         )
 
-        # Per-track color generator: each captured view gets the next
-        # distinguishable color so neighbouring tracks don't collide.
-        self._track_color_gen = distinguishable_colormap()
         self._right_section.image_input_widget.t1_changed.connect(self._on_t1_changed)
         self._right_section.image_input_widget.t1_visibility_changed.connect(
             self._on_t1_visibility_changed
@@ -618,8 +628,8 @@ class InteractionScreen(QWidget):
         for track in self._right_section.tracks_widget.iter_tracks():
             if not track["visible"]:
                 continue
-            color = track["color"]
-            for sid in track["streamline_ids"]:
+            colors = _track_line_colors(track)
+            for sid, color in zip(track["streamline_ids"], colors, strict=True):
                 streamline_colors[int(sid)] = color
         return streamline_colors or None
 
@@ -1061,7 +1071,7 @@ class InteractionScreen(QWidget):
         Captures the streamlines from every expanded cluster — i.e. the
         individual streamlines currently rendered as lines in the scene.
         A new track row is appended to the Tracks panel on the right
-        with a uniform per-view color. If no cluster is expanded,
+        colored per streamline by direction. If no cluster is expanded,
         prompts the user to expand one first.
         """
         if state_manager.view_mode == "2D":
@@ -1079,9 +1089,14 @@ class InteractionScreen(QWidget):
         if not streamline_ids:
             self._show_capture_empty_warning()
             return
-        color = tuple(float(c) for c in next(self._track_color_gen))
+        if not input_manager.has_tractogram:
+            return
+        sft, _, _, _ = input_manager.get_current_tractogram()
+        direction_colors = streamline_direction_colors(
+            [sft.streamlines[i] for i in streamline_ids]
+        )
         self._right_section.tracks_widget.add_track(
-            streamline_ids=streamline_ids, color=color
+            streamline_ids=streamline_ids, direction_colors=direction_colors
         )
 
     def _on_recovery_requested(self, budget):
@@ -1230,11 +1245,12 @@ class InteractionScreen(QWidget):
             self.add_visualization(tractogram_viz, visualization_type="tractogram")
 
     def _apply_track_isolation(self):
-        """Swap between cluster view and uniform-color tract view actors.
+        """Swap between cluster view and per-track tract view actors.
 
         While any track is active, all cluster actors are hidden and
-        each visible track gets its own lines actor painted uniformly
-        in the track's color. When no track is active the track actors
+        each visible track gets its own lines actor colored by
+        direction, or by the track's override color if one was picked.
+        When no track is active the track actors
         are removed and per-cluster visibility is restored from each
         cluster's stored ``visible`` flag.
         """
@@ -1269,7 +1285,7 @@ class InteractionScreen(QWidget):
                 actor.visible = False
 
     def _build_track_actor(self, track):
-        """Build a uniform-color streamlines actor for a captured track.
+        """Build a streamlines actor colored by direction or by the track's override.
 
         Parameters
         ----------
@@ -1287,8 +1303,7 @@ class InteractionScreen(QWidget):
         streamlines = [sft.streamlines[i] for i in track["streamline_ids"]]
         if not streamlines:
             return None
-        color = np.asarray(track["color"], dtype=np.float32)
-        return create_streamlines(streamlines, color)
+        return create_streamlines(streamlines, _track_line_colors(track))
 
     def _on_track_color_changed(self, index):
         """Rebuild a captured track's actor after its color changes.
