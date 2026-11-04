@@ -299,14 +299,15 @@ class VisualizationManager:
             return None
 
         mesh_obj, texture_path, mesh_path, _ = input_manager.get_current_mesh()
-        color = None
-        if not texture_path:
-            color = self.get_mesh_color(mesh_path)
-            if color is None and mesh_obj.colors is None:
-                color = self._mesh_colors.get(mesh_path)
-                if color is None:
-                    color = next(self._roi_colormap)
-                    self._mesh_colors[mesh_path] = color
+        _, explicit_texture = input_manager.get_current_mesh_pair_paths()
+        color = self.get_mesh_color(mesh_path) if not explicit_texture else None
+        if color is not None:
+            texture_path = None
+        if not texture_path and color is None and mesh_obj.colors is None:
+            color = self._mesh_colors.get(mesh_path)
+            if color is None:
+                color = next(self._roi_colormap)
+                self._mesh_colors[mesh_path] = color
         mesh_actor = create_mesh(
             mesh_obj,
             texture=texture_path,
