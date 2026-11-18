@@ -13,18 +13,23 @@ import numpy as np
 import pylinalg as la
 
 from fury import actor, window
+from fury.actor import Group, create_axes_helper
 from fury.lib import (
     DirectionalLight,
     Event,
+    EventType,
     OrthographicCamera,
     PanZoomController,
     PerspectiveCamera,
     TrackballController,
 )
+from fury.window import update_camera
 from tractome.mem import state_manager, visualization_manager
 
 # Axis endpoint colors for the orientation gizmo, matched to the Tractome
-# logo palette (order: -X, +X, -Y, +Y, -Z, +Z).
+# logo palette. Order is create_axes_helper's local disk order
+# [-X, +X, -Y, +Y, -Z, +Z]; the Z pair shares one color, so the local-z
+# mirror applied to the gizmo group does not change colors.
 _GIZMO_AXIS_COLORS = [
     (1.0, 0.518, 0.208),  # -X orange
     (1.0, 0.518, 0.208),  # +X orange
@@ -33,6 +38,11 @@ _GIZMO_AXIS_COLORS = [
     (0.561, 0.259, 0.929),  # -Z purple
     (0.561, 0.259, 0.929),  # +Z purple
 ]
+# Labels in create_axes_helper's local disk order [-X, +X, -Y, +Y, -Z, +Z].
+# The gizmo group mirrors local z (screen-coords camera depth points into the
+# screen), so the local -Z disk shows world +Z (Superior) in RAS space.
+_GIZMO_AXIS_LABELS = ("L", "R", "P", "A", "S", "I")
+_GIZMO_SYNC_CALLBACK = "tractome_axes_gizmo_sync"
 
 
 class _ViewPreservingShowManager(window.ShowManager):
@@ -141,37 +151,114 @@ class CenterSectionWidget(QFrame):
         self._build_keystroke_card(layout)
 
         self._axes_gizmo_margin = 60
-        self._show_axes_gizmo_with_logo_colors(size=30, thickness=2)
+        self._build_axes_gizmo(size=30, thickness=2)
         # The wgpu canvas reports its own resize before Qt's
         # CenterSectionWidget.resizeEvent fires, so listen on both.
         self.show_manager.resize_callback(self._on_canvas_resize)
         QTimer.singleShot(0, self._reposition_axes_gizmo)
 
-    def _show_axes_gizmo_with_logo_colors(self, **kwargs):
-        """Show the axes gizmo colored to match the Tractome logo palette.
+    def _build_axes_gizmo(self, *, size, thickness):
+        """Build the anatomical orientation gizmo in the 3D scene's UI layer.
 
-        ``ShowManager.show_axes_gizmo`` builds its actors through
-        ``fury.window.create_axes_helper`` but does not forward a
-        ``colors`` argument, so the palette cannot be customized through
-        its public API. The creator is temporarily wrapped to inject the
-        logo colors for the duration of this single call; anchoring,
-        camera-relative rotation, click-to-orient, and depth-based
-        opacity remain unmodified fury behavior.
+        Clicking a label snaps the 3D camera to that anatomical side.
+        ``parts["axis_vectors"]`` are the world directions of each disk
+        (``[-X, +X, -Y, +Y, +Z, -Z]``), which is why they, not the disk
+        local positions, are the snap directions.
 
         Parameters
         ----------
-        **kwargs
-            Forwarded to ``ShowManager.show_axes_gizmo`` (e.g. ``size``,
-            ``thickness``).
+        size : float
+            Gizmo scale in pixels.
+        thickness : float
+            Axis line thickness.
         """
-        original_create_axes_helper = window.create_axes_helper
-        window.create_axes_helper = functools.partial(
-            original_create_axes_helper, colors=_GIZMO_AXIS_COLORS
+        parts = create_axes_helper(
+            labels=list(_GIZMO_AXIS_LABELS),
+            colors=_GIZMO_AXIS_COLORS,
+            thickness=thickness,
         )
-        try:
-            self.show_manager.show_axes_gizmo(**kwargs)
-        finally:
-            window.create_axes_helper = original_create_axes_helper
+        anchor = Group(name="Tractome Axes Gizmo")
+        margin = self._axes_gizmo_margin
+        anchor.local.position = [margin, margin, 0.5]
+        anchor.local.scale = [size, size, 0.45]
+        anchor.add(parts["group"])
+        for disk, label, direction in zip(
+            parts["disks"], parts["labels"], parts["axis_vectors"], strict=True
+        ):
+            handler = functools.partial(
+                self._on_axes_gizmo_pointer_down, direction=direction
+            )
+            disk.add_event_handler(handler, EventType.POINTER_DOWN)
+            label.add_event_handler(handler, EventType.POINTER_DOWN)
+        self._3D_scene.ui_scene.add(anchor)
+        self._axes_gizmo_parts = parts
+        self._axes_gizmo_anchor = anchor
+        self._sync_axes_gizmo()
+        self.show_manager.register_callback(
+            self._sync_axes_gizmo, 0.016, True, _GIZMO_SYNC_CALLBACK
+        )
+
+    def _sync_axes_gizmo(self):
+        """Set the gizmo orientation statelessly from the 3D camera rotation.
+
+        Invariant: group rotation = z-mirror * inverse(camera rotation) *
+        z-mirror = ``(x, y, -z, w)``, so a world axis appears in the gizmo
+        where it appears in the 3D view. Disks and labels get the inverse
+        ``(-x, -y, z, w)`` to face the screen; axes pointing away from the
+        viewer fade to 0.1 opacity.
+        """
+        parts = self._axes_gizmo_parts
+        camera = self._3D_camera
+        x, y, z, w = camera.world.rotation
+        parts["group"].local.rotation = np.array([x, y, -z, w], dtype=np.float32)
+        billboard = np.array([-x, -y, z, w], dtype=np.float32)
+        parts["center_disk"].local.rotation = billboard
+        for disk, label in zip(parts["disks"], parts["labels"], strict=True):
+            disk.local.rotation = billboard
+            label.local.rotation = billboard
+        depths = [float(np.dot(camera.world.forward, d)) for d in parts["axis_vectors"]]
+        front = min(depths)
+        span = max(max(depths) - front, 1e-6)
+        for depth, disk, label, line in zip(
+            depths, parts["disks"], parts["labels"], parts["lines"], strict=True
+        ):
+            opacity = 1.0 - (depth - front) / span * 0.9
+            disk.opacity = opacity
+            label.opacity = opacity
+            line.opacity = opacity
+
+    def _snap_3d_camera_to_axis(self, direction):
+        """Snap the 3D camera to look at the scene from ``direction``.
+
+        Superior is up for L/R/A/P views, anterior is up for S/I views.
+
+        Parameters
+        ----------
+        direction : array-like
+            World direction from the scene center toward the camera.
+        """
+        # Copy: never mutate parts["axis_vectors"].
+        direction = np.array(direction, dtype=np.float32)
+        direction /= np.linalg.norm(direction)
+        camera = self._3D_camera
+        bbox = self._3D_scene.main_scene.get_world_bounding_box()
+        if bbox is not None and np.all(np.isfinite(bbox)):
+            target = bbox.mean(axis=0)
+        else:
+            target = camera.world.position + camera.world.forward
+        distance = max(float(np.linalg.norm(camera.world.position - target)), 1.0)
+        up = (0, 1, 0) if abs(direction[2]) > 0.9 else (0, 0, 1)
+        camera.world.reference_up = up
+        camera.world.position = target + direction * distance
+        camera.look_at(target)
+        update_camera(camera, None, self._3D_scene)
+
+    def _on_axes_gizmo_pointer_down(self, event, *, direction):
+        """Snap the 3D camera to the clicked gizmo label's anatomical side."""
+        event.stop_propagation()
+        self._snap_3d_camera_to_axis(direction)
+        self._sync_axes_gizmo()
+        self.show_manager.render()
 
     def _build_display_info_overlay(self, parent_layout):
         """Create display info overlay inside the visualization area.
@@ -314,9 +401,7 @@ class CenterSectionWidget(QFrame):
         size : tuple[int, int]
             New canvas width and height.
         """
-        anchor = getattr(self.show_manager, "_axes_helper_anchor", None)
-        if anchor is None:
-            return
+        anchor = self._axes_gizmo_anchor
         try:
             width, _height = size
         except (TypeError, ValueError):
@@ -328,14 +413,12 @@ class CenterSectionWidget(QFrame):
     def _reposition_axes_gizmo(self):
         """Move the axes-gizmo anchor to the bottom-right of the viewport.
 
-        Fury anchors the helper at ``(60, 60)`` from the bottom-left by
-        default; we keep the same vertical inset and mirror the horizontal
-        one so the gizmo sticks to the bottom-right corner regardless of
-        canvas size.
+        The gizmo is created at ``(margin, margin)`` from the bottom-left;
+        we keep the same vertical inset and mirror the horizontal one so
+        the gizmo sticks to the bottom-right corner regardless of canvas
+        size.
         """
-        anchor = getattr(self.show_manager, "_axes_helper_anchor", None)
-        if anchor is None:
-            return
+        anchor = self._axes_gizmo_anchor
         screens = getattr(self.show_manager, "screens", None)
         if not screens:
             return
