@@ -231,6 +231,8 @@ class CenterSectionWidget(QFrame):
         """Snap the 3D camera to look at the scene from ``direction``.
 
         Superior is up for L/R/A/P views, anterior is up for S/I views.
+        If the camera already looks from ``direction``, it flips to the
+        opposite side (e.g. clicking S while viewing from above shows I).
 
         Parameters
         ----------
@@ -241,6 +243,8 @@ class CenterSectionWidget(QFrame):
         direction = np.array(direction, dtype=np.float32)
         direction /= np.linalg.norm(direction)
         camera = self._3D_camera
+        if float(np.dot(-np.asarray(camera.world.forward), direction)) > 0.999:
+            direction = -direction
         bbox = self._3D_scene.main_scene.get_world_bounding_box()
         if bbox is not None and np.all(np.isfinite(bbox)):
             target = bbox.mean(axis=0)
