@@ -85,6 +85,7 @@ class CenterSectionWidget(QFrame):
         self._2D_scene.add(DirectionalLight())
         self._2D_camera = OrthographicCamera()
         self._2D_controller = PanZoomController(self._2D_camera)
+        self._2D_view_flipped = [False, False, False]
 
         self.show_manager = _ViewPreservingShowManager(
             scene=self._3D_scene,
@@ -304,6 +305,14 @@ class CenterSectionWidget(QFrame):
             thickness=thickness,
             outline_thickness=0,
         )
+        for disk, label, direction in zip(
+            parts["disks"], parts["labels"], parts["axis_vectors"], strict=True
+        ):
+            handler = functools.partial(
+                self._on_orientation_square_pointer_down, direction=direction
+            )
+            disk.add_event_handler(handler, EventType.POINTER_DOWN)
+            label.add_event_handler(handler, EventType.POINTER_DOWN)
         parts["group"].add(outline)
         anchor = Group(name="Tractome Orientation Square")
         margin = self._axes_gizmo_margin
@@ -343,6 +352,25 @@ class CenterSectionWidget(QFrame):
             label.visible = True
             disk.local.position = position
             label.local.position = position
+
+    def _on_orientation_square_pointer_down(self, event, *, direction):
+        """Flip the 2D view to the opposite side when the center label is clicked.
+
+        Only the label inside the square (the side currently viewed) acts;
+        edge labels are inert. The flip is remembered per slice axis.
+        """
+        event.stop_propagation()
+        camera = self._2D_camera
+        toward_viewer = np.cross(
+            np.asarray(camera.world.right, dtype=np.float64),
+            np.asarray(camera.world.up, dtype=np.float64),
+        )
+        if np.dot(direction, toward_viewer) <= 0.5:
+            return
+        axis = int(np.argmax(np.abs(direction)))
+        self._2D_view_flipped[axis] = not self._2D_view_flipped[axis]
+        self.orient_2d_camera_to_active_slice()
+        self.show_manager.render()
 
     def _build_display_info_overlay(self, parent_layout):
         """Create display info overlay inside the visualization area.
@@ -651,6 +679,10 @@ class CenterSectionWidget(QFrame):
         basis and the slice renders off-frame / edge-on. The convention
         used here matches a standard slice viewer: axial (Z) views use
         +Y as up, sagittal (X) and coronal (Y) views use +Z.
+
+        The camera looks from the +axis side by default; clicking the
+        orientation square's center label flips the current axis to look
+        from the -axis side (``_2D_view_flipped``).
         """
         t1_actor = self._2D_scene_t1_actor()
         if t1_actor is None:
@@ -659,7 +691,8 @@ class CenterSectionWidget(QFrame):
         if not np.any(visibility):
             return
         active_axis = int(np.argmax(visibility))
-        view_direction = tuple((-1 * visibility).tolist())
+        view_sign = 1 if self._2D_view_flipped[active_axis] else -1
+        view_direction = tuple((view_sign * visibility).tolist())
         up = (0.0, 1.0, 0.0) if active_axis == 2 else (0.0, 0.0, 1.0)
         self._2D_camera.show_object(t1_actor, view_direction, up=up)
         self._sync_orientation_square()
