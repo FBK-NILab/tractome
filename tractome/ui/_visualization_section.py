@@ -152,6 +152,7 @@ class CenterSectionWidget(QFrame):
 
         self._axes_gizmo_margin = 60
         self._build_axes_gizmo(size=30, thickness=2)
+        self._build_orientation_square(size=30, thickness=2)
         # The wgpu canvas reports its own resize before Qt's
         # CenterSectionWidget.resizeEvent fires, so listen on both.
         self.show_manager.resize_callback(self._on_canvas_resize)
@@ -263,6 +264,78 @@ class CenterSectionWidget(QFrame):
         self._snap_3d_camera_to_axis(direction)
         self._sync_axes_gizmo()
         self.show_manager.render()
+
+    def _build_orientation_square(self, *, size, thickness):
+        """Build the 2D view's orientation square in the 2D scene's UI layer.
+
+        Reuses ``create_axes_helper`` so letters, colors and disk style match
+        the 3D gizmo; only the disks and labels are kept, around a gray
+        square outline.
+
+        Parameters
+        ----------
+        size : float
+            Square scale in pixels.
+        thickness : float
+            Outline thickness.
+        """
+        parts = create_axes_helper(
+            labels=list(_GIZMO_AXIS_LABELS),
+            colors=_GIZMO_AXIS_COLORS,
+            thickness=thickness,
+        )
+        parts["center_disk"].visible = False
+        for line in parts["lines"]:
+            line.visible = False
+        half = 0.62
+        corners = np.array(
+            [
+                [-half, -half, 0],
+                [half, -half, 0],
+                [half, half, 0],
+                [-half, half, 0],
+                [-half, -half, 0],
+            ],
+            dtype=np.float32,
+        )
+        outline = actor.streamlines(
+            [corners],
+            colors=[(0.5, 0.5, 0.5)],
+            thickness=thickness,
+            outline_thickness=0,
+        )
+        parts["group"].add(outline)
+        anchor = Group(name="Tractome Orientation Square")
+        margin = self._axes_gizmo_margin
+        anchor.local.position = [margin, margin, 0.5]
+        anchor.local.scale = [size, size, 0.45]
+        anchor.add(parts["group"])
+        self._2D_scene.ui_scene.add(anchor)
+        self._orientation_square_parts = parts
+        self._orientation_square_anchor = anchor
+        self._sync_orientation_square()
+
+    def _sync_orientation_square(self):
+        """Place each label on the screen side its world direction points to.
+
+        Labels sit at the edge midpoint of the side given by the 2D camera's
+        screen right/up; the two labels along the view axis are hidden.
+        """
+        parts = self._orientation_square_parts
+        camera = self._2D_camera
+        right = np.asarray(camera.world.right, dtype=np.float64)
+        up = np.asarray(camera.world.up, dtype=np.float64)
+        for disk, label, direction in zip(
+            parts["disks"], parts["labels"], parts["axis_vectors"], strict=True
+        ):
+            screen = np.array([np.dot(direction, right), np.dot(direction, up)])
+            visible = bool(np.max(np.abs(screen)) > 0.5)
+            disk.visible = visible
+            label.visible = visible
+            if visible:
+                position = [float(np.round(screen[0])), float(np.round(screen[1])), 0.0]
+                disk.local.position = position
+                label.local.position = position
 
     def _build_display_info_overlay(self, parent_layout):
         """Create display info overlay inside the visualization area.
@@ -377,7 +450,7 @@ class CenterSectionWidget(QFrame):
         self.show_manager.render()
 
     def resizeEvent(self, event):
-        """Re-pin the axes gizmo to the bottom-right after a canvas resize."""
+        """Re-pin the axes gizmo and orientation square to the bottom-right."""
         super().resizeEvent(event)
         self._reposition_axes_gizmo()
 
@@ -405,24 +478,23 @@ class CenterSectionWidget(QFrame):
         size : tuple[int, int]
             New canvas width and height.
         """
-        anchor = self._axes_gizmo_anchor
         try:
             width, _height = size
         except (TypeError, ValueError):
             return
         margin = self._axes_gizmo_margin
-        anchor.local.position = [max(int(width) - margin, margin), margin, 0.5]
+        position = [max(int(width) - margin, margin), margin, 0.5]
+        for anchor in (self._axes_gizmo_anchor, self._orientation_square_anchor):
+            anchor.local.position = position
         self.show_manager.render()
 
     def _reposition_axes_gizmo(self):
-        """Move the axes-gizmo anchor to the bottom-right of the viewport.
+        """Move the axes gizmo and orientation square to the bottom-right.
 
-        The gizmo is created at ``(margin, margin)`` from the bottom-left;
-        we keep the same vertical inset and mirror the horizontal one so
-        the gizmo sticks to the bottom-right corner regardless of canvas
-        size.
+        Both are created at ``(margin, margin)`` from the bottom-left; we
+        keep the same vertical inset and mirror the horizontal one so they
+        stick to the bottom-right corner regardless of canvas size.
         """
-        anchor = self._axes_gizmo_anchor
         screens = getattr(self.show_manager, "screens", None)
         if not screens:
             return
@@ -431,7 +503,9 @@ class CenterSectionWidget(QFrame):
         except Exception:
             return
         margin = self._axes_gizmo_margin
-        anchor.local.position = [max(int(width) - margin, margin), margin, 0.5]
+        position = [max(int(width) - margin, margin), margin, 0.5]
+        for anchor in (self._axes_gizmo_anchor, self._orientation_square_anchor):
+            anchor.local.position = position
         self.show_manager.render()
 
     def toggle_display_info(self):
@@ -581,6 +655,7 @@ class CenterSectionWidget(QFrame):
         view_direction = tuple((-1 * visibility).tolist())
         up = (0.0, 1.0, 0.0) if active_axis == 2 else (0.0, 0.0, 1.0)
         self._2D_camera.show_object(t1_actor, view_direction, up=up)
+        self._sync_orientation_square()
 
     def refresh_overlays(self):
         """Public hook to re-raise/repaint the overlays after a render.
