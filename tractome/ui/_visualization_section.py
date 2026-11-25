@@ -318,24 +318,31 @@ class CenterSectionWidget(QFrame):
     def _sync_orientation_square(self):
         """Place each label on the screen side its world direction points to.
 
-        Labels sit at the edge midpoint of the side given by the 2D camera's
-        screen right/up; the two labels along the view axis are hidden.
+        In-plane labels sit at the edge midpoint of the side given by the 2D
+        camera's screen right/up. The label of the side the camera looks from
+        sits inside the square; the opposite one is hidden.
         """
         parts = self._orientation_square_parts
         camera = self._2D_camera
         right = np.asarray(camera.world.right, dtype=np.float64)
         up = np.asarray(camera.world.up, dtype=np.float64)
+        toward_viewer = np.cross(right, up)
         for disk, label, direction in zip(
             parts["disks"], parts["labels"], parts["axis_vectors"], strict=True
         ):
             screen = np.array([np.dot(direction, right), np.dot(direction, up)])
-            visible = bool(np.max(np.abs(screen)) > 0.5)
-            disk.visible = visible
-            label.visible = visible
-            if visible:
+            if np.max(np.abs(screen)) > 0.5:
                 position = [float(np.round(screen[0])), float(np.round(screen[1])), 0.0]
-                disk.local.position = position
-                label.local.position = position
+            elif np.dot(direction, toward_viewer) > 0.5:
+                position = [0.0, 0.0, 0.0]
+            else:
+                disk.visible = False
+                label.visible = False
+                continue
+            disk.visible = True
+            label.visible = True
+            disk.local.position = position
+            label.local.position = position
 
     def _build_display_info_overlay(self, parent_layout):
         """Create display info overlay inside the visualization area.
